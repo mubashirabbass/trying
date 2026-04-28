@@ -21,11 +21,16 @@ export function MainLayout({ children }: { children: ReactNode }) {
         </svg>
       </a>
 
-      <footer className="bg-gray-900 text-gray-300 py-12 border-t border-gray-800 mt-auto">
+      <footer className="bg-[#0b1e4a] text-gray-300 py-14 border-t border-[#1a3570] mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="space-y-4">
-              <h3 className="text-xl font-bold text-white">Global College LMS</h3>
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+                  <span className="text-white text-sm font-bold">GC</span>
+                </div>
+                Global College
+              </h3>
               <p className="text-sm text-gray-400">
                 Empowering students with world-class education in IT, Graphics, and AI.
               </p>

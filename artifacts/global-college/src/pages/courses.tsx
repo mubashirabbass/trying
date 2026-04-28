@@ -5,8 +5,18 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { useListCourses, getListCoursesQueryKey } from "@workspace/api-client-react";
 import { useState } from "react";
 import { Link } from "wouter";
-import { Loader2, Search, Clock, GraduationCap, DollarSign } from "lucide-react";
+import { Loader2, Search, Clock, GraduationCap, DollarSign, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+
+const CATEGORY_GRADIENTS: Record<string, string> = {
+  IT: "from-blue-600 to-blue-400",
+  Graphics: "from-purple-600 to-pink-400",
+  Freelancing: "from-emerald-600 to-teal-400",
+  AI: "from-orange-500 to-amber-400",
+  "MS Office": "from-cyan-600 to-sky-400",
+  Web: "from-indigo-600 to-violet-400",
+  Default: "from-blue-600 to-blue-400",
+};
 
 export default function Courses() {
   const [search, setSearch] = useState("");
@@ -77,17 +87,19 @@ export default function Courses() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {courses?.map((course) => (
               <Card key={course.id} className="flex flex-col overflow-hidden hover:shadow-md transition-shadow">
-                <div className="aspect-video bg-gray-200 relative">
+                <div className="aspect-video relative overflow-hidden">
                   {course.thumbnail ? (
                     <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-primary/5 text-primary">
-                      <BookOpenIcon className="h-12 w-12 opacity-50" />
+                    <div
+                      className={`w-full h-full bg-gradient-to-br ${CATEGORY_GRADIENTS[course.category ?? ""] ?? CATEGORY_GRADIENTS.Default} flex items-center justify-center`}
+                    >
+                      <BookOpen className="h-14 w-14 text-white/30" />
                     </div>
                   )}
                   {course.isFeatured && (
-                    <Badge className="absolute top-4 right-4 bg-yellow-500 hover:bg-yellow-600 text-white border-none">
-                      Featured
+                    <Badge className="absolute top-3 left-3 bg-orange-500 hover:bg-orange-600 text-white border-none">
+                      ⭐ Featured
                     </Badge>
                   )}
                 </div>
@@ -129,26 +141,5 @@ export default function Courses() {
         )}
       </div>
     </MainLayout>
-  );
-}
-
-// Inline icon component to avoid extra imports if not available
-function BookOpenIcon(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-    </svg>
   );
 }

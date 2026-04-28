@@ -27,6 +27,9 @@ import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsers from "@/pages/admin/users";
 import AdminCourses from "@/pages/admin/courses";
 import AdminPayments from "@/pages/admin/payments";
+import AdminBranches from "@/pages/admin/branches";
+import AdminSuccessStories from "@/pages/admin/success-stories";
+import AdminTestimonials from "@/pages/admin/testimonials";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +59,9 @@ function Router() {
       <Route path="/admin/users" component={AdminUsers} />
       <Route path="/admin/courses" component={AdminCourses} />
       <Route path="/admin/payments" component={AdminPayments} />
+      <Route path="/admin/branches" component={AdminBranches} />
+      <Route path="/admin/success-stories" component={AdminSuccessStories} />
+      <Route path="/admin/testimonials" component={AdminTestimonials} />
 
       <Route component={NotFound} />
     </Switch>
