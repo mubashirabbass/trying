@@ -1,0 +1,46 @@
+Main Requirements of at Global College LMS Website.
+Welcome page with different tabs for other pages. Institute Name + Logo, banner
+LIKE      https://empowerers.co/
+What’s app button and other social media links on main page and active in working.
+LIKE https://iskills.com/
+Feedback form and contact us , address on main page.
+User Login System
+Student login, Teacher login, Admin login, Password reset option, User Dashboard.
+ Course Management System
+Admin Facility to add, new courses, Course outline / syllabus, Video lectures, PDF notes, Assignments upload, Course duration and fee details.
+Admin facility to add our success stories add/delete.
+Add / remove students, Add / remove teachers, Manage courses, Check student progress, Manage payments, Generate reports
+Upload videos, Upload PDFs and notes, Create quizzes, Check assignments, give marks, Track student progress
+ Student Dashboard
+Enrolled courses, Video lectures, Assignments, Progress tracking, Certificates, Attendance (optional)Time line on videos when one complete it checked with green arrow And next will be highlighted
+Admin facility to add our success stories add/delete
+FACILITY TO ADD OUR SUCCESS STORIES 
+STUDENT PICKS WITH DESCRIPTION OF 500 WORDS AND IT MOVE ON MAIN PAGE LIKE ADD
+Teacher Panel/Admin
+5. Online Classes / Video System like DG Skills. Time line stream
+Recorded video lectures, Live classes (Zoom / Google Meet integration), Video playback control, Course-wise video organization.
+Create About, Contact, Privacy Policy
+Install caching plugin 		Use SSL (https) 	 Install security plugin 		
+Strong passwords 		Regular backups SYSTEMS	 Assignment & Quiz System
+Assignment upload option, Multiple choice quizzes, Automatic results, Marks system, Feedback from teacher
+Certificate System..Verify yourself with CNIC/FORM-B
+
+Payment System
+Card payment, Bank transfer option, EasyPaisa / JazzCash/admin upload recede
+MOBILE RESPONSIVE DESIGN, FAST LOADING, EASY NAVIGATION
+Button: Enroll Now	Button: Watch Free Videos
+Popular Courses Section 
+MS Office Course		Computer Basic Course	Graphic Design Course
+Freelancing Course		AI		……LIKE  https://www.brighteaglets.edu.pk/
+Why Choose Our Institute
+Certified Courses	Expert Teachers	Online + Physical Classes	Job-Oriented Training
+Student Testimonials	Course Categories	Contact Section
+REFERENCE WEB SITES
+https://empowerers.co/
+https://www.brighteaglets.edu.pk/
+https://digiskills.pk/
+https://iskills.com/
+LET WORK WITH US.
+GLOBAL BRANCHES ==  ADD BRANCHES OR CAMPUSES OPTION :( FOR ADMIN).
+
+WE SHALL PROVIDE YOU DATA AS YOU REQUIRED..
