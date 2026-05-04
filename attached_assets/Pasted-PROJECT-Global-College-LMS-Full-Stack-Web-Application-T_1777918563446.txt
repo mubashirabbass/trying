@@ -1,0 +1,500 @@
+PROJECT: Global College LMS — Full Stack Web Application
+
+TECH STACK:
+- Frontend: React.js with Tailwind CSS
+- Backend: Node.js with Express.js
+- Database: PostgreSQL with Prisma ORM
+- Authentication: JWT (access token 7-day expiry + refresh token)
+- Video: YouTube Unlisted embeds with full protection
+- File Storage: Cloudinary (PDFs, receipts, CNIC scans, certificates, images)
+- Email: Nodemailer with SendGrid SMTP
+- PDF Generation: Puppeteer (certificates + reports)
+- Push Notifications: Web Push API with VAPID keys
+- Hosting Ready: Vercel (frontend) + Railway or Render (backend)
+
+PROJECT STRUCTURE (Monorepo):
+/client  → React frontend
+/server  → Node.js backend
+/prisma  → schema.prisma + migrations
+/.env    → all environment variables
+
+---
+
+DATABASE SCHEMA (Prisma — PostgreSQL):
+
+Create the following models with all relations:
+
+User (id, name, email, phone, password, role: STUDENT|TEACHER|ADMIN,
+      branchId, isEmailVerified, isIdentityVerified, isActive,
+      profilePhoto, createdAt, updatedAt)
+
+Branch (id, name, city, address, phone, isActive, createdAt)
+
+Course (id, title, slug, description, category, thumbnailUrl,
+        totalDurationHours, fee, isFree, status: DRAFT|PENDING|LIVE|ARCHIVED,
+        teacherId, createdAt, updatedAt)
+
+Section (id, courseId, title, order)
+
+Lesson (id, sectionId, title, order, youtubeVideoId, youtubeEmbedToken,
+        pdfNotesUrl, completionThreshold, durationSeconds)
+
+LessonCompletion (id, userId, lessonId, watchedPercent, completedAt,
+                  lastPositionSeconds, isCompleted)
+
+Quiz (id, courseId, lessonId, title, timeLimitMinutes, passingScore)
+
+Question (id, quizId, questionText, optionA, optionB, optionC, optionD,
+          correctOption, explanation)
+
+QuizAttempt (id, userId, quizId, score, totalQuestions, submittedAt,
+             answers: Json)
+
+Assignment (id, courseId, lessonId, title, instructions, deadline,
+            allowLateSubmission)
+
+AssignmentSubmission (id, assignmentId, userId, fileUrl, submittedAt,
+                      isLate, mark, feedback, gradedAt, gradedBy,
+                      status: PENDING|GRADED)
+
+Enrollment (id, userId, courseId, enrolledAt, completedAt, isCompleted)
+
+Payment (id, userId, courseId, amount, method: EASYPASA|JAZZCASH|BANK,
+         receiptUrl, status: PENDING|APPROVED|REJECTED, rejectionReason,
+         submittedAt, reviewedAt, reviewedBy)
+
+IdentityVerification (id, userId, documentType: CNIC|FORMB, documentUrl,
+                      status: PENDING|APPROVED|REJECTED, rejectionReason,
+                      submittedAt, reviewedAt)
+
+Certificate (id, userId, courseId, certificateId, pdfUrl,
+             status: AWAITING_VERIFICATION|ISSUED, issuedAt)
+
+Message (id, threadId, senderId, body, createdAt, isRead)
+
+MessageThread (id, studentId, teacherId, courseId, lastMessageAt)
+
+ForumPost (id, courseId, userId, title, body, isPinned, upvotes,
+           createdAt, updatedAt)
+
+ForumReply (id, postId, userId, body, createdAt)
+
+Notification (id, userId, type, message, link, isRead, createdAt)
+
+Setting (id, key, value) — key-value store for all admin settings
+
+AnnouncementLog (id, sentBy, targetType: ALL|COURSE|TEACHERS,
+                 targetId, message, sentAt)
+
+---
+
+USER ROLES:
+- STUDENT: self-registers, selects branch, enrolls, watches, submits, downloads certificate
+- TEACHER: created by admin, manages own courses only, grades submissions
+- ADMIN: single all-powerful admin, full control over everything — no sub-admins, no branch admins
+
+---
+
+BRANCH SYSTEM (tracking labels only — NOT separate systems):
+- Branches are just labels assigned to students at registration
+- No branch-level permissions, no branch admin, no isolated data
+- Admin can add/edit/deactivate branches from settings
+- Admin sees student count per branch on dashboard
+- Students select branch at registration (mandatory), cannot change it themselves
+- Branch data displays on public website automatically
+
+---
+
+VIDEO SYSTEM (YouTube Unlisted — Full Protection):
+
+CRITICAL REQUIREMENTS:
+1. Never expose the YouTube video ID directly in the HTML source, API response,
+   or browser network tab
+2. Store YouTube video IDs encrypted in the database using AES-256 encryption
+3. Create a backend endpoint: GET /api/student/lessons/:lessonId/stream-token
+   - Verifies the student is enrolled in the course this lesson belongs to
+   - Verifies the student's session is valid
+   - Decrypts the YouTube video ID server-side
+   - Returns a short-lived signed token (expires in 30 minutes)
+4. Frontend uses this token to fetch the embed URL — never the raw YouTube ID
+5. Render the video inside a sandboxed iframe:
+   - sandbox="allow-scripts allow-same-origin"
+   - No YouTube branding if possible (use youtube-nocookie.com domain)
+   - Add: modestbranding=1, rel=0, controls=1, disablekb=0
+   - Block right-click on the video iframe using a transparent overlay div
+   - Add CSS: pointer-events: none on the iframe, pointer-events: all on the overlay
+   - The overlay div catches right-click and shows a custom "Content Protected" message
+6. Do NOT allow the video URL to be opened in a new tab
+7. Log every video access attempt (userId, lessonId, timestamp, ipAddress)
+   in a VideoAccessLog table
+
+VIDEO COMPLETION TRACKING (100% accurate):
+1. Inject a YouTube IFrame API listener in the video component
+2. Poll the player's getCurrentTime() and getDuration() every 5 seconds
+3. Calculate watchedPercent = (currentTime / duration) * 100
+4. Every 10 seconds, call PATCH /api/student/lessons/:id/progress with:
+   { watchedPercent, currentPositionSeconds }
+5. Backend upserts LessonCompletion record with latest watchedPercent
+6. When watchedPercent reaches completionThreshold (default 80%, configurable
+   in Admin Settings), mark lesson as complete and trigger course completion check
+7. On reload, fetch the student's lastPositionSeconds and resume from there
+8. Use YouTube's onStateChange event to detect:
+   - PLAYING: start tracking interval
+   - PAUSED / ENDED: stop tracking interval, save progress immediately
+9. Prevent completion fraud: if video duration is < 60 seconds and student
+   jumps directly to end position, require actual elapsed watch time
+
+---
+
+BACKEND ARCHITECTURE (Node.js + Express + Prisma):
+
+Folder structure:
+/server
+  /src
+    /controllers    — one file per domain (auth, courses, payments, etc.)
+    /routes         — one file per domain, import controllers
+    /middleware     — auth.js, rbac.js, upload.js, validate.js, rateLimiter.js
+    /services       — email.js, notification.js, certificate.js, video.js,
+                      report.js, completion.js, encryption.js
+    /utils          — response.js (standard API response), logger.js, errors.js
+    /validators     — input validation schemas using express-validator
+  /prisma
+    schema.prisma
+    /migrations
+  app.js            — express app setup
+  server.js         — starts the server
+  .env
+
+Standard API response format (always use this):
+Success: { success: true, data: {...}, message: "..." }
+Error:   { success: false, error: "...", code: "ERROR_CODE" }
+
+All controllers use async/await wrapped in a tryCatch utility.
+All routes use express-validator for input validation.
+All authenticated routes use authenticate middleware (verify JWT).
+All role-restricted routes use authorize("ADMIN") or authorize("TEACHER","ADMIN").
+
+---
+
+SECURITY REQUIREMENTS:
+- helmet() on all routes
+- cors() configured for frontend domain only (from env variable)
+- express-rate-limit: 5 requests per 15 minutes on /api/auth/login
+- express-rate-limit: 10 requests per hour on /api/auth/register
+- bcrypt password hashing with cost factor 12
+- Account lock after 5 failed logins — locked for 15 minutes
+- All file uploads: validate MIME type server-side before accepting
+- YouTube video IDs stored AES-256 encrypted in the database
+- Never log passwords, tokens, or video IDs to console
+- Environment variables for all secrets — nothing hardcoded
+- Admin route base path should be /api/admin (not guessable path)
+- CSRF protection on state-changing endpoints
+- Input sanitization on all text fields (xss-clean)
+
+---
+
+COMPLETE API ENDPOINTS:
+
+AUTH:
+POST   /api/auth/register              — student registration, send verification email
+GET    /api/auth/verify-email/:token   — activate account
+POST   /api/auth/login                 — all roles, return JWT + role
+POST   /api/auth/refresh               — refresh access token
+POST   /api/auth/forgot-password       — send reset email
+POST   /api/auth/reset-password/:token — set new password
+
+BRANCHES (public + admin):
+GET    /api/branches                   — all active branches (public, for dropdown)
+GET    /api/admin/branches             — all branches with student count
+POST   /api/admin/branches             — create branch
+PUT    /api/admin/branches/:id         — edit branch
+PATCH  /api/admin/branches/:id/toggle  — activate/deactivate
+
+COURSES (public + teacher + admin):
+GET    /api/courses                    — all LIVE courses (public, with filters)
+GET    /api/courses/:slug              — single course detail (public)
+GET    /api/teacher/courses            — teacher's own courses
+POST   /api/teacher/courses            — create course draft
+PUT    /api/teacher/courses/:id        — edit course (own only)
+POST   /api/teacher/courses/:id/submit — submit for admin approval
+GET    /api/admin/courses              — all courses (all statuses)
+POST   /api/admin/courses              — admin creates course directly
+PUT    /api/admin/courses/:id          — admin edits any course
+POST   /api/admin/courses/:id/approve  — publish course
+POST   /api/admin/courses/:id/reject   — reject with note
+DELETE /api/admin/courses/:id          — archive/delete course
+
+SECTIONS & LESSONS:
+POST   /api/courses/:id/sections                — create section
+PUT    /api/courses/:id/sections/:sectionId     — edit section
+DELETE /api/courses/:id/sections/:sectionId     — delete section
+POST   /api/sections/:id/lessons                — create lesson (upload PDF to Cloudinary,
+                                                  store encrypted YouTube ID)
+PUT    /api/lessons/:id                         — edit lesson
+DELETE /api/lessons/:id                         — delete lesson
+PUT    /api/courses/:id/reorder                 — reorder sections/lessons
+
+VIDEO:
+GET    /api/student/lessons/:id/stream-token    — returns signed 30-min token
+                                                  after verifying enrollment
+PATCH  /api/student/lessons/:id/progress        — update watchedPercent + position
+POST   /api/student/lessons/:id/complete        — mark lesson complete
+
+ENROLLMENTS:
+GET    /api/student/enrollments                 — student's enrolled courses + progress
+POST   /api/enrollments                         — enroll (free courses only)
+POST   /api/admin/enrollments                   — manually enroll student
+DELETE /api/admin/enrollments/:id               — unenroll student
+
+PAYMENTS:
+POST   /api/payments                            — submit receipt (Cloudinary upload)
+GET    /api/student/payments                    — student's own payment history
+GET    /api/admin/payments                      — all payments (filterable)
+POST   /api/admin/payments/:id/approve          — approve → auto-enroll → notify
+POST   /api/admin/payments/:id/reject           — reject with reason → notify
+
+QUIZZES:
+POST   /api/courses/:id/quizzes                 — create quiz
+PUT    /api/quizzes/:id                         — edit quiz
+POST   /api/quizzes/:id/questions               — add question
+PUT    /api/questions/:id                       — edit question
+DELETE /api/questions/:id                       — delete question
+POST   /api/student/quizzes/:id/submit          — submit answers → auto-grade
+                                                  → return score + correct answers
+GET    /api/student/quizzes/:id/result          — student's quiz result
+
+ASSIGNMENTS:
+POST   /api/courses/:id/assignments             — create assignment
+PUT    /api/assignments/:id                     — edit assignment
+GET    /api/teacher/assignments/:id/submissions — all submissions for this assignment
+POST   /api/student/assignments/:id/submit      — submit file (Cloudinary upload)
+POST   /api/teacher/submissions/:id/grade       — add mark + feedback → notify student
+
+CERTIFICATES & IDENTITY:
+POST   /api/student/identity-verification       — upload CNIC/Form-B
+GET    /api/admin/verifications                 — pending verification queue
+POST   /api/admin/verifications/:id/approve     — approve → unlock all pending certs
+                                                  → generate PDFs → notify
+POST   /api/admin/verifications/:id/reject      — reject with reason
+GET    /api/student/certificates                — student's certificates list
+GET    /api/student/certificates/:id/download   — download certificate PDF
+
+MESSAGING:
+GET    /api/messages/threads                    — list message threads
+POST   /api/messages/threads                    — start new thread
+GET    /api/messages/threads/:id                — get messages in thread
+POST   /api/messages/threads/:id/messages       — send message → notify recipient
+
+FORUM:
+GET    /api/courses/:id/forum/posts             — paginated posts (20/page)
+POST   /api/courses/:id/forum/posts             — create post (enrolled only)
+POST   /api/forum/posts/:id/pin                 — pin (teacher/admin only)
+POST   /api/forum/posts/:id/upvote              — toggle upvote
+POST   /api/forum/posts/:id/replies             — reply to post
+DELETE /api/admin/forum/posts/:id               — delete post (moderation)
+
+NOTIFICATIONS:
+GET    /api/notifications                       — user's last 50 notifications
+PATCH  /api/notifications/:id/read             — mark one as read
+PATCH  /api/notifications/read-all             — mark all as read
+
+LEADERBOARD:
+GET    /api/courses/:id/leaderboard             — top students in one course
+GET    /api/admin/leaderboard                   — global top students
+
+REPORTS:
+GET    /api/admin/reports/branches              — student count per branch
+GET    /api/admin/reports/enrollments           — enrollments per course
+GET    /api/admin/reports/revenue               — revenue with filters
+GET    /api/admin/reports/students              — full student list
+GET    /api/student/reports/progress            — own progress report
+All report endpoints: ?format=pdf or ?format=excel query param
+
+ADMIN — USER MANAGEMENT:
+GET    /api/admin/students                      — all students (search + filter by branch)
+GET    /api/admin/students/:id                  — student detail
+PUT    /api/admin/students/:id                  — edit student (branch, status)
+DELETE /api/admin/students/:id                  — delete student
+POST   /api/admin/students/:id/reset-password   — reset password
+GET    /api/admin/teachers                      — all teachers
+POST   /api/admin/teachers                      — create teacher account → email credentials
+GET    /api/admin/teachers/:id                  — teacher detail
+PUT    /api/admin/teachers/:id                  — edit teacher
+DELETE /api/admin/teachers/:id                  — delete teacher
+
+ADMIN — CONTENT & SETTINGS:
+GET/POST/DELETE /api/admin/success-stories      — manage success stories
+GET/POST/DELETE /api/admin/testimonials         — manage testimonials
+GET/PUT         /api/admin/settings             — read/update all settings:
+  easypaisaNumber, jazzcashNumber, bankName, bankAccount, bankAccountName,
+  signatoryName, signatoryDesignation, signatorySignatureUrl,
+  certificateTemplateUrl, videoCompletionThreshold (default 80),
+  allowLateSubmissions (true/false), whatsappNumber, facebookUrl,
+  instagramUrl, youtubeUrl, contactEmail, contactPhone, contactAddress
+
+POST /api/admin/announcements                   — send announcement to
+                                                  ALL|COURSE_STUDENTS|TEACHERS
+
+---
+
+FRONTEND PAGES:
+
+PUBLIC (no login):
+/ — Homepage: sticky nav, hero, popular courses, categories, why us,
+    testimonials, success stories, branches, contact, footer,
+    floating WhatsApp button
+/courses — searchable catalog: search bar, category filter, free/paid filter,
+           sort by newest/popular, course cards with thumbnail/title/teacher/fee
+/courses/:slug — course detail: banner, description, syllabus accordion,
+                 teacher card, metadata, enroll button
+/about — institute info
+/branches — all branch cards with name/city/address/phone
+/contact — contact form + map
+/login — single login for all roles
+/register — student form: name, email, phone, password, branch dropdown
+/forgot-password and /reset-password/:token
+
+STUDENT PORTAL (/student/*) — protected route, role=STUDENT:
+/student/dashboard — profile card with branch badge, enrolled courses with
+                     progress bars, continue learning shortcut, upcoming deadlines
+                     widget (red if within 24h), leaderboard rank card, notifications
+/student/browse — course catalog for enrolled students
+/student/courses — my courses list
+/student/courses/:id/learn — two-column layout:
+  LEFT: collapsible section/lesson sidebar with status icons (green=done, blue=current, grey=todo)
+  RIGHT: sandboxed iframe video player (no right-click, overlay div for protection),
+         PDF download tab, Next Lesson button
+/student/courses/:id/quiz/:qid — quiz: one question at a time, countdown timer,
+                                  progress indicator, auto-submit on expire,
+                                  results page with review mode
+/student/courses/:id/assignment/:aid — assignment detail + file upload form
+/student/courses/:id/forum — pinned posts at top, thread list, reply expander, upvote
+/student/payment/:courseId — payment instructions page (fetched from settings),
+                              file upload for receipt
+/student/messages — inbox: thread list + message view + reply
+/student/leaderboard — course selector + ranked table
+/student/progress — all courses with drill-down scores, download PDF button
+/student/certificates — certificate list with status badges, download buttons
+/student/verify-identity — CNIC/Form-B upload form with instructions
+/student/profile — editable name/phone/photo, branch shown read-only
+
+TEACHER PANEL (/teacher/*) — protected route, role=TEACHER:
+/teacher/dashboard — KPI cards, pending grades count, course status overview
+/teacher/courses — my courses with status badges (Draft/Pending/Live/Rejected)
+/teacher/courses/:id/edit — course builder:
+  add/reorder sections via drag-and-drop,
+  add lessons (enter YouTube video ID + title, upload PDF),
+  submit for approval button
+/teacher/courses/:id/quiz/create — quiz builder: add questions, set answer, timer
+/teacher/courses/:id/assignments — assignment list + create form + submissions list
+/teacher/assignments/:id/grade — view submitted file, mark input, feedback textarea
+/teacher/courses/:id/students — per-student progress table
+/teacher/messages — inbox
+/teacher/profile — edit name/phone/password
+
+ADMIN PANEL (/admin/*) — protected route, role=ADMIN:
+/admin/dashboard — 5 KPI cards, branch overview table, recent activity feed,
+                   pending actions tray (payments/verifications/courses)
+/admin/students — paginated table, search, filter by branch, export button
+/admin/students/:id — full student profile, edit branch, enrollment management
+/admin/teachers — teacher list, create teacher button
+/admin/teachers/:id — teacher detail, course assignments, disable/reset
+/admin/courses — all courses, status filter, approve/reject quick actions
+/admin/courses/:id/review — full course preview + approve/reject form
+/admin/courses/:id/edit — full course editor
+/admin/payments — payment table with status filters, receipt viewer modal,
+                  approve/reject actions with reason
+/admin/verifications — CNIC/Form-B queue, document viewer, approve/reject
+/admin/certificates — issued certificates table, revoke option
+/admin/branches — branch list, add/edit form, student count column
+/admin/reports — report type selector, filter panel, generate + download buttons
+/admin/content — success stories CRUD, testimonials CRUD, categories, featured courses
+/admin/notifications — announcement composer with target selector
+/admin/settings — all settings form fields organized by category
+
+---
+
+CERTIFICATE PDF (Puppeteer):
+Generate from an HTML template containing:
+- Global College logo (from settings.logoUrl)
+- Decorative border around the page
+- "CERTIFICATE OF COMPLETION" in large heading
+- "This is to certify that" then student full name in large bold text
+  (as per their verified identity document)
+- "has successfully completed" then the course title in bold
+- Completion date and total course duration
+- Unique Certificate ID: GC-[YEAR]-[5-digit-sequential] in small text
+- Institute name
+- Signatory section: signature image + name + designation (from settings)
+- Professional styling — A4 landscape format
+
+---
+
+NOTIFICATION TRIGGERS (call createNotification() from these events):
+- Student: new content in enrolled course
+- Student: assignment deadline 24 hours away (scheduled job)
+- Student: assignment graded
+- Student: new message received
+- Student: payment approved
+- Student: payment rejected (with reason)
+- Student: identity verification approved
+- Student: identity verification rejected (with reason)
+- Student: certificate unlocked
+- Teacher: course approved by admin
+- Teacher: course rejected by admin (with reason)
+- Teacher: new message received
+- Admin: new student registration
+- Admin: new payment receipt submitted
+- Admin: new course submitted for review
+- Admin: new identity verification submitted
+
+---
+
+ENROLLMENT RULES:
+- Free course: POST /api/enrollments → immediate enrollment, no payment needed
+- Paid course: student submits payment receipt → admin manually approves
+  → enrollment created only after approval → never before
+- Admin can manually enroll any student in any course bypassing payment
+- One enrollment record per student per course (unique constraint)
+
+---
+
+CODE QUALITY REQUIREMENTS:
+- Use Prisma transactions for any operation that writes to multiple tables
+- All database queries go through the Prisma client — no raw SQL except for reports
+- Services are pure functions that can be tested independently of routes
+- Controllers only handle HTTP — all business logic in services
+- Use Winston for logging (not console.log) with log levels: error, warn, info, debug
+- All environment variables validated on startup — server refuses to start if any are missing
+- Use a centralized error class (AppError extends Error) with statusCode and errorCode
+- All list endpoints paginated with default limit of 20
+- Database indexes on: userId, courseId, status, createdAt on all major tables
+- Use Prisma's select to never return password, encrypted video IDs, or sensitive fields
+- API versioning: all routes under /api/v1/
+- Write a README.md with setup instructions, env variable documentation, and API overview
+
+---
+
+BUILD ORDER:
+1. Set up monorepo structure, Prisma schema, run migration
+2. Authentication system (register, verify email, login, refresh, forgot/reset password)
+3. Branch management
+4. Course + section + lesson CRUD with encrypted YouTube ID storage
+5. Video stream token endpoint + frontend video player with full protection
+6. Video progress tracking (10-second interval saves, completion detection)
+7. Enrollment system (free + payment flow)
+8. Quiz builder + quiz submission + auto-grading
+9. Assignment system + file upload + grading
+10. Certificate system + identity verification + PDF generation
+11. Messaging system
+12. Discussion forum
+13. Notifications (in-app + push)
+14. Leaderboard
+15. Reporting + PDF/Excel export
+16. Admin settings management
+17. Admin content management (success stories, testimonials)
+18. Admin announcements
+19. Full public website (homepage, catalog, course detail, branches, etc.)
+20. Connect all frontend components to live API endpoints
+21. End-to-end testing of all 8 critical user flows
+22. Production deployment configuration

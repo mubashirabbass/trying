@@ -9,3 +9,8 @@ export * from "./testimonials";
 export * from "./success-stories";
 export * from "./branches";
 export * from "./certificates";
+export * from "./notifications";
+export * from "./forum";
+export * from "./messages";
+export * from "./identity-verification";
+export * from "./settings";

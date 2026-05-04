@@ -30,12 +30,20 @@ A full-stack Learning Management System (LMS) for Global College — a professio
 - Certificate verification by CNIC or certificate number
 - Payment system: EasyPaisa, JazzCash, bank transfer, cash
 
+### PRD v2.0 Features (added)
+- **In-app Notifications**: Bell icon in dashboard header, real-time polling every 30s, mark-all-read
+- **Discussion Forum**: Per-course discussion board with posts, replies, upvotes, teacher pin
+- **Private Messaging**: Student↔Teacher threads with real-time chat UI
+- **Identity Verification**: CNIC/Form-B submission flow; admin review + approve/reject
+- **Leaderboard**: Student rankings by score (enrollments × courses + certificates + lessons)
+- **Admin Announcements**: Broadcast to All / Students / Teachers with in-app notification delivery
+- **Admin Settings**: Key-value site config (contact, payment accounts, certificate signatory, etc.)
+
 ## Seed Accounts
 
-- Admin: `admin@globalcollege.pk`
-- Teacher: `farhan@globalcollege.pk` / `sadia@globalcollege.pk`
-- Students: `ali@student.pk`, `fatima@student.pk`, `usman@student.pk`
-- (Login via the app — password hash is stored, use the register flow or update DB for real passwords)
+- Admin: `admin@globalcollege.pk` / `Admin@123`
+- Teacher: `farhan@globalcollege.pk` / `Teacher@123`
+- Students: `ali@student.pk` / `Student@123`
 
 ## Key Commands
 
@@ -56,4 +64,4 @@ A full-stack Learning Management System (LMS) for Global College — a professio
 
 ## DB Tables
 
-users, courses, lessons, lesson_progress, enrollments, assignments, assignment_submissions, quizzes, quiz_results, payments, testimonials, success_stories, branches, certificates
+users, courses, lessons, lesson_progress, enrollments, assignments, assignment_submissions, quizzes, quiz_results, payments, testimonials, success_stories, branches, certificates, notifications, forum_posts, forum_replies, message_threads, messages, identity_verifications, settings, announcement_logs

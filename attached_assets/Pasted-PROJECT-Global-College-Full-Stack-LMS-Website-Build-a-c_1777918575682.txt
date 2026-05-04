@@ -1,0 +1,1317 @@
+PROJECT: Global College — Full Stack LMS Website
+Build a complete, production-ready Learning Management System for Global College,
+a multi-campus vocational and technical training institute in Pakistan.
+
+DESIGN INSPIRATION:
+Study and combine the best elements of these four sites:
+- https://empowerers.co — hero layout, navigation style, overall professional feel
+- https://www.brighteaglets.edu.pk — course card design, popular courses section,
+  Pakistani institute branding style
+- https://digiskills.pk — LMS structure, video timeline system, weekly progress
+  tracking, quiz + exercise flow, certificate system, how-it-works section
+- https://iskills.com — WhatsApp floating button placement, social media integration,
+  contact section layout, mobile responsiveness
+
+TECH STACK:
+Frontend:  React.js with Tailwind CSS, React Router v6, Axios, React Query
+Backend:   Node.js with Express.js, REST API with /api/v1/ versioning
+Database:  PostgreSQL with Prisma ORM (all queries through Prisma — no raw SQL)
+Auth:      JWT access token (7-day) + refresh token (30-day), bcrypt cost 12
+Videos:    YouTube Unlisted embeds — fully protected (AES-256 encrypted IDs)
+Storage:   Cloudinary — PDFs, images, receipts, CNIC scans, certificates, photos
+Email:     Nodemailer + SendGrid SMTP
+PDF:       Puppeteer — certificate generation + report exports
+Exports:   exceljs — Excel report exports
+Push:      Web Push API with VAPID keys — in-app + browser notifications
+Security:  helmet, cors, express-rate-limit, xss-clean, express-validator
+
+FOLDER STRUCTURE:
+/client
+  /src
+    /pages         — one folder per section (public, student, teacher, admin)
+    /components    — shared reusable components
+    /layouts       — PublicLayout, StudentLayout, TeacherLayout, AdminLayout
+    /hooks         — custom React hooks
+    /services      — API call functions (axios)
+    /context       — AuthContext, NotificationContext
+    /utils         — helpers, date formatters, validators
+  /public
+
+/server
+  /src
+    /controllers   — one file per domain
+    /routes        — one file per domain, mounted in app.js
+    /middleware    — auth.js, rbac.js, upload.js, validate.js, rateLimiter.js,
+                     errorHandler.js
+    /services      — email.js, notification.js, certificate.js, video.js,
+                     report.js, completion.js, encryption.js, push.js
+    /utils         — response.js, logger.js, AppError.js, catchAsync.js
+    /validators    — express-validator schemas per domain
+  app.js
+  server.js
+
+/prisma
+  schema.prisma
+  /migrations
+.env
+.env.example
+README.md
+
+DATABASE SCHEMA (PostgreSQL + Prisma):
+
+model User {
+  id                  String   @id @default(cuid())
+  name                String
+  email               String   @unique
+  phone               String
+  password            String
+  role                Role     @default(STUDENT)
+  branchId            String?
+  branch              Branch?  @relation(fields: [branchId], references: [id])
+  isEmailVerified     Boolean  @default(false)
+  isIdentityVerified  Boolean  @default(false)
+  isActive            Boolean  @default(true)
+  profilePhoto        String?
+  failedLoginAttempts Int      @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+enum Role { STUDENT TEACHER ADMIN }
+
+model Branch {
+  id        String   @id @default(cuid())
+  name      String
+  city      String
+  address   String
+  phone     String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  students  User[]
+}
+
+model Course {
+  id                 String   @id @default(cuid())
+  title              String
+  slug               String   @unique
+  description        String
+  category           String
+  thumbnailUrl       String?
+  totalDurationHours Float
+  fee                Float
+  isFree             Boolean  @default(false)
+  status             CourseStatus @default(DRAFT)
+  teacherId          String
+  teacher            User     @relation(fields: [teacherId], references: [id])
+  rejectionNote      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  sections           Section[]
+  enrollments        Enrollment[]
+  payments           Payment[]
+}
+
+enum CourseStatus { DRAFT PENDING LIVE ARCHIVED }
+
+model Section {
+  id       String   @id @default(cuid())
+  courseId String
+  course   Course   @relation(fields: [courseId], references: [id])
+  title    String
+  order    Int
+  lessons  Lesson[]
+}
+
+model Lesson {
+  id                   String   @id @default(cuid())
+  sectionId            String
+  section              Section  @relation(fields: [sectionId], references: [id])
+  title                String
+  order                Int
+  encryptedYoutubeId   String
+  pdfNotesUrl          String?
+  durationSeconds      Int
+  completionThreshold  Float    @default(80)
+  completions          LessonCompletion[]
+  quizzes              Quiz[]
+  assignments          Assignment[]
+}
+
+model LessonCompletion {
+  id                  String   @id @default(cuid())
+  userId              String
+  lessonId            String
+  user                User     @relation(fields: [userId], references: [id])
+  lesson              Lesson   @relation(fields: [lessonId], references: [id])
+  watchedPercent      Float    @default(0)
+  lastPositionSeconds Int      @default(0)
+  isCompleted         Boolean  @default(false)
+  completedAt         DateTime?
+  updatedAt           DateTime @updatedAt
+  @@unique([userId, lessonId])
+}
+
+model VideoAccessLog {
+  id         String   @id @default(cuid())
+  userId     String
+  lessonId   String
+  ipAddress  String
+  userAgent  String
+  accessedAt DateTime @default(now())
+}
+
+model Quiz {
+  id             String     @id @default(cuid())
+  lessonId       String?
+  courseId       String
+  lesson         Lesson?    @relation(fields: [lessonId], references: [id])
+  course         Course     @relation(fields: [courseId], references: [id])
+  title          String
+  timeLimitMins  Int?
+  passingScore   Float?
+  questions      Question[]
+  attempts       QuizAttempt[]
+}
+
+model Question {
+  id            String  @id @default(cuid())
+  quizId        String
+  quiz          Quiz    @relation(fields: [quizId], references: [id])
+  questionText  String
+  optionA       String
+  optionB       String
+  optionC       String
+  optionD       String
+  correctOption String
+  explanation   String?
+  order         Int
+}
+
+model QuizAttempt {
+  id            String   @id @default(cuid())
+  userId        String
+  quizId        String
+  user          User     @relation(fields: [userId], references: [id])
+  quiz          Quiz     @relation(fields: [quizId], references: [id])
+  score         Float
+  totalQuestions Int
+  answers       Json
+  submittedAt   DateTime @default(now())
+}
+
+model Assignment {
+  id                 String   @id @default(cuid())
+  courseId           String
+  lessonId           String?
+  course             Course   @relation(fields: [courseId], references: [id])
+  lesson             Lesson?  @relation(fields: [lessonId], references: [id])
+  title              String
+  instructions       String
+  deadline           DateTime
+  allowLateSubmission Boolean @default(true)
+  submissions        AssignmentSubmission[]
+}
+
+model AssignmentSubmission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  userId       String
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id])
+  user         User             @relation(fields: [userId], references: [id])
+  fileUrl      String
+  submittedAt  DateTime         @default(now())
+  isLate       Boolean          @default(false)
+  mark         Float?
+  feedback     String?
+  gradedAt     DateTime?
+  gradedBy     String?
+  status       SubmissionStatus @default(PENDING)
+}
+
+enum SubmissionStatus { PENDING GRADED }
+
+model Enrollment {
+  id          String    @id @default(cuid())
+  userId      String
+  courseId    String
+  user        User      @relation(fields: [userId], references: [id])
+  course      Course    @relation(fields: [courseId], references: [id])
+  enrolledAt  DateTime  @default(now())
+  completedAt DateTime?
+  isCompleted Boolean   @default(false)
+  @@unique([userId, courseId])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  userId          String
+  courseId        String
+  user            User          @relation(fields: [userId], references: [id])
+  course          Course        @relation(fields: [courseId], references: [id])
+  amount          Float
+  method          PaymentMethod
+  receiptUrl      String
+  status          PaymentStatus @default(PENDING)
+  rejectionReason String?
+  submittedAt     DateTime      @default(now())
+  reviewedAt      DateTime?
+  reviewedBy      String?
+}
+
+enum PaymentMethod { EASYPASA JAZZCASH BANK CARD }
+enum PaymentStatus { PENDING APPROVED REJECTED }
+
+model IdentityVerification {
+  id              String             @id @default(cuid())
+  userId          String
+  user            User               @relation(fields: [userId], references: [id])
+  documentType    DocumentType
+  documentUrl     String
+  status          VerificationStatus @default(PENDING)
+  rejectionReason String?
+  submittedAt     DateTime           @default(now())
+  reviewedAt      DateTime?
+}
+
+enum DocumentType      { CNIC FORMB }
+enum VerificationStatus { PENDING APPROVED REJECTED }
+
+model Certificate {
+  id            String            @id @default(cuid())
+  userId        String
+  courseId      String
+  user          User              @relation(fields: [userId], references: [id])
+  course        Course            @relation(fields: [courseId], references: [id])
+  certificateId String            @unique
+  pdfUrl        String?
+  status        CertificateStatus @default(AWAITING_VERIFICATION)
+  issuedAt      DateTime?
+  isRevoked     Boolean           @default(false)
+}
+
+enum CertificateStatus { AWAITING_VERIFICATION ISSUED }
+
+model MessageThread {
+  id            String    @id @default(cuid())
+  studentId     String
+  teacherId     String
+  courseId      String
+  lastMessageAt DateTime  @default(now())
+  messages      Message[]
+}
+
+model Message {
+  id        String        @id @default(cuid())
+  threadId  String
+  thread    MessageThread @relation(fields: [threadId], references: [id])
+  senderId  String
+  body      String
+  isRead    Boolean       @default(false)
+  createdAt DateTime      @default(now())
+}
+
+model ForumPost {
+  id        String       @id @default(cuid())
+  courseId  String
+  userId    String
+  title     String
+  body      String
+  isPinned  Boolean      @default(false)
+  upvotes   Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  replies   ForumReply[]
+}
+
+model ForumReply {
+  id        String    @id @default(cuid())
+  postId    String
+  post      ForumPost @relation(fields: [postId], references: [id])
+  userId    String
+  body      String
+  createdAt DateTime  @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  message   String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
+
+model SuccessStory {
+  id          String   @id @default(cuid())
+  studentName String
+  photoUrl    String
+  description String   @db.Text
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model Testimonial {
+  id         String   @id @default(cuid())
+  name       String
+  photoUrl   String?
+  courseTaken String
+  rating     Int
+  reviewText String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
+
+model AnnouncementLog {
+  id         String   @id @default(cuid())
+  sentBy     String
+  targetType String
+  targetId   String?
+  message    String
+  sentAt     DateTime @default(now())
+}
+
+Add database indexes on:
+- userId, courseId, status, createdAt on Enrollment, Payment, Certificate
+- userId + lessonId (unique) on LessonCompletion
+- slug on Course (unique)
+- key on Setting (unique)
+- email on User (unique)
+
+---
+
+USER ROLES:
+STUDENT — self-registers, selects branch, enrolls, watches protected videos,
+          submits quizzes and assignments, downloads certificates
+TEACHER — created by Admin only, manages own courses, grades submissions
+ADMIN   — single all-powerful administrator, full control, no sub-admins
+
+BRANCHES — tracking labels only:
+- Not separate systems, no branch-level login, no branch admin
+- Stored in Branch table, displayed on public website
+- Student selects branch at registration (mandatory)
+- Admin manages branches from settings
+- Admin sees student count per branch on dashboard
+
+---
+
+VIDEO PROTECTION SYSTEM (YouTube Unlisted — Maximum Security):
+
+Server-side (never expose YouTube ID to browser):
+1. Store all YouTube video IDs encrypted using AES-256-CBC with IV in the database
+   Field name: encryptedYoutubeId — never select this field in public API responses
+2. Create endpoint: GET /api/v1/student/lessons/:lessonId/stream-token
+   - Authenticate the student's JWT
+   - Verify the student is enrolled in the course this lesson belongs to
+   - Decrypt the YouTube video ID server-side
+   - Generate a signed short-lived token (JWT, 30 min expiry) containing the video ID
+   - Return only the token — never the raw YouTube ID
+   - Log the access: userId, lessonId, ipAddress, userAgent, timestamp
+3. Frontend calls this endpoint first, receives the token
+4. Frontend sends the token to: GET /api/v1/student/lessons/:lessonId/embed
+   - Server validates the token
+   - Returns the constructed embed URL using youtube-nocookie.com
+   - URL parameters: modestbranding=1, rel=0, controls=1, iv_load_policy=3,
+     playsinline=1, enablejsapi=1
+5. Frontend renders the embed URL inside a sandboxed iframe:
+   - sandbox="allow-scripts allow-same-origin allow-presentation"
+   - referrerpolicy="strict-origin"
+   - Place a transparent overlay div absolutely positioned over the iframe
+   - overlay CSS: position:absolute, top:0, left:0, width:100%, height:100%,
+     z-index:10, background:transparent
+   - overlay prevents right-click: onContextMenu={(e) => e.preventDefault()}
+   - overlay shows "Content Protected — Global College" on right-click attempt
+   - Do not allow the iframe src to be inspectable in browser devtools
+     by setting the src dynamically after component mounts using a ref
+
+VIDEO COMPLETION TRACKING (100% accurate, fraud-resistant):
+1. Load YouTube IFrame API (youtube.com/iframe_api) dynamically
+2. Use onReady callback to get player reference
+3. Use onStateChange to detect PLAYING (1), PAUSED (2), ENDED (0)
+4. When PLAYING: start an interval every 5 seconds:
+   - currentTime = player.getCurrentTime()
+   - duration = player.getDuration()
+   - watchedPercent = Math.round((currentTime / duration) * 100)
+   - Call PATCH /api/v1/student/lessons/:id/progress with watchedPercent
+     and currentPositionSeconds
+5. When PAUSED or ENDED: clear interval, immediately save progress
+6. Backend upserts LessonCompletion record (@@unique on userId+lessonId)
+7. When watchedPercent >= completionThreshold (from Settings, default 80):
+   - Mark isCompleted = true, set completedAt = now()
+   - Call checkCourseCompletion(userId, courseId) service
+8. On lesson load: fetch lastPositionSeconds from backend,
+   call player.seekTo(lastPositionSeconds) when player is ready
+9. Fraud prevention: track sessionWatchSeconds in memory.
+   If student jumps seek bar to end without watching, require
+   actual elapsed real time >= (duration * threshold / 100) seconds
+   before marking complete
+10. Sidebar updates lesson icon to green checkmark (✓) immediately
+    after successful completion API response
+
+---
+
+COMPLETE LIST OF ALL PAGES AND SCREENS:
+
+======================================================
+PUBLIC WEBSITE (no login required)
+======================================================
+
+PAGE 1: / (Homepage)
+Design like empowerers.co + iskills.com combined.
+Build every section below:
+
+SECTION 1 — Sticky Navigation Bar:
+- Global College logo (left)
+- Navigation links: Home, Courses, About Us, Branches, Contact Us
+- Right side: Login button (outlined) + Register button (filled blue)
+- On mobile: hamburger menu with slide-out drawer
+- Sticky on scroll: adds white background + shadow when scrolled down
+
+SECTION 2 — Hero Banner:
+- Full-width background image (client provides)
+- Left side: Large heading "Learn In-Demand Skills", subheading text,
+  two buttons: "Enroll Now" (filled) and "Watch Free Videos" (outlined)
+- Right side: animated stats counter cards: Total Students, Courses,
+  Branches, Certificates Issued — numbers count up on scroll into view
+- Mobile: stacked layout, buttons full width
+
+SECTION 3 — Popular Courses Strip:
+Like brighteaglets.edu.pk courses section.
+- Heading "Popular Courses"
+- Responsive card grid (3 per row desktop, 2 tablet, 1 mobile)
+- Course cards: thumbnail image, category badge, title, teacher name,
+  duration, fee or "FREE" badge, star rating, enrolled count,
+  "Enroll Now" button
+- Show these courses: MS Office, Computer Basics, Graphic Design,
+  Freelancing, AI Tools, Web Development, QuickBooks, Digital Marketing
+- "View All Courses" button below grid
+
+SECTION 4 — How It Works (like digiskills.pk):
+- Heading "How It Works"
+- 4 step cards in a horizontal row with connecting arrows:
+  Step 1: Register Free
+  Step 2: Choose Your Course
+  Step 3: Learn at Your Pace
+  Step 4: Get Certified
+- Each step: icon, number, title, short description
+
+SECTION 5 — Course Categories:
+- Icon grid: Computer Basics, Graphic Design, Freelancing, AI & Tech,
+  MS Office, Digital Marketing, Web Development, Accounting
+- Each category links to /courses?category=...
+
+SECTION 6 — Why Choose Global College:
+- 4 feature cards in a grid:
+  Certified Courses, Expert Teachers, Online + Physical Classes,
+  Job-Oriented Training
+- Each card: icon, heading, 2-line description
+
+SECTION 7 — Success Stories Carousel:
+- Auto-rotating carousel (changes every 5 seconds)
+- Each slide: student photo (circular), student name, course completed,
+  description (up to 500 words — show first 100 words with "Read More" expander)
+- Navigation dots and prev/next arrows
+- Admin controls this content from Admin Panel
+
+SECTION 8 — Student Testimonials:
+- Grid of review cards
+- Each card: profile photo, name, course taken, star rating (1–5),
+  review text, date
+- Admin controls this from Admin Panel
+
+SECTION 9 — Global Branches:
+- Heading "Our Campuses"
+- Card grid showing all active branches:
+  Branch name, city, address, phone number, location icon
+- Data auto-populates from Admin-managed branch records
+
+SECTION 10 — Contact & Feedback:
+Like iskills.com contact section.
+- Two columns: left = contact form (name, email, phone, subject, message,
+  Send button), right = address block (icon + address, icon + phone,
+  icon + email, embedded Google Map iframe)
+- Above form: social media icon row (Facebook, Instagram, YouTube, WhatsApp)
+
+SECTION 11 — Footer:
+- Left: Global College logo + short tagline + social icons
+- Middle: Quick links (Home, Courses, About, Branches, Privacy Policy, Contact)
+- Right: Contact info (address, phone, email) + newsletter email signup
+- Bottom bar: copyright text
+- WhatsApp floating button: bottom-right corner, always visible on all pages,
+  opens wa.me/[number] from settings in new tab
+
+---
+
+PAGE 2: /courses (Course Catalog)
+- Page header with breadcrumb
+- Left sidebar (desktop) / top filter bar (mobile):
+  Search input, Category dropdown, Free/Paid toggle, Sort by (Newest, Popular,
+  Price Low-High)
+- Course card grid: same card design as homepage
+- Pagination: 12 per page
+- Empty state: "No courses found" with illustration when filters return nothing
+- Count display: "Showing 24 of 87 courses"
+
+PAGE 3: /courses/:slug (Course Detail Page)
+- Full-width hero banner with course thumbnail + title overlay
+- Breadcrumb: Home > Courses > Course Title
+- Left/main column (70%):
+  - Course description (full text)
+  - What You Will Learn: bullet list
+  - Course Syllabus accordion: click section to expand and see lessons list
+    (lesson title + duration, locked if not enrolled)
+  - Student Reviews section with average star rating + individual reviews
+- Right sticky sidebar (30%):
+  - Course thumbnail
+  - Fee or FREE badge
+  - Duration, lessons count, quizzes count
+  - Teacher name and photo
+  - "Enroll Now" button (if free: enrolls immediately)
+    (if paid: goes to payment page)
+  - "Watch Free Videos" button (if first lesson is marked free preview)
+  - If already enrolled: "Continue Learning" button linking to lesson viewer
+- Below the fold: Meet Your Teacher section (photo, name, bio)
+
+PAGE 4: /about (About Us)
+- Hero banner with heading
+- Institute history section with photo + text layout
+- Mission statement card
+- Vision statement card
+- Team section: photo grid of key staff (client provides photos + names)
+- Branch count, student count, courses count — animated stat counters
+
+PAGE 5: /branches (All Branches)
+- Page header
+- Card grid of all active branches
+- Each card: branch name, city, full address, phone number, map link button
+
+PAGE 6: /contact (Contact Us)
+- Same contact form as homepage contact section but as a dedicated page
+- Full-width Google Map embed above form
+- FAQ accordion below form
+
+PAGE 7: /privacy-policy
+- Text page with formatted sections
+
+PAGE 8: /login
+- Centered card layout
+- Single login form: email + password + Login button
+- Forgot Password link
+- Register link below
+- After login: redirect based on role (student→/student/dashboard,
+  teacher→/teacher/dashboard, admin→/admin/dashboard)
+- Error states: "Invalid credentials", "Account locked — try again in X minutes"
+
+PAGE 9: /register
+- Centered card layout with institute logo at top
+- Form fields: Full Name, Email, Phone Number, Password, Confirm Password,
+  Branch (mandatory dropdown — fetched from /api/v1/branches)
+- Terms and conditions checkbox
+- Register button
+- After submit: "Check your email for a verification link" message
+- Login link
+
+PAGE 10: /verify-email/:token
+- Auto-verifies on load, shows success screen with Login button
+- Shows error message if token expired
+
+PAGE 11: /forgot-password
+- Email input form
+- "Send Reset Link" button
+- Success message: "If this email is registered, you will receive a reset link"
+
+PAGE 12: /reset-password/:token
+- New password + confirm new password form
+- Validates token on load — shows expired message if invalid
+- On success: redirect to login with "Password reset successfully" toast
+
+======================================================
+STUDENT PORTAL — /student/* (requires login, role=STUDENT)
+======================================================
+
+All student pages share a layout:
+- Left sidebar (240px): Global College logo, student avatar + name + branch badge,
+  nav links with icons: Dashboard, My Courses, Browse Courses, Assignments,
+  Quizzes, Messages, Leaderboard, Progress, Certificates, Identity Verification,
+  Profile
+- Top bar: page title, notification bell with unread count badge, logout button
+- Mobile: sidebar collapses to bottom tab bar
+
+PAGE S1: /student/dashboard
+- Welcome card: "Welcome back, [Name]!" with branch badge
+- Stats row: Enrolled Courses | Completed Courses | Certificates Earned |
+  Total Points
+- Continue Learning card: last accessed course with large progress bar,
+  thumbnail, title, "Continue" button — prominent at top
+- My Courses section: horizontal scroll of course cards with progress bars
+- Upcoming Deadlines widget: next 3 assignments with deadline countdown
+  (red background if within 24 hours, yellow if within 3 days)
+- Leaderboard rank card: current rank, total points, rank badge icon
+- Notifications panel: last 5 unread notifications with dismiss option
+
+PAGE S2: /student/browse
+- Same as public course catalog but with "Enrolled" badge on already-enrolled courses
+- Filter + search same as public catalog
+
+PAGE S3: /student/courses
+- List of all enrolled courses
+- Each item: thumbnail, title, teacher, progress bar %, last accessed date,
+  "Continue" button, course status (In Progress / Completed)
+
+PAGE S4: /student/courses/:id/learn (CORE VIDEO VIEWER PAGE)
+This is the most important page. Design like digiskills.pk LMS video page.
+
+Two-panel layout:
+LEFT PANEL (sidebar, 300px, scrollable):
+- Course title at top
+- Progress bar for entire course (% complete)
+- List of sections — each collapsible
+- Inside each section: list of lessons with status icons:
+  ✓ green filled circle = completed
+  ▶ blue circle with arrow = currently active
+  ○ grey circle = not started yet
+  🔒 locked icon = prerequisite not met (if sequential mode)
+- Lesson title + duration (MM:SS)
+- Active lesson highlighted with blue left border
+- Section progress: "2/5 complete" sub-text per section
+
+RIGHT PANEL (main content):
+- Video player area (16:9 aspect ratio, dark background):
+  Sandboxed iframe with transparent overlay div for protection
+  Custom overlay shows "Content Protected — Global College" on right-click
+  No YouTube branding visible (youtube-nocookie.com)
+  Player loads from signed stream token — never exposes video ID
+- Below video: lesson title as heading
+- Tabs: "PDF Notes" | "Discussion" | "Assignment" (if attached)
+- PDF Notes tab: download button with PDF filename and size
+- Discussion tab: embedded course forum for this lesson's thread
+- Assignment tab: shows assignment brief + upload form if assignment attached
+- Bottom: "← Previous Lesson" and "Next Lesson →" buttons
+- Progress save: every 5 seconds auto-saves position to backend
+
+MOBILE: sidebar becomes a drawer opened by "Lessons" button at top
+
+PAGE S5: /student/courses/:id/quiz/:qid (Quiz Interface)
+- Progress bar: "Question 3 of 10"
+- Countdown timer (large, red when under 30 seconds) — auto-submits on expire
+- Question text (large, readable)
+- Four answer options as large clickable cards (A, B, C, D)
+- Selected answer highlighted in blue
+- "Next Question" button (enabled after selection)
+- On last question: "Submit Quiz" button
+- Results page after submit:
+  Score card: X/10, percentage, pass/fail badge, time taken
+  Review section: each question with student's answer vs correct answer
+  Correct answers shown with green tick, wrong with red X + explanation
+  "Back to Course" button
+
+PAGE S6: /student/courses/:id/assignment/:aid
+- Assignment title and course breadcrumb
+- Instructions section (formatted text)
+- Deadline display with countdown: "Due in 2 days, 4 hours" (red if overdue)
+- If already submitted: show submitted file, submission date, status badge
+  If graded: show mark, percentage, pass/fail badge, teacher feedback text
+- If not submitted: upload area (drag and drop or click to browse)
+  Accepted: PDF, DOCX, JPG, PNG — max 20MB
+  Late submission warning banner if past deadline
+  "Submit Assignment" button
+
+PAGE S7: /student/courses/:id/forum
+- Pinned posts at very top with gold pin icon
+- Post list (20 per page): author avatar, author name (Teacher badge if teacher),
+  post title, first 100 chars of body, reply count, upvote count, timestamp
+- "Post a Question" button — opens form: title + body textarea
+- Click post → expanded view with full body + replies
+- Reply form at bottom of expanded post
+- Upvote button on each post (toggle)
+- Teacher posts/replies shown with blue "Teacher" badge
+
+PAGE S8: /student/payment/:courseId (Payment Submission Page)
+- Course info card: thumbnail, title, fee amount in PKR
+- Section: "How to Pay" with three tabs: EasyPaisa | JazzCash | Bank Transfer
+  Each tab shows: account name, account number, instructions
+  Data fetched from Admin Settings
+- Upload section: "Upload Payment Proof"
+  File uploader: JPG, PNG, PDF, max 5MB
+  Preview of uploaded file
+  Note: "Your enrollment will be activated within 24 hours of payment verification"
+- Submit button: "Submit Payment Proof"
+- After submit: success screen with "We will verify your payment and notify you"
+
+PAGE S9: /student/messages (Inbox)
+- Two-column layout: thread list (left) + message view (right)
+- Thread list: teacher avatar, teacher name, course name, last message preview,
+  timestamp, unread count badge
+- Message view: chat bubble layout — sent messages right (blue), received left (grey)
+- Message input at bottom: textarea + Send button
+- "New Message" button: opens modal to select course then teacher
+
+PAGE S10: /student/leaderboard
+- Course selector dropdown at top
+- Ranked table: Rank | Avatar | Student Name | Branch | Score | Completed Lessons
+- Own row highlighted in blue
+- Top 3 shown with gold/silver/bronze badges
+- Global leaderboard tab option
+
+PAGE S11: /student/progress (Progress Report)
+- Summary cards: overall completion %, quiz average, assignment average
+- Per-course breakdown accordion:
+  Course name + completion bar + status badge
+  Expand: lessons completed (X of Y), quiz results list, assignment results list
+- "Download My Progress Report (PDF)" button — generates branded PDF
+
+PAGE S12: /student/certificates
+- Grid of course completion cards
+- Each card: course thumbnail, course name, completion date
+- Status indicator:
+  "Complete Course First" — greyed out
+  "Verify Your Identity" — orange button
+  "Awaiting Verification" — yellow badge (admin reviewing)
+  "Download Certificate" — green download button
+- Click download: triggers PDF download of the generated certificate
+
+PAGE S13: /student/verify-identity
+- Info banner: "Required to download your certificates"
+- Instructions: what is CNIC / Form-B, how to upload
+- Document type selector: CNIC (18+) | Form-B (under 18)
+- File uploader: image or PDF, max 5MB
+- Preview of uploaded document (blurred after upload for privacy)
+- Submit button
+- Status section (if already submitted): "Under Review" or "Verified" badge
+
+PAGE S14: /student/profile
+- Avatar with upload button
+- Editable fields: Full Name, Phone Number
+- Branch field: displayed as badge, read-only, tooltip "Contact admin to change"
+- Email: displayed only, not editable
+- Change Password section: current password, new password, confirm
+- Save Changes button with success toast
+
+======================================================
+TEACHER PANEL — /teacher/* (requires login, role=TEACHER)
+======================================================
+
+All teacher pages share a layout:
+- Left sidebar: Global College logo, teacher avatar, nav links:
+  Dashboard, My Courses, Messages, Profile
+- Top bar: notifications bell, logout
+
+PAGE T1: /teacher/dashboard
+- Stats cards: Total Courses | Total Students (all my courses) |
+  Pending Submissions to Grade | Avg Student Score
+- Course status overview: count of courses per status (Draft/Pending/Live)
+- Recent Submissions feed: latest 5 assignment submissions awaiting grading
+  Each item: student name, assignment title, course, submitted time, Grade button
+
+PAGE T2: /teacher/courses
+- List of my courses with columns: thumbnail, title, status badge, enrolled count,
+  created date, Actions (Edit / View Students)
+- Status badges: Draft=grey, Pending=orange, Live=green, Rejected=red
+- Create New Course button
+
+PAGE T3: /teacher/courses/:id/edit (Course Builder)
+Build like digiskills.pk course structure:
+- Course info form at top: title, description, category, thumbnail upload,
+  total duration, teacher bio
+- Sections and lessons builder:
+  Add Section button — creates new section with title input
+  Inside each section: Add Lesson button
+  Each lesson: title, YouTube Video ID field (stored encrypted), PDF upload,
+  duration input, order number
+  Drag handles to reorder lessons and sections
+  Delete section / delete lesson buttons with confirmation
+- Quizzes tab: list of quizzes attached to this course, Add Quiz button
+- Assignments tab: list of assignments, Add Assignment button
+- Status bar at bottom showing current course status
+- "Save Draft" button + "Submit for Admin Approval" button (disabled if
+  no sections or lessons added)
+- If rejected: red banner showing admin's rejection reason
+
+PAGE T4: /teacher/courses/:id/quiz/create (Quiz Builder)
+- Quiz title, attach to lesson (optional), time limit input, passing score input
+- Questions builder: Add Question button
+  Each question: question text textarea, 4 option inputs (A B C D),
+  correct answer selector (radio), optional explanation textarea
+  Reorder via drag-and-drop, delete question button
+- Preview Quiz button: shows quiz as student would see it
+- Save Quiz button
+
+PAGE T5: /teacher/courses/:id/assignments
+- List of assignments: title, lesson, deadline, submission count, actions
+- Create Assignment form (modal or inline):
+  Title, instructions (rich text editor), attached lesson selector,
+  deadline date+time picker, allow late submission toggle
+- Click assignment → view all submissions table:
+  Student name, submitted at, is late badge, status, Grade button
+
+PAGE T6: /teacher/assignments/:submissionId/grade
+- Left: view the submitted file (PDF preview or download button for other types)
+- Right: grading form:
+  Numeric mark input (0–100), percentage calculated automatically,
+  Pass/Fail badge shown based on marks, feedback textarea (rich text)
+  Save & Notify Student button
+- After saving: submission status changes to Graded, student notified
+
+PAGE T7: /teacher/courses/:id/students
+- Table: avatar, student name, branch, enrollment date, overall completion %,
+  quiz avg score, assignment avg mark, last active
+- Click student → modal showing per-lesson completion, each quiz score,
+  each assignment mark
+
+PAGE T8: /teacher/messages
+- Same layout as student inbox
+- Shows threads from own enrolled students only
+- Cannot initiate new thread — student must message first
+
+PAGE T9: /teacher/profile
+- Edit: name, phone, profile photo, short bio (shown on course detail page)
+- Change password section
+
+======================================================
+ADMIN PANEL — /admin/* (requires login, role=ADMIN)
+======================================================
+
+All admin pages share a layout:
+- Left sidebar (wider, 260px): logo, Admin avatar, all nav links grouped:
+  OVERVIEW: Dashboard
+  USERS: Students, Teachers
+  CONTENT: Courses, Success Stories, Testimonials
+  PAYMENTS: Payments, Manual Enrollment
+  VERIFICATION: Identity Verifications, Certificates
+  COMMUNICATION: Messages, Announcements, Forum
+  DATA: Reports
+  SETTINGS: Branches, Settings, Email Templates
+
+PAGE A1: /admin/dashboard
+- KPI row (5 cards): Total Students | Active Courses | Pending Payments |
+  Pending Verifications | Total Revenue PKR
+- Branch Overview table: Branch Name | City | Student Count (with mini bar chart)
+- Pending Actions tray (3 cards with count badges):
+  Payments Awaiting Approval, Identity Verifications, Courses for Review
+  Each card is a clickable button navigating to the relevant page
+- Recent Activity feed: last 15 events with icon, description, time ago
+  Events: new registration, payment submitted, course submitted, identity uploaded
+
+PAGE A2: /admin/students
+- Full-width searchable, filterable, paginated table
+- Columns: Avatar, Name, Email, Phone, Branch, Enrolled Courses, Join Date,
+  Status, Actions
+- Filters bar: Search by name/email, Branch dropdown, Status toggle (Active/Inactive)
+- Export button: PDF or Excel
+- Row actions: View Profile, Edit Branch, Disable Account, Delete, Reset Password
+- Bulk actions: select multiple → disable or export selected
+
+PAGE A3: /admin/students/:id (Student Detail)
+- Profile card: photo, name, email, phone, branch badge (editable dropdown),
+  join date, status toggle, identity verification status
+- Tabs:
+  Enrollments: list of all enrolled courses with status + progress %,
+    manual Unenroll button per course
+  Payments: payment history table with status badges
+  Submissions: assignments and quiz attempts
+  Certificates: issued certificates list
+  Activity Log: recent actions
+
+PAGE A4: /admin/teachers
+- Table: avatar, name, email, courses count, join date, status, actions
+- Create Teacher button opens modal: name, email, temporary password
+  (system emails credentials automatically)
+- Row actions: View, Edit, Reset Password, Disable, Delete
+
+PAGE A5: /admin/teachers/:id (Teacher Detail)
+- Profile card with teacher info
+- Assigned courses list with enrollment counts
+- Edit profile, reset password, disable account buttons
+
+PAGE A6: /admin/courses
+- Table: thumbnail, title, teacher, category, fee, enrolled count, status, actions
+- Status filter tabs at top: All | Pending Approval | Live | Draft | Archived
+- Pending Approval tab is highlighted in orange when count > 0
+- Row actions: View/Review, Edit, Publish, Archive, Delete
+
+PAGE A7: /admin/courses/:id/review (Course Review Page)
+- Full preview of all course content:
+  Course info, all sections and lessons listed, quizzes, assignments
+- For each lesson: title, YouTube video ID shown (decrypted for admin), duration
+- Approve button (green) + Reject button (red, opens rejection note input)
+- After approve: course status → LIVE, teacher notified
+- After reject: course status → DRAFT, teacher notified with note
+
+PAGE A8: /admin/courses/:id/edit
+- Same as teacher course builder but admin can:
+  Also edit the fee, publish status, assigned teacher
+
+PAGE A9: /admin/payments
+- Table: student name, course, amount PKR, method (icon), submitted date,
+  status badge, receipt thumbnail, actions
+- Filter bar: Status, Method, Date Range, Course, Search student name
+- Summary stats: Total Pending | Total Approved PKR | Total Rejected
+- Click row or "Review" button → opens payment detail modal:
+  Full-size receipt image (zoomable), all payment info, student profile link
+  Approve button (green) → auto-enrolls student + sends notification
+  Reject button (red) → opens reason textarea → sends notification to student
+- Export filtered table as PDF or Excel
+
+PAGE A10: /admin/manual-enrollment
+- Select Student (searchable autocomplete)
+- Select Course (searchable autocomplete)
+- Enrollment reason input (optional — e.g. "scholarship", "cash payment")
+- Enroll button → creates enrollment + notifies student
+
+PAGE A11: /admin/verifications (Identity Verification Queue)
+- Table: student name, document type, submitted date, status, actions
+- Pending tab highlighted when count > 0
+- Review modal: full-size document image, student name + email,
+  Approve (unlocks all pending certs for this student + notifies)
+  Reject (opens reason input + notifies student)
+
+PAGE A12: /admin/certificates
+- Table: student name, course, certificate ID, issued date, revoked status
+- Search by student name or certificate ID
+- Revoke button with confirmation dialog
+
+PAGE A13: /admin/success-stories
+- List of current stories with photo thumbnail, student name, status, order,
+  Edit and Delete buttons
+- Add New Story button → form: student name, photo upload (Cloudinary),
+  description textarea (500 word limit with live counter), active toggle
+- Drag to reorder stories (affects homepage carousel order)
+
+PAGE A14: /admin/testimonials
+- List with photo, name, course, rating stars, review text, active toggle
+- Add New button → form: name, photo upload, course taken, star rating,
+  review text, active toggle
+- Delete button per testimonial
+
+PAGE A15: /admin/branches
+- Table: name, city, address, phone, student count, status, Edit, Deactivate
+- Add Branch form (inline or modal): name, city, address, phone
+- Deactivate removes from registration dropdown but keeps student data
+
+PAGE A16: /admin/reports
+- Report type tabs: Branch Overview | Student Progress | Enrollments |
+  Revenue | Full Student List
+- Filter panel per report type (date range, course, branch, status)
+- Preview table in browser before exporting
+- Export as PDF (branded, Puppeteer) or Export as Excel (exceljs) buttons
+
+PAGE A17: /admin/announcements
+- Compose form:
+  Target: All Students | Students in a Specific Course | All Teachers
+  Course selector (appears if "Specific Course" chosen)
+  Message textarea
+  Send button → creates in-app notifications for all targets
+- History table: date sent, target, message preview, recipient count
+
+PAGE A18: /admin/settings
+Organized in tabs:
+
+PAYMENT SETTINGS:
+- EasyPaisa Account Name, EasyPaisa Number
+- JazzCash Account Name, JazzCash Number
+- Bank Name, Bank Account Title, Bank Account Number, Branch Code, IBAN
+
+CERTIFICATE SETTINGS:
+- Signatory Full Name
+- Signatory Designation
+- Signature Image upload (Cloudinary)
+- Certificate Template Background upload (Cloudinary)
+- Certificate border color picker
+
+LMS SETTINGS:
+- Video Completion Threshold (slider 50–100, default 80)
+- Allow Late Assignment Submissions (toggle)
+- Max File Upload Size per assignment (MB)
+
+SITE SETTINGS:
+- WhatsApp Number (for floating button)
+- Facebook Page URL
+- Instagram URL
+- YouTube Channel URL
+- Contact Email
+- Contact Phone
+- Contact Address
+- Google Maps Embed URL
+
+EMAIL TEMPLATES:
+- Welcome Email (welcome new student)
+- Verification Email (email confirmation link)
+- Password Reset Email
+- Enrollment Confirmation Email
+- Payment Approved Email
+- Payment Rejected Email (with rejection reason variable)
+
+Each template has a subject field and body textarea with variable hints like
+{{studentName}}, {{courseName}}, {{resetLink}}
+
+---
+
+COMPLETE BACKEND API ENDPOINTS (/api/v1/):
+
+AUTH:
+POST   /auth/register
+GET    /auth/verify-email/:token
+POST   /auth/login
+POST   /auth/refresh
+POST   /auth/logout
+POST   /auth/forgot-password
+POST   /auth/reset-password/:token
+
+BRANCHES:
+GET    /branches                          (public)
+GET    /admin/branches                    (admin)
+POST   /admin/branches                    (admin)
+PUT    /admin/branches/:id                (admin)
+PATCH  /admin/branches/:id/toggle        (admin)
+
+COURSES (public):
+GET    /courses                           (public — LIVE only)
+GET    /courses/:slug                     (public)
+
+COURSES (teacher):
+GET    /teacher/courses
+POST   /teacher/courses
+PUT    /teacher/courses/:id
+POST   /teacher/courses/:id/submit
+DELETE /teacher/courses/:id
+
+COURSES (admin):
+GET    /admin/courses
+POST   /admin/courses
+PUT    /admin/courses/:id
+POST   /admin/courses/:id/approve
+POST   /admin/courses/:id/reject
+DELETE /admin/courses/:id
+
+SECTIONS & LESSONS:
+POST   /courses/:id/sections
+PUT    /sections/:id
+DELETE /sections/:id
+POST   /sections/:id/lessons
+PUT    /lessons/:id
+DELETE /lessons/:id
+PUT    /courses/:id/reorder
+
+VIDEO:
+GET    /student/lessons/:id/stream-token
+GET    /student/lessons/:id/embed
+PATCH  /student/lessons/:id/progress
+POST   /student/lessons/:id/complete
+
+ENROLLMENTS:
+GET    /student/enrollments
+POST   /enrollments
+POST   /admin/enrollments
+DELETE /admin/enrollments/:id
+
+PAYMENTS:
+POST   /payments
+GET    /student/payments
+GET    /admin/payments
+POST   /admin/payments/:id/approve
+POST   /admin/payments/:id/reject
+
+QUIZZES:
+POST   /courses/:id/quizzes
+PUT    /quizzes/:id
+DELETE /quizzes/:id
+POST   /quizzes/:id/questions
+PUT    /questions/:id
+DELETE /questions/:id
+POST   /student/quizzes/:id/submit
+GET    /student/quizzes/:id/result
+
+ASSIGNMENTS:
+POST   /courses/:id/assignments
+PUT    /assignments/:id
+DELETE /assignments/:id
+GET    /teacher/assignments/:id/submissions
+POST   /student/assignments/:id/submit
+POST   /teacher/submissions/:id/grade
+
+IDENTITY & CERTIFICATES:
+POST   /student/identity-verification
+GET    /admin/verifications
+POST   /admin/verifications/:id/approve
+POST   /admin/verifications/:id/reject
+GET    /student/certificates
+GET    /student/certificates/:id/download
+GET    /admin/certificates
+POST   /admin/certificates/:id/revoke
+
+MESSAGES:
+GET    /messages/threads
+POST   /messages/threads
+GET    /messages/threads/:id
+POST   /messages/threads/:id/messages
+
+FORUM:
+GET    /courses/:id/forum/posts
+POST   /courses/:id/forum/posts
+POST   /forum/posts/:id/pin
+POST   /forum/posts/:id/upvote
+POST   /forum/posts/:id/replies
+GET    /forum/posts/:id/replies
+DELETE /admin/forum/posts/:id
+
+NOTIFICATIONS:
+GET    /notifications
+PATCH  /notifications/:id/read
+PATCH  /notifications/read-all
+
+LEADERBOARD:
+GET    /courses/:id/leaderboard
+GET    /admin/leaderboard
+
+REPORTS:
+GET    /admin/reports/:type?format=pdf|excel&[filters]
+GET    /student/reports/progress?format=pdf
+
+ADMIN — CONTENT:
+GET/POST/DELETE /admin/success-stories
+GET/POST/DELETE /admin/testimonials
+GET/PUT         /admin/settings
+POST            /admin/announcements
+GET             /admin/announcements
+
+ADMIN — USERS:
+GET    /admin/students
+GET    /admin/students/:id
+PUT    /admin/students/:id
+DELETE /admin/students/:id
+POST   /admin/students/:id/reset-password
+GET    /admin/teachers
+POST   /admin/teachers
+GET    /admin/teachers/:id
+PUT    /admin/teachers/:id
+DELETE /admin/teachers/:id
+
+HEALTH:
+GET    /health  → { status: ok, db: connected, uptime: X }
+
+---
+
+CERTIFICATE PDF TEMPLATE (Puppeteer — A4 Landscape):
+Generate from HTML with these exact elements:
+- Outer decorative border (double line, #1B3A6B color)
+- Inner content centered vertically and horizontally
+- Global College logo at top center (from settings.logoUrl)
+- "CERTIFICATE OF COMPLETION" in 36px uppercase, letter-spaced heading
+- Decorative horizontal divider line
+- "This is to certify that" in italic 16px
+- Student Full Name in 32px bold (from verified identity document name)
+- "has successfully completed the course" in 16px
+- Course Title in 24px bold
+- One row: "Completion Date: [date]  |  Duration: [X] Hours"
+- Unique Certificate ID: "GC-[YEAR]-[NNNNN]" in small grey monospace text
+- Bottom section: signature image + signatory name + designation (from settings)
+- Global College name + institute tagline in footer
+- Professional color scheme: dark blue headings, gold accent lines
+
+---
+
+NOTIFICATION TRIGGERS:
+Whenever these events happen, call createNotification(userId, type, message, link):
+
+Student notifications:
+- New content in enrolled course → "New lesson available in [Course]"
+- Assignment deadline in 24h → "Assignment due tomorrow: [Title]"
+- Assignment graded → "Your assignment [Title] has been graded: [Mark]/100"
+- New message received → "New message from [Teacher Name]"
+- Payment approved → "Payment approved! You now have access to [Course]"
+- Payment rejected → "Payment rejected: [Reason]. Please resubmit."
+- Identity verification approved → "Identity verified! Your certificates are unlocked."
+- Identity verification rejected → "Identity rejected: [Reason]. Please resubmit."
+- Certificate unlocked → "Your certificate for [Course] is ready to download!"
+
+Teacher notifications:
+- Course approved → "Your course [Title] has been approved and is now live!"
+- Course rejected → "Your course [Title] needs revision: [Admin Note]"
+- New message received → "New message from [Student Name]"
+
+Admin notifications:
+- New student registration → "New student registered: [Name] - [Branch]"
+- New payment submitted → "[Student] submitted payment for [Course]"
+- New course submitted → "[Teacher] submitted [Course] for review"
+- New identity verification submitted → "[Student] submitted identity documents"
+
+---
+
+SECURITY IMPLEMENTATION:
+- helmet({ contentSecurityPolicy: { directives: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "https://www.youtube.com", "'unsafe-inline'"],
+    frameSrc: ["https://www.youtube-nocookie.com"],
+    connectSrc: ["'self'"],
+    imgSrc: ["'self'", "https://res.cloudinary.com", "data:"],
+  }}})
+- cors({ origin: process.env.FRONTEND_URL, credentials: true })
+- express-rate-limit: { windowMs: 15*60*1000, max: 5 } on /auth/login
+- express-rate-limit: { windowMs: 60*60*1000, max: 10 } on /auth/register
+- bcrypt.hash(password, 12)
+- Account lock: after 5 failed logins → set lockedUntil = now + 15 minutes
+- All encrypted YouTube IDs: use crypto.createCipheriv('aes-256-cbc', key, iv)
+- NEVER select encryptedYoutubeId field in any Prisma query sent to frontend
+- All upload endpoints: validate MIME type using file-type library before Cloudinary
+- All Prisma queries use .select() to exclude sensitive fields
+- Video access tokens: jwt.sign({ lessonId, userId }, secret, { expiresIn: '30m' })
+- Environment validation on startup: if any required env var is missing, throw
+  error and refuse to start
+
+---
+
+CODE QUALITY STANDARDS:
+- All async route handlers wrapped in catchAsync(fn) utility
+- All errors thrown as new AppError(message, statusCode, errorCode)
+- Global error handler in middleware/errorHandler.js converts AppError to JSON response
+- Standard response format always: { success, data, message } or { success, error, code }
+- All business logic in /services — controllers only call services and send responses
+- Prisma transactions ($transaction) for any multi-table write operations
+- Winston logger with levels: error, warn, info, debug — no console.log in production
+- All list endpoints paginated: default limit=20, max limit=100, returns
+  { data, total, page, totalPages }
+- All env vars validated at startup using a validateEnv() function
+- Database indexes on all foreign keys and frequently filtered fields
+- Use Prisma's select to explicitly whitelist returned fields — never return all fields
+
+BUILD ORDER (follow exactly in this sequence):
+1.  Initialize monorepo, install all dependencies, configure Prisma + PostgreSQL
+2.  Run Prisma migration for complete schema
+3.  Build authentication system end-to-end (register, verify, login, refresh,
+    forgot/reset password) — test all flows
+4.  Build branch management API + frontend branch management page
+5.  Build course + section + lesson CRUD with encrypted YouTube ID storage
+6.  Build video stream token endpoint + frontend video player with all protections
+7.  Build video progress tracking (5-second saves, completion detection,
+    fraud prevention)
+8.  Build enrollment system (free = immediate, paid = pending payment)
+9.  Build payment submission + admin approval flow end-to-end
+10. Build quiz system (builder + student submission + auto-grading)
+11. Build assignment system (creation + submission + grading)
+12. Build certificate service (completion check + PDF generation)
+13. Build identity verification flow (upload + admin review + cert unlock)
+14. Build messaging system (threads + messages)
+15. Build discussion forum
+16. Build notification system (in-app + push)
+17. Build leaderboard
+18. Build reporting + PDF/Excel exports
+19. Build admin settings management
+20. Build admin content management (success stories, testimonials)
+21. Build complete public website (all 12 public pages)
+22. Build student dashboard and all student portal pages
+23. Build teacher panel (all pages)
+24. Build admin panel (all pages)
+25. Connect all frontend components to live API — remove all mock data
+26. Implement full video protection system and test on enrolled + non-enrolled student
+27. End-to-end test all critical user flows
+28. Production deployment configuration (Dockerfile, env validation, health check)
+29. Write README.md with complete setup and deployment instructions

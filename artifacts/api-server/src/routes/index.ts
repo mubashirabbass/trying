@@ -13,6 +13,12 @@ import successStoriesRouter from "./success-stories";
 import branchesRouter from "./branches";
 import certificatesRouter from "./certificates";
 import dashboardRouter from "./dashboard";
+import notificationsRouter from "./notifications";
+import forumRouter from "./forum";
+import messagesRouter from "./messages";
+import identityVerificationRouter from "./identity-verification";
+import settingsRouter from "./settings";
+import leaderboardRouter from "./leaderboard";
 
 const router: IRouter = Router();
 
@@ -30,5 +36,11 @@ router.use(successStoriesRouter);
 router.use(branchesRouter);
 router.use(certificatesRouter);
 router.use(dashboardRouter);
+router.use(notificationsRouter);
+router.use(forumRouter);
+router.use(messagesRouter);
+router.use(identityVerificationRouter);
+router.use(settingsRouter);
+router.use(leaderboardRouter);
 
 export default router;

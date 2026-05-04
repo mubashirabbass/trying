@@ -20,8 +20,13 @@ import LessonPlayer from "@/pages/student/lesson-player";
 import StudentAssignments from "@/pages/student/assignments";
 import StudentQuizzes from "@/pages/student/quizzes";
 import StudentCertificates from "@/pages/student/certificates";
+import StudentMessages from "@/pages/student/messages";
+import StudentForum from "@/pages/student/forum";
+import StudentLeaderboard from "@/pages/student/leaderboard";
+import VerifyIdentity from "@/pages/student/verify-identity";
 
 import TeacherDashboard from "@/pages/teacher/dashboard";
+import TeacherMessages from "@/pages/teacher/messages";
 
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsers from "@/pages/admin/users";
@@ -30,12 +35,16 @@ import AdminPayments from "@/pages/admin/payments";
 import AdminBranches from "@/pages/admin/branches";
 import AdminSuccessStories from "@/pages/admin/success-stories";
 import AdminTestimonials from "@/pages/admin/testimonials";
+import AdminSettings from "@/pages/admin/settings";
+import AdminAnnouncements from "@/pages/admin/announcements";
+import AdminIdentityVerifications from "@/pages/admin/identity-verifications";
 
 const queryClient = new QueryClient();
 
 function Router() {
   return (
     <Switch>
+      {/* Public */}
       <Route path="/" component={Home} />
       <Route path="/register" component={Register} />
       <Route path="/login" component={Login} />
@@ -45,6 +54,7 @@ function Router() {
       <Route path="/courses/:id" component={CourseDetail} />
       <Route path="/verify-certificate" component={VerifyCertificate} />
 
+      {/* Student */}
       <Route path="/dashboard" component={StudentDashboard} />
       <Route path="/dashboard/courses" component={StudentCourses} />
       <Route path="/dashboard/lessons/:courseId" component={LessonPlayer} />
@@ -52,9 +62,16 @@ function Router() {
       <Route path="/dashboard/assignments" component={StudentAssignments} />
       <Route path="/dashboard/quizzes" component={StudentQuizzes} />
       <Route path="/dashboard/certificates" component={StudentCertificates} />
+      <Route path="/dashboard/messages" component={StudentMessages} />
+      <Route path="/dashboard/forum" component={StudentForum} />
+      <Route path="/dashboard/leaderboard" component={StudentLeaderboard} />
+      <Route path="/dashboard/verify-identity" component={VerifyIdentity} />
 
+      {/* Teacher */}
       <Route path="/teacher" component={TeacherDashboard} />
+      <Route path="/teacher/messages" component={TeacherMessages} />
 
+      {/* Admin */}
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/admin/users" component={AdminUsers} />
       <Route path="/admin/courses" component={AdminCourses} />
@@ -62,6 +79,9 @@ function Router() {
       <Route path="/admin/branches" component={AdminBranches} />
       <Route path="/admin/success-stories" component={AdminSuccessStories} />
       <Route path="/admin/testimonials" component={AdminTestimonials} />
+      <Route path="/admin/settings" component={AdminSettings} />
+      <Route path="/admin/announcements" component={AdminAnnouncements} />
+      <Route path="/admin/identity-verifications" component={AdminIdentityVerifications} />
 
       <Route component={NotFound} />
     </Switch>
