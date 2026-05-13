@@ -1,0 +1,500 @@
+# 🎓 Global College LMS — Comprehensive System Review
+
+> **Project:** Edu-Sphere / Global College LMS  
+> **Review Date:** May 5, 2026  
+> **Status:** Early-stage prototype — ~15% complete  
+
+---
+
+## 1. Executive Summary
+
+The Global College LMS project was scaffolded by Replit AI as a **pnpm monorepo** using Replit's proprietary workspace architecture. While the project has database schemas for 17 tables, 21 API route files, and frontend pages for all three roles (Student, Teacher, Admin), **nearly everything is a non-functional shell**. The backend uses **in-memory sessions** instead of JWT, has **no authentication middleware**, no role-based access control, and no file upload capability. The frontend pages display static/mock data with no real CRUD operations working end-to-end. The project is also **100% dependent on Replit infrastructure** — it cannot run independently.
+
+---
+
+## 2. Architecture Overview — What Exists
+
+### Current Folder Structure
+```
+Edu-Sphere/
+├── .replit, .npmrc, .replitignore      ← Replit-specific config
+├── pnpm-workspace.yaml                 ← Replit workspace with platform overrides
+├── package.json                        ← Root workspace (pnpm)
+├── tsconfig.base.json                  
+├── lib/
+│   ├── db/                             ← Drizzle ORM schemas (17 tables)
+│   ├── api-spec/                       ← OpenAPI YAML spec (auto-generated)
+│   ├── api-zod/                        ← Zod validation schemas
+│   └── api-client-react/               ← Auto-generated React Query hooks
+├── artifacts/
+│   ├── api-server/                     ← Express.js backend
+│   ├── global-college/                 ← React + Vite frontend
+│   └── mockup-sandbox/                 ← Design mockup (unused)
+├── scripts/                            ← Post-merge scripts
+└── attached_assets/                    ← Requirements docs
+```
+
+### Tech Stack (Current)
+| Layer | Technology | Status |
+|-------|-----------|--------|
+| Frontend | React 19 + Vite 7 + TailwindCSS 4 + Radix UI | Shell pages exist |
+| Backend | Express 5 + TypeScript | Route files exist, minimal logic |
+| Database | PostgreSQL + Drizzle ORM | Schemas defined, no migrations verified |
+| Auth | In-memory Map sessions (SHA-256) | ❌ Not production-ready |
+| Routing | Wouter (client-side) | Basic routes defined |
+| State | React Query + auto-generated hooks | Hooks exist but most fail |
+| Styling | TailwindCSS + shadcn/ui components | UI components installed |
+
+---
+
+## 3. Replit Dependencies (MUST REMOVE)
+
+> [!CAUTION]
+> The project **cannot run outside Replit** without removing these dependencies.
+
+| File | Dependency | Action Required |
+|------|-----------|----------------|
+| `.replit` | Replit run/deploy config | Delete entirely |
+| `.replitignore` | Replit-specific ignore | Delete entirely |
+| `.npmrc` | May contain Replit registry | Review/replace |
+| `pnpm-workspace.yaml` | `@replit/*` package exclusions, linux-x64-only overrides | Rewrite completely |
+| `vite.config.ts` | `@replit/vite-plugin-runtime-error-modal`, `@replit/vite-plugin-cartographer`, `@replit/vite-plugin-dev-banner`, `REPL_ID` checks | Remove all 3 plugins |
+| `package.json` (global-college) | `@replit/vite-plugin-*` (3 packages) in devDependencies | Remove |
+| `vite.config.ts` | `PORT` and `BASE_PATH` env vars required at build time | Make optional with defaults |
+| `api-server/index.ts` | Hardcoded PORT requirement | Add default port fallback |
+| `.agents/` directory | Replit AI agent config | Delete entirely |
+| `.local/` directory | Replit local state | Delete entirely |
+| `replit.md` | Replit project docs | Delete |
+
+---
+
+## 4. What Has Been Done ✅
+
+### 4.1 Database Schemas (Drizzle ORM) — Partially Done
+17 schema files exist with basic table definitions:
+
+| Table | Fields | Status |
+|-------|--------|--------|
+| `users` | id, name, email, passwordHash, role, phone, cnic, avatar, isActive | ⚠️ Missing: branchId, isEmailVerified, isIdentityVerified, lockedUntil, failedLoginAttempts |
+| `courses` | id, title, description, category, duration, fee, thumbnail, syllabus, teacherId, isFeatured, isFree | ⚠️ Missing: slug, status (DRAFT/PENDING/LIVE/ARCHIVED), rejectionNote, totalDurationHours |
+| `lessons` | id, courseId, title, description, videoUrl, pdfUrl, duration, orderIndex | ⚠️ Missing: sectionId (no Section model!), encryptedYoutubeId, completionThreshold |
+| `enrollments` | id, userId, courseId, progress, status | ⚠️ Missing: completedAt, isCompleted |
+| `payments` | id, userId, courseId, amount, method, status, receiptUrl, notes | ⚠️ Missing: rejectionReason, reviewedAt, reviewedBy |
+| `quizzes` | id, courseId, title, questions(jsonb), totalMarks, timeLimit | ⚠️ Missing: lessonId, passingScore. Questions are JSON blob instead of separate table |
+| `assignments` | id, courseId, title, description, dueDate, totalMarks | ⚠️ Missing: lessonId, instructions, allowLateSubmission |
+| `certificates` | id, userId, courseId, certificateNumber | ⚠️ Missing: pdfUrl, status, isRevoked, issuedAt |
+| `branches` | id, name, city, address, phone, email, mapUrl, isMain | ✅ Adequate |
+| `settings` | id, key, value, label, category | ✅ Adequate |
+| `notifications` | Basic structure exists | ⚠️ Missing: link field |
+| `forum` | forumPosts + forumReplies tables | ⚠️ Missing: upvotes, isPinned |
+| `messages` | messageThreads + messages tables | ⚠️ Simplified |
+| `identity-verification` | Basic structure | ⚠️ Missing: rejectionReason |
+| `testimonials` | Basic structure | ✅ Adequate |
+| `success-stories` | Basic structure | ✅ Adequate |
+
+**Critical Missing Tables:**
+- ❌ `Section` model (courses have no sections/chapters)
+- ❌ `LessonCompletion` (only simplified `lessonProgress`)
+- ❌ `VideoAccessLog`
+- ❌ `Question` (questions stored as JSON in quizzes)
+- ❌ `QuizAttempt` (only `quizResults`)
+
+### 4.2 Backend API (Express.js) — Shell Only
+21 route files exist but most contain **basic CRUD with no business logic**:
+
+| Route File | Endpoints | Functional? |
+|-----------|-----------|-------------|
+| `auth.ts` | login, register, logout, /auth/me | ⚠️ Works but uses in-memory sessions, SHA-256 (not bcrypt) |
+| `courses.ts` | GET/POST/PUT/DELETE /courses | ⚠️ Basic CRUD, no role checks |
+| `branches.ts` | CRUD for branches | ⚠️ Basic CRUD, no admin guard |
+| `lessons.ts` | CRUD for lessons | ⚠️ Basic CRUD |
+| `enrollments.ts` | Basic enrollment | ⚠️ No payment flow integration |
+| `payments.ts` | Basic payment CRUD | ⚠️ No approve/reject flow |
+| `dashboard.ts` | Admin/Student/Teacher stats | ⚠️ Returns aggregated data |
+| Other 14 files | Various routes | ⚠️ Minimal implementation |
+
+**Critical Backend Gaps:**
+- ❌ **No JWT authentication** — uses volatile in-memory `Map<string, session>`
+- ❌ **No bcrypt** — uses SHA-256 for password hashing (insecure)
+- ❌ **No middleware** — `middlewares/` folder contains only `.gitkeep`
+- ❌ **No RBAC** — any user can access any endpoint
+- ❌ **No file upload** — no Cloudinary/multer integration
+- ❌ **No email service** — no Nodemailer/SendGrid
+- ❌ **No video protection** — no AES encryption, no stream tokens
+- ❌ **No error handling** — no AppError class, no global error handler
+- ❌ **No input validation middleware** — Zod schemas exist but not enforced
+- ❌ **No API versioning** — routes at `/api/` not `/api/v1/`
+- ❌ **No rate limiting** — no express-rate-limit
+- ❌ **No security headers** — no helmet
+- ❌ **No pagination** — all queries return full datasets
+- ❌ **No transaction support** — no Drizzle transactions used
+
+### 4.3 Frontend (React + Vite) — UI Shells
+Pages exist but are **mostly display-only with hardcoded/mock data**:
+
+**Public Pages (9 files):**
+| Page | File | Status |
+|------|------|--------|
+| Homepage | `home.tsx` (584 lines) | ✅ Best page — has hero, courses, features, testimonials, branches sections. Falls back to hardcoded data when API returns empty |
+| Courses Catalog | `courses.tsx` | ⚠️ Basic grid with filters, uses API |
+| Course Detail | `course-detail.tsx` | ⚠️ Basic layout, no syllabus accordion |
+| Login | `login.tsx` | ⚠️ Works with demo creds, has role tabs |
+| Register | `register.tsx` | ⚠️ Basic form, no branch dropdown from API |
+| About | `about.tsx` | ⚠️ Static placeholder content |
+| Contact | `contact.tsx` | ⚠️ Form exists, no backend handler |
+| Verify Certificate | `verify-certificate.tsx` | ⚠️ UI only |
+| 404 | `not-found.tsx` | ✅ Works |
+
+**Student Pages (10 files):**
+| Page | Status |
+|------|--------|
+| Dashboard | ⚠️ Shows stats cards, no "Continue Learning" widget |
+| My Courses | ⚠️ Lists enrollments, basic |
+| Lesson Player | ⚠️ Has sidebar + video area but uses `<video>` tag, NOT YouTube iframe. No video protection |
+| Assignments | ⚠️ Lists assignments, no file upload |
+| Quizzes | ⚠️ Basic list, no quiz-taking interface |
+| Certificates | ⚠️ Basic list, no download |
+| Messages | ⚠️ Chat UI shell exists |
+| Forum | ⚠️ Thread list UI exists |
+| Leaderboard | ⚠️ Table UI exists |
+| Verify Identity | ⚠️ Form UI exists, no file upload |
+
+**Teacher Pages (3 files only):**
+| Page | Status |
+|------|--------|
+| Dashboard | ⚠️ Stats cards only |
+| Courses | ⚠️ Basic list |
+| Messages | ⚠️ Chat UI shell |
+
+**Missing Teacher Pages:**
+- ❌ Course Builder/Editor
+- ❌ Quiz Builder
+- ❌ Assignment Management
+- ❌ Grading Interface
+- ❌ Student Progress View
+- ❌ Profile
+
+**Admin Pages (10 files):**
+| Page | Status |
+|------|--------|
+| Dashboard | ⚠️ Stats + recent enrollments/payments |
+| Users | ⚠️ Basic table |
+| Courses | ⚠️ Basic table |
+| Payments | ⚠️ Basic table, no approve/reject |
+| Branches | ⚠️ CRUD form works partially |
+| Success Stories | ⚠️ CRUD form |
+| Testimonials | ⚠️ CRUD form |
+| Settings | ⚠️ Key-value editor |
+| Announcements | ⚠️ Send form |
+| Identity Verifications | ⚠️ Basic queue |
+
+**Missing Admin Pages:**
+- ❌ Student Detail View
+- ❌ Teacher Detail View
+- ❌ Course Review/Approval
+- ❌ Course Editor
+- ❌ Payment Review Modal with Receipt Viewer
+- ❌ Manual Enrollment
+- ❌ Certificate Management
+- ❌ Reports with PDF/Excel Export
+- ❌ Email Templates
+
+### 4.4 Components & Layouts
+| Component | Status |
+|-----------|--------|
+| `MainLayout.tsx` | ✅ Public pages layout with Navbar |
+| `Navbar.tsx` | ✅ Sticky nav with mobile hamburger |
+| `DashboardLayout.tsx` | ✅ Sidebar + top bar with role-based nav. Has notification bell |
+| `ui/` (shadcn) | ✅ ~30+ Radix UI components installed |
+
+---
+
+## 5. What Is NOT Done ❌ — Complete Gap Analysis
+
+### 5.1 Core LMS Features (THE MOST CRITICAL GAPS)
+
+```
+PRIORITY 1 — Course Learning System (0% done)
+├── Section/Chapter structure for courses
+├── YouTube video integration with protection
+├── Video completion tracking (5-sec intervals)
+├── Lesson progress with resume capability
+├── Course completion detection
+├── Sequential lesson unlocking
+└── PDF notes download per lesson
+
+PRIORITY 2 — Quiz & Assessment System (0% done)
+├── Quiz builder (teacher creates questions)
+├── Quiz-taking interface (timer, MCQ cards)
+├── Auto-grading engine
+├── Quiz results with review mode
+├── Question bank (separate table)
+└── Per-lesson quiz attachment
+
+PRIORITY 3 — Assignment System (0% done)
+├── Assignment creation (teacher)
+├── File upload submission (student)
+├── Grading interface (teacher)
+├── Late submission handling
+├── Feedback system
+└── Grade notifications
+
+PRIORITY 4 — Payment & Enrollment Flow (0% done)
+├── Payment submission with receipt upload
+├── Payment review modal with receipt viewer
+├── Approve → auto-enroll → notify
+├── Reject → reason → notify
+├── Manual enrollment by admin
+├── Free course instant enrollment
+└── EasyPaisa/JazzCash/Bank details from settings
+
+PRIORITY 5 — Certificate System (0% done)
+├── Course completion detection
+├── Identity verification (CNIC/Form-B upload)
+├── Admin verification queue
+├── Certificate PDF generation (Puppeteer)
+├── Certificate download
+├── Certificate verification (public)
+└── Unique certificate ID generation
+```
+
+### 5.2 Authentication & Security (5% done)
+
+| Feature | Required | Current |
+|---------|----------|---------|
+| Password hashing | bcrypt cost 12 | SHA-256 ❌ |
+| Authentication | JWT access + refresh tokens | In-memory Map ❌ |
+| Role-based access | Middleware on all routes | None ❌ |
+| Account lock | After 5 failed logins | None ❌ |
+| Email verification | On registration | None ❌ |
+| Password reset | Email with token | None ❌ |
+| Rate limiting | On auth routes | None ❌ |
+| Security headers | helmet() | None ❌ |
+| CORS | Frontend-only origin | `cors()` with no config ⚠️ |
+| Input sanitization | xss-clean | None ❌ |
+| Video ID encryption | AES-256-CBC | None ❌ |
+| CSRF protection | State-changing endpoints | None ❌ |
+
+### 5.3 Communication & Notifications (5% done)
+
+| Feature | Status |
+|---------|--------|
+| Email service (Nodemailer) | ❌ Not implemented |
+| Welcome email on registration | ❌ |
+| Email verification flow | ❌ |
+| Password reset email | ❌ |
+| Payment approved/rejected email | ❌ |
+| In-app notifications | ⚠️ DB schema + basic UI exists, triggers missing |
+| Push notifications (Web Push) | ❌ Not implemented |
+| Announcement system | ⚠️ UI exists, backend partial |
+
+### 5.4 Reporting & Export (0% done)
+- ❌ Branch overview report
+- ❌ Student progress report
+- ❌ Enrollment report
+- ❌ Revenue report
+- ❌ PDF export (Puppeteer)
+- ❌ Excel export (exceljs)
+- ❌ Student progress PDF download
+
+### 5.5 Missing Public Pages
+- ❌ `/branches` dedicated page
+- ❌ `/privacy-policy`
+- ❌ `/verify-email/:token`
+- ❌ `/forgot-password`
+- ❌ `/reset-password/:token`
+- ❌ How It Works section (digiskills.pk style)
+- ❌ Course Categories grid section
+- ❌ WhatsApp floating button
+- ❌ Google Map embed
+- ❌ Newsletter signup
+- ❌ Social media links (functional)
+
+---
+
+## 6. Routing Structure Problems
+
+The current routing does **not follow the required URL pattern**:
+
+| Required | Current | Issue |
+|----------|---------|-------|
+| `/student/dashboard` | `/dashboard` | Missing `/student` prefix |
+| `/student/courses` | `/dashboard/courses` | Wrong prefix |
+| `/student/courses/:id/learn` | `/dashboard/lessons/:courseId` | Wrong pattern |
+| `/teacher/dashboard` | `/teacher` | Minor |
+| `/teacher/courses/:id/edit` | Not exists | Missing |
+| `/admin/dashboard` | `/admin` | Minor |
+| `/admin/students/:id` | Not exists | Missing |
+| `/admin/teachers/:id` | Not exists | Missing |
+| `/courses/:slug` | `/courses/:id` | Should use slug not ID |
+
+---
+
+## 7. Database Schema Problems
+
+### Missing Relationships
+```
+Users ←→ Branches      (branchId FK missing from users)
+Courses ←→ Sections    (Section model doesn't exist)
+Sections ←→ Lessons    (sectionId FK missing from lessons)
+Lessons ←→ Quizzes     (lessonId FK missing)
+Lessons ←→ Assignments (lessonId FK missing)
+```
+
+### Using Integer IDs vs CUIDs
+- Current: `serial("id")` (auto-increment integers)
+- Required: `cuid()` string IDs (per PRD)
+- **Decision needed**: Integers are fine for PostgreSQL, but the PRD specifies CUIDs
+
+### Missing Indexes
+No database indexes defined on any table — will cause performance issues at scale.
+
+### Missing Constraints
+- No unique constraint on `enrollments(userId, courseId)`
+- No unique constraint on `lessonProgress(userId, lessonId)`
+- Course `slug` field doesn't exist (no SEO-friendly URLs)
+
+---
+
+## 8. What Must Be Done — Development Roadmap
+
+### Phase 1: Foundation & Independence (Week 1)
+1. **Remove ALL Replit dependencies** — clean folder structure
+2. **Restructure to standard monorepo**: `/client` + `/server` + `/prisma` OR keep Drizzle with proper `/db`
+3. **Implement proper JWT authentication** with bcrypt, access/refresh tokens
+4. **Build RBAC middleware** — `authenticate()` + `authorize(roles)`
+5. **Add global error handling** — AppError class + error middleware
+6. **Fix database schema** — add all missing fields, Section model, proper relationships
+7. **Run and verify migrations** against real PostgreSQL
+8. **Add `.env.example`** with all required environment variables
+9. **Add API versioning** — `/api/v1/` prefix
+
+### Phase 2: Core LMS Engine (Weeks 2-3)
+10. **Course + Section + Lesson CRUD** with proper structure
+11. **YouTube video protection system** — AES-256 encryption, stream tokens, sandboxed iframe
+12. **Video completion tracking** — 5-second interval, fraud prevention
+13. **Enrollment system** — free (immediate) + paid (pending payment)
+14. **Payment flow** — submit receipt → admin review → approve/reject → auto-enroll
+15. **File upload service** — Cloudinary integration for PDFs, receipts, images
+
+### Phase 3: Assessment & Certification (Weeks 3-4)
+16. **Quiz system** — builder, taker, auto-grading, results
+17. **Assignment system** — create, submit, grade, feedback
+18. **Certificate system** — completion check, PDF generation, verification
+19. **Identity verification** — CNIC/Form-B upload, admin review, cert unlock
+
+### Phase 4: Communication (Week 4)
+20. **Messaging system** — student↔teacher threads
+21. **Discussion forum** — per-course posts, replies, pinning, upvotes
+22. **Email service** — Nodemailer + templates for all events
+23. **Notification system** — all triggers implemented
+24. **Announcement system** — admin → targeted groups
+
+### Phase 5: Admin Power Features (Week 5)
+25. **Admin dashboard** — comprehensive KPIs, pending action trays
+26. **Student/Teacher management** — full detail views, edit, disable, password reset
+27. **Course review/approval workflow**
+28. **Reports** — branch, enrollment, revenue, student progress with PDF/Excel export
+29. **Admin settings** — payment details, certificate config, site settings, email templates
+30. **Content management** — success stories, testimonials with drag reorder
+
+### Phase 6: Frontend Polish (Week 6)
+31. **Rebuild public website** — all 12 pages with full sections as per PRD
+32. **Student portal** — all 14 pages, especially the video learning page
+33. **Teacher panel** — all 9 pages, especially course builder and grading
+34. **Admin panel** — all 18 pages with full functionality
+35. **Mobile responsiveness** — all pages
+36. **WhatsApp floating button**, social media links, Google Maps
+
+### Phase 7: Production Readiness (Week 7)
+37. **Security hardening** — helmet, rate limiting, CORS, input sanitization
+38. **Performance optimization** — pagination, caching, lazy loading
+39. **Testing** — end-to-end critical flows
+40. **Deployment configuration** — Docker, env validation, health checks
+41. **README.md** with setup, deployment, and API documentation
+
+---
+
+## 9. Completion Percentage by Module
+
+```mermaid
+pie title Project Completion by Module
+    "Database Schema" : 40
+    "Backend API" : 10
+    "Authentication" : 5
+    "Security" : 2
+    "Frontend Public Pages" : 25
+    "Student Portal" : 10
+    "Teacher Panel" : 5
+    "Admin Panel" : 15
+    "LMS Core (Video/Quiz/Cert)" : 0
+    "Email/Notifications" : 3
+    "File Uploads" : 0
+    "Reports/Export" : 0
+```
+
+| Module | Completion | Notes |
+|--------|-----------|-------|
+| Database Schema | 40% | Tables exist but missing many fields and relationships |
+| Backend API Routes | 10% | Files exist, minimal logic, no middleware |
+| Authentication & Security | 5% | Insecure implementation, must rebuild |
+| Public Website | 25% | Homepage good, others basic shells |
+| Student Portal | 10% | UI shells, no functionality |
+| Teacher Panel | 5% | Only 3 of 9 pages exist |
+| Admin Panel | 15% | 10 pages exist as shells |
+| Course Learning System | 0% | Nothing works |
+| Quiz/Assignment System | 0% | Nothing works |
+| Certificate System | 0% | Nothing works |
+| Payment Flow | 0% | Nothing works end-to-end |
+| Email Service | 0% | Not started |
+| File Uploads | 0% | Not started |
+| Reports/Export | 0% | Not started |
+| **OVERALL** | **~12-15%** | **Mostly scaffolding, no functional features** |
+
+---
+
+## 10. Reference Site Analysis
+
+| Site | Key Features to Adopt |
+|------|----------------------|
+| [digiskills.pk](https://digiskills.pk) | Video timeline system, weekly progress, quiz flow, certificate system, "How It Works" section |
+| [empowerers.co](https://empowerers.co) | Hero layout, navigation style, professional feel, course card design |
+| [brighteaglets.edu.pk](https://www.brighteaglets.edu.pk) | Pakistani institute branding, course categories, popular courses section |
+| [iskills.com](https://iskills.com) | WhatsApp floating button, social media integration, contact layout, mobile design |
+
+---
+
+## 11. Key Decisions Needed Before Development
+
+1. **ORM Choice**: Keep Drizzle ORM or switch to Prisma (as PRD specifies)?
+2. **ID Strategy**: Keep integer IDs or switch to CUIDs?
+3. **Video Hosting**: YouTube Unlisted (as PRD) or other solution?
+4. **File Storage**: Cloudinary (as PRD) or local storage for development?
+5. **Email Provider**: SendGrid (as PRD) or alternative?
+6. **Deployment Target**: Vercel + Railway (as PRD) or VPS/Docker?
+7. **Package Manager**: Keep pnpm or switch to npm?
+8. **Monorepo Structure**: Keep current 3-workspace layout or simplify to client/server?
+
+> [!IMPORTANT]
+> **Recommendation**: Keep Drizzle ORM (already set up), keep integer IDs (simpler), restructure to a clean `client/` + `server/` folder layout, remove all Replit dependencies, and start building from the authentication system outward.
+
+---
+
+## 12. Files to Delete (Replit Cleanup)
+
+```
+DELETE: .replit
+DELETE: .replitignore  
+DELETE: replit.md
+DELETE: .agents/ (entire directory)
+DELETE: .local/ (entire directory)
+DELETE: artifacts/mockup-sandbox/ (entire directory — unused)
+DELETE: scripts/post-merge.sh (Replit-specific)
+MODIFY: pnpm-workspace.yaml (remove Replit overrides)
+MODIFY: vite.config.ts (remove @replit plugins)
+MODIFY: package.json (global-college — remove @replit devDeps)
+```
+
+---
+
+*This review was generated after analyzing every file in the project, all 6 requirements documents, and the 4 reference websites. The project needs significant development to become a functional LMS.*

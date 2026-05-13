@@ -1,0 +1,248 @@
+# 🏗️ Global College LMS — Implementation Plan
+
+> **Approach:** Build incrementally from existing Replit code. No restart from scratch.  
+> **Rule:** Ask user before moving to each new phase.  
+> **ORM:** Drizzle ORM (keep existing) | **IDs:** Integer (keep existing)  
+> **Structure:** Restructure to `client/` + `server/` clean layout  
+
+---
+
+## Phase Overview
+
+| # | Phase | Tasks | Priority | Est. Effort |
+|---|-------|-------|----------|-------------|
+| 1 | Project Restructure & Replit Cleanup | 8 tasks | 🔴 Critical | Day 1 |
+| 2 | Authentication & Security Foundation | 12 tasks | 🔴 Critical | Days 2-3 |
+| 3 | Database Schema Completion | 10 tasks | 🔴 Critical | Day 4 |
+| 4 | Core API Infrastructure | 9 tasks | 🔴 Critical | Day 5 |
+| 5 | Branch & User Management (Admin) | 7 tasks | 🟡 High | Day 6 |
+| 6 | Course System (CRUD + Sections + Lessons) | 11 tasks | 🟡 High | Days 7-8 |
+| 7 | Enrollment & Payment System | 9 tasks | 🟡 High | Days 9-10 |
+| 8 | Video Learning System (YouTube Protected) | 8 tasks | 🟡 High | Days 11-12 |
+| 9 | Quiz & Assignment System | 10 tasks | 🟡 High | Days 13-14 |
+| 10 | Certificate & Identity Verification | 7 tasks | 🟠 Medium | Day 15 |
+| 11 | Messaging & Forum System | 6 tasks | 🟠 Medium | Day 16 |
+| 12 | Notifications & Email Service | 8 tasks | 🟠 Medium | Day 17 |
+| 13 | Admin Dashboard & Reports | 8 tasks | 🟠 Medium | Days 18-19 |
+| 14 | Public Website Polish | 9 tasks | 🟢 Normal | Days 20-21 |
+| 15 | Student & Teacher Portal Polish | 10 tasks | 🟢 Normal | Days 22-23 |
+| 16 | Admin Panel Polish | 8 tasks | 🟢 Normal | Days 24-25 |
+| 17 | Security Hardening & Production | 9 tasks | 🔴 Critical | Days 26-27 |
+
+---
+
+## Phase 1: Project Restructure & Replit Cleanup
+
+> **Goal:** Clean folder structure, remove Replit, project runs independently
+
+| # | Task | Details | Source Code |
+|---|------|---------|-------------|
+| 1.1 | Create clean folder structure | `client/` from `artifacts/global-college/`, `server/` from `artifacts/api-server/`, `db/` from `lib/db/` | Copy existing code |
+| 1.2 | Delete Replit files | `.replit`, `.replitignore`, `replit.md`, `.agents/`, `.local/`, `artifacts/mockup-sandbox/` | Delete |
+| 1.3 | Clean `pnpm-workspace.yaml` | Remove all `@replit/*` exclusions, linux-only overrides, Replit comments | Edit existing |
+| 1.4 | Fix `vite.config.ts` | Remove `@replit/vite-plugin-*` (3 plugins), `REPL_ID` checks, make PORT/BASE_PATH optional with defaults | Edit existing |
+| 1.5 | Fix `package.json` files | Remove `@replit/*` from devDeps, update workspace references | Edit existing |
+| 1.6 | Create `.env.example` | All env vars: DATABASE_URL, JWT_SECRET, PORT, etc. | Create new |
+| 1.7 | Create root `package.json` scripts | `dev`, `build`, `db:migrate`, `db:push`, `db:studio` | Edit existing |
+| 1.8 | Verify project runs | `pnpm install` → `pnpm dev` should start both client and server | Test |
+
+**Checkpoint:** ✅ Project starts independently without Replit
+
+---
+
+## Phase 2: Authentication & Security Foundation
+
+> **Goal:** Proper JWT auth, bcrypt, RBAC middleware — replace in-memory sessions
+
+| # | Task | Details | Source Code |
+|---|------|---------|-------------|
+| 2.1 | Install auth dependencies | `bcryptjs`, `jsonwebtoken`, `@types/bcryptjs`, `@types/jsonwebtoken` | New packages |
+| 2.2 | Replace SHA-256 with bcrypt | `hashPassword()` → `bcrypt.hash(pw, 12)`, `verifyPassword()` → `bcrypt.compare()` | Rewrite `lib/auth.ts` |
+| 2.3 | Implement JWT token system | Access token (7-day), refresh token (30-day), token signing/verification | Rewrite `lib/auth.ts` |
+| 2.4 | Build `authenticate` middleware | Verify JWT from `Authorization: Bearer` header, attach `req.user` | New file |
+| 2.5 | Build `authorize(roles)` middleware | Check `req.user.role` against allowed roles array | New file |
+| 2.6 | Build global error handler | `AppError` class + `errorHandler` middleware | New files |
+| 2.7 | Build `catchAsync` utility | Wraps async route handlers, catches errors | New file |
+| 2.8 | Rebuild login endpoint | Use bcrypt verify, return JWT tokens, handle account lock | Rewrite `routes/auth.ts` |
+| 2.9 | Rebuild register endpoint | Hash with bcrypt, validate inputs, return JWT | Rewrite `routes/auth.ts` |
+| 2.10 | Build `/auth/me` endpoint | Decode JWT, return user without sensitive fields | Rewrite |
+| 2.11 | Build `/auth/refresh` endpoint | Validate refresh token, issue new access token | New endpoint |
+| 2.12 | Update frontend AuthContext | Store JWT tokens, add to all API requests via interceptor | Edit `AuthContext.tsx` |
+
+**Checkpoint:** ✅ Login/Register works with JWT + bcrypt, routes are protected
+
+---
+
+## Phase 3: Database Schema Completion
+
+> **Goal:** All tables match PRD requirements with proper relationships
+
+| # | Task | Details |
+|---|------|---------|
+| 3.1 | Update `users` table | Add: `branchId` (FK), `isEmailVerified`, `isIdentityVerified`, `failedLoginAttempts`, `lockedUntil`, `profilePhoto` |
+| 3.2 | Update `courses` table | Add: `slug` (unique), `status` enum, `rejectionNote`, `totalDurationHours` |
+| 3.3 | Create `sections` table | New: `id`, `courseId` (FK), `title`, `order` |
+| 3.4 | Update `lessons` table | Add: `sectionId` (FK), `encryptedYoutubeId`, `completionThreshold`. Remove `videoUrl` |
+| 3.5 | Create `lessonCompletions` table | Replace `lessonProgress`: add `watchedPercent`, `lastPositionSeconds`, `isCompleted`, `completedAt` |
+| 3.6 | Create `videoAccessLogs` table | New: `userId`, `lessonId`, `ipAddress`, `userAgent`, `accessedAt` |
+| 3.7 | Normalize `quizzes` schema | Separate `questions` table with: `questionText`, `optionA-D`, `correctOption`, `explanation`, `order` |
+| 3.8 | Update `payments` table | Add: `rejectionReason`, `reviewedAt`, `reviewedBy` |
+| 3.9 | Update `certificates` table | Add: `pdfUrl`, `status`, `isRevoked` |
+| 3.10 | Add unique constraints & indexes | Enrollment(userId+courseId), LessonCompletion(userId+lessonId), Course(slug), etc. |
+
+**Checkpoint:** ✅ `pnpm db:push` runs successfully, all tables created
+
+---
+
+## Phase 4: Core API Infrastructure
+
+> **Goal:** Standard API patterns, validation, pagination ready for all routes
+
+| # | Task | Details |
+|---|------|---------|
+| 4.1 | Create standard response helpers | `sendSuccess(res, data, msg)`, `sendError(res, code, msg)` → consistent `{success, data, message}` format |
+| 4.2 | Create validation middleware | `validate(schema)` middleware using Zod schemas |
+| 4.3 | Create pagination utility | `paginate(query, page, limit)` → returns `{data, total, page, totalPages}` |
+| 4.4 | Add API versioning | Mount all routes under `/api/v1/` |
+| 4.5 | Create file upload middleware | Multer config for images/PDFs/docs with MIME validation |
+| 4.6 | Setup Cloudinary service | Upload/delete helpers for images, PDFs, receipts |
+| 4.7 | Create logger service | Winston logger with levels: error, warn, info, debug |
+| 4.8 | Add rate limiting | `express-rate-limit` on auth routes |
+| 4.9 | Add security middleware | `helmet()`, `cors()` with proper config, `xss-clean` |
+
+**Checkpoint:** ✅ API infrastructure ready, all middleware working
+
+---
+
+## Phase 5: Branch & User Management
+
+> **Goal:** Admin can manage branches, students, teachers
+
+| # | Task | Details |
+|---|------|---------|
+| 5.1 | Branch CRUD API | GET (public), GET/POST/PUT/PATCH (admin) with student count |
+| 5.2 | Branch management frontend | Admin branches page with add/edit/deactivate |
+| 5.3 | Student management API | GET list (paginated, searchable), GET detail, PUT edit, DELETE, reset password |
+| 5.4 | Student management frontend | Admin students page with table, search, filters, detail view |
+| 5.5 | Teacher management API | GET list, POST create (email creds), GET detail, PUT edit, DELETE |
+| 5.6 | Teacher management frontend | Admin teachers page with create modal, table, detail view |
+| 5.7 | Update registration | Add branch dropdown (fetched from API), validate branch selection |
+
+**Checkpoint:** ✅ Admin can manage all users and branches
+
+---
+
+## Phase 6: Course System
+
+> **Goal:** Full course CRUD with sections, lessons, teacher course builder
+
+| # | Task | Details |
+|---|------|---------|
+| 6.1 | Course CRUD API (admin) | Create, edit, approve, reject, archive, delete courses |
+| 6.2 | Course CRUD API (teacher) | Create draft, edit own, submit for approval |
+| 6.3 | Section CRUD API | Create, edit, delete, reorder sections within course |
+| 6.4 | Lesson CRUD API | Create, edit, delete lessons within section, PDF upload |
+| 6.5 | Course catalog API (public) | List LIVE courses with filters, search, pagination |
+| 6.6 | Course detail API (public) | Single course with sections, lessons, teacher info |
+| 6.7 | Teacher course builder page | Course info form + sections/lessons builder + submit for approval |
+| 6.8 | Admin course management page | Table with status filters, approve/reject actions |
+| 6.9 | Admin course review page | Full preview + approve/reject with notes |
+| 6.10 | Public course catalog page | Search, filter, sort, pagination, course cards |
+| 6.11 | Public course detail page | Description, syllabus accordion, teacher card, enroll button |
+
+**Checkpoint:** ✅ Full course lifecycle works: create → review → publish → browse
+
+---
+
+## Phase 7: Enrollment & Payment System
+
+| # | Task | Details |
+|---|------|---------|
+| 7.1 | Free enrollment API | POST → immediate enrollment, unique constraint |
+| 7.2 | Payment submission API | Upload receipt to Cloudinary, create pending payment |
+| 7.3 | Payment review API (admin) | Approve → auto-enroll + notify, Reject → reason + notify |
+| 7.4 | Manual enrollment API (admin) | Admin enrolls student bypassing payment |
+| 7.5 | Student payment page | Payment instructions (from settings), receipt upload |
+| 7.6 | Admin payments page | Table with filters, receipt viewer modal, approve/reject |
+| 7.7 | Admin manual enrollment page | Student + course search, enroll button |
+| 7.8 | Student enrolled courses page | List with progress bars, continue button |
+| 7.9 | Enrollment status on course detail | Show "Enrolled"/"Continue Learning"/"Enroll Now" per status |
+
+**Checkpoint:** ✅ Complete enrollment flow for free and paid courses
+
+---
+
+## Phase 8: Video Learning System
+
+| # | Task | Details |
+|---|------|---------|
+| 8.1 | AES-256 encryption service | Encrypt/decrypt YouTube video IDs |
+| 8.2 | Stream token endpoint | `/student/lessons/:id/stream-token` → verify enrollment, return signed JWT |
+| 8.3 | Embed endpoint | `/student/lessons/:id/embed` → validate token, return youtube-nocookie URL |
+| 8.4 | Video access logging | Log every access with userId, lessonId, IP, userAgent |
+| 8.5 | Progress tracking API | PATCH `/lessons/:id/progress` → upsert watchedPercent, check completion |
+| 8.6 | Course completion service | When all lessons complete → mark enrollment complete |
+| 8.7 | Video player component | Sandboxed iframe, overlay protection, right-click block, YouTube IFrame API |
+| 8.8 | Lesson viewer page | Two-panel layout: sidebar timeline + video player + tabs (PDF, Discussion) |
+
+**Checkpoint:** ✅ Students can watch protected videos with progress tracking
+
+---
+
+## Phase 9: Quiz & Assignment System
+
+| # | Task | Details |
+|---|------|---------|
+| 9.1 | Quiz CRUD API | Create quiz, add questions, edit, delete |
+| 9.2 | Quiz submission API | Submit answers → auto-grade → return score |
+| 9.3 | Quiz builder page (teacher) | Add questions with MCQ options, set timer, passing score |
+| 9.4 | Quiz taking page (student) | One question at a time, timer, progress bar, auto-submit |
+| 9.5 | Quiz results page | Score card, review answers with correct/wrong indicators |
+| 9.6 | Assignment CRUD API | Create, edit, delete assignments |
+| 9.7 | Assignment submission API | Upload file, track late submissions |
+| 9.8 | Assignment grading API | Teacher adds mark + feedback → notify student |
+| 9.9 | Assignment pages (student) | View, upload, see grades/feedback |
+| 9.10 | Grading page (teacher) | View submission, enter marks, write feedback |
+
+**Checkpoint:** ✅ Full quiz and assignment lifecycle works
+
+---
+
+## Phases 10-17 (Summary)
+
+| Phase | Goal | Key Tasks |
+|-------|------|-----------|
+| **10. Certificates** | Complete certification flow | Identity verification, PDF generation (Puppeteer), certificate download, public verification |
+| **11. Messaging & Forum** | Student-teacher communication | Message threads, forum posts/replies, pinning, upvotes |
+| **12. Notifications & Email** | All event notifications | Nodemailer setup, email templates, notification triggers, announcement system |
+| **13. Admin Dashboard & Reports** | Admin power features | KPI dashboard, reports (branch/enrollment/revenue), PDF/Excel export |
+| **14. Public Website Polish** | Beautiful public-facing site | All 12 public pages, hero sections, animations, WhatsApp button, SEO |
+| **15. Student/Teacher Polish** | Complete portal UI | All student pages (14), teacher pages (9), mobile responsive |
+| **16. Admin Panel Polish** | Complete admin UI | All admin pages (18), data tables, modals, settings |
+| **17. Production Ready** | Deploy-ready | Security hardening, env validation, Docker, health checks, README |
+
+---
+
+## Working Rules
+
+> [!IMPORTANT]
+> 1. **Ask before moving to next phase** — user confirms completion
+> 2. **Copy existing code** — don't rewrite from scratch if it works
+> 3. **Test each phase** — verify functionality before proceeding
+> 4. **One phase at a time** — no jumping ahead
+> 5. **Commit-worthy chunks** — each task should be a logical unit
+
+---
+
+## Current Status
+
+| Phase | Status |
+|-------|--------|
+| Phase 1 | ⬜ Not Started |
+| Phase 2 | ⬜ Not Started |
+| Phase 3-17 | ⬜ Not Started |
+
+**Next Step:** Phase 1 — Project Restructure & Replit Cleanup
+
+> [!NOTE]
+> Shall I proceed with **Phase 1** (Project Restructure & Replit Cleanup)?

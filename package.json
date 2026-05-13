@@ -1,16 +1,27 @@
 {
-  "name": "workspace",
-  "version": "0.0.0",
+  "name": "global-college-lms",
+  "version": "1.0.0",
   "license": "MIT",
+  "private": true,
   "scripts": {
-    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
+    "dev": "pnpm run --parallel --filter @workspace/global-college --filter @workspace/api-server dev",
+    "dev:client": "pnpm --filter @workspace/global-college dev",
+    "dev:server": "pnpm --filter @workspace/api-server dev",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./client\" --filter \"./server\" --if-present run typecheck",
+    "db:push": "cd db && pnpm drizzle-kit push",
+    "db:generate": "cd db && pnpm drizzle-kit generate",
+    "db:migrate": "cd db && pnpm drizzle-kit migrate",
+    "db:studio": "cd db && pnpm drizzle-kit studio"
   },
-  "private": true,
   "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "dotenv": "^17.4.2",
+    "prettier": "^3.8.1",
     "typescript": "~5.9.2",
-    "prettier": "^3.8.1"
+    "vite": "catalog:"
   }
 }
