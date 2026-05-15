@@ -34,8 +34,18 @@ import {
   Mail,
   Play,
   Globe,
+  User2,
+  BarChart3,
+  Quote,
+  MessageCircle,
 } from "lucide-react";
-import { useState, useRef } from "react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { useState, useRef, useEffect } from "react";
 
 const CATEGORY_COLORS: Record<string, string> = {
   IT: "from-blue-600 to-blue-400",
@@ -57,38 +67,38 @@ const STATS = [
 const FEATURES = [
   {
     icon: Laptop,
-    title: "Live Online Classes",
-    desc: "Attend classes from anywhere with our interactive live streaming platform.",
+    title: "Portfolio-First Training",
+    desc: "We don't just teach theory. You'll build real projects that serve as your professional portfolio for clients.",
     color: "bg-blue-50 text-blue-600",
   },
   {
-    icon: Wifi,
-    title: "Offline Study Material",
-    desc: "Download PDF notes and video lectures to study without internet.",
+    icon: Users,
+    title: "1-on-1 Mentorship",
+    desc: "Get personalized guidance from experts who have already scaled 7-figure digital businesses.",
     color: "bg-purple-50 text-purple-600",
   },
   {
     icon: ShieldCheck,
-    title: "Verified Certificates",
-    desc: "Earn recognized certificates upon completion, verifiable via CNIC.",
+    title: "ISO Certified Diplomas",
+    desc: "Earn government-recognized certifications that add massive value to your CV across Pakistan.",
     color: "bg-emerald-50 text-emerald-600",
   },
   {
     icon: TrendingUp,
-    title: "Career Placement",
-    desc: "Our dedicated team helps graduates find freelance and full-time jobs.",
+    title: "Freelance Launchpad",
+    desc: "Our specialized team helps you land your first Upwork/Fiverr order or high-paying local job.",
     color: "bg-orange-50 text-orange-600",
   },
   {
-    icon: Award,
-    title: "Expert Instructors",
-    desc: "Learn from industry professionals with 10+ years of real-world experience.",
+    icon: Globe,
+    title: "Global Seller Network",
+    desc: "Join an elite community of eBay and Etsy sellers already earning $5,000+ monthly.",
     color: "bg-pink-50 text-pink-600",
   },
   {
-    icon: Users,
-    title: "Active Community",
-    desc: "Join a thriving community of 2,500+ students and alumni across Pakistan.",
+    icon: Award,
+    title: "Lifetime Support",
+    desc: "Graduation isn't the end. You get lifetime access to our community and instructor support.",
     color: "bg-teal-50 text-teal-600",
   },
 ];
@@ -120,9 +130,95 @@ export default function Home() {
     query: { queryKey: getListSuccessStoriesQueryKey() },
   });
 
+  const displaySuccessStories = (successStories && successStories.length > 0) ? successStories : [
+    {
+      id: 1,
+      name: "M. Samam Amir",
+      role: "eBay Store Owner",
+      income: "$5,000+",
+      story: "I made my first $1,000 in just 6 weeks after completing the EBC program. The support and training quality is unmatched.",
+      rating: 5,
+    },
+    {
+      id: 2,
+      name: "Ayesha Waseem",
+      role: "eBay Consultant",
+      income: "$500",
+      story: "The practical training here is what made the difference. I now manage multiple international client stores with confidence.",
+      rating: 5,
+    },
+    {
+      id: 3,
+      name: "Madiha Sadaf",
+      role: "eBay Consultant",
+      income: "200,000+ PKR",
+      story: "Global College gave me the roadmap to financial independence through freelancing. I started with zero and now I'm here.",
+      rating: 5,
+    },
+    {
+      id: 4,
+      name: "Mubashara Liaqat",
+      role: "eBay Consultant",
+      income: "First 6-Figure",
+      story: "The ecosystem here is incredible. You don't just learn; you grow with a community of like-minded entrepreneurs.",
+      rating: 5,
+    },
+    {
+      id: 5,
+      name: "Muhammad Tayyab",
+      role: "eBay Store Owner",
+      income: "£ — Multi-Currency Earner",
+      story: "Mastering international markets was my goal. Global College made it a reality. I'm now earning in multiple currencies.",
+      rating: 5,
+    },
+  ];
+
+  const [activeAchiever, setActiveAchiever] = useState(0);
+
+  // Auto-scroll logic for Achievers
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveAchiever((prev) => (prev + 1) % displaySuccessStories.length);
+    }, 5000); // Change every 5 seconds
+    return () => clearInterval(interval);
+  }, [displaySuccessStories.length]);
+
   const { data: branches } = useListBranches({
     query: { queryKey: getListBranchesQueryKey() },
   });
+
+  const displayBranches = (branches && branches.length > 0) ? branches : [
+    { 
+      id: 1, 
+      name: "Multan HQ", 
+      leader: "Abuzar Razzaq", 
+      phone: "0 30 30 40 9999", 
+      students: "Growing", 
+      status: "Active",
+      location: "Active Location",
+      desc: "Empowering People of Multan with world-class Ebay & Etsy Training."
+    },
+    { 
+      id: 2, 
+      name: "Lahore", 
+      leader: "Abdul Hanan", 
+      phone: "0304 9891111", 
+      students: "Growing", 
+      status: "Active",
+      location: "Active Location",
+      desc: "Empowering People of Lahore with world-class Ebay & Etsy Training."
+    },
+    { 
+      id: 3, 
+      name: "Sialkot", 
+      leader: "Faryad Hussain", 
+      phone: "+92 301 989 0076", 
+      students: "Growing", 
+      status: "Active",
+      location: "Active Location",
+      desc: "Empowering People of Sialkot with world-class Ebay & Etsy Training."
+    },
+  ];
 
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -200,18 +296,18 @@ export default function Home() {
 
   return (
     <MainLayout>
-      {/* ── Hero with Video Background ──────────────────────────────────── */}
-      <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
-        {/* Video Background */}
-        <video 
-          autoPlay 
-          loop 
-          muted 
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover z-0"
-        >
-          <source src="/assets/videos/eBay-Course-Etsy-Training-Pakistan.mp4" type="video/mp4" />
-        </video>
+      {/* ── Hero Section ──────────────────────────────────────────────────── */}
+        <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden snap-start scroll-mt-20">
+          {/* Video Background */}
+          <video 
+            autoPlay 
+            loop 
+            muted 
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover z-0"
+          >
+            <source src="/assets/videos/eBay-Course-Etsy-Training-Pakistan.mp4" type="video/mp4" />
+          </video>
         
         {/* Dark Overlay for readability */}
         <div className="absolute inset-0 bg-black/60 z-10" />
@@ -273,7 +369,7 @@ export default function Home() {
       </div>
 
       {/* ── Statistics Section (Clean White Style) ───────────────────────── */}
-      <section className="pt-4 pb-8 bg-slate-50 relative overflow-hidden">
+      <section className="pt-4 pb-8 bg-slate-50 relative overflow-hidden snap-start scroll-mt-20">
         <div className="w-full px-4 md:px-10 lg:px-16 relative z-10">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-5xl font-black text-gray-900 mb-6">
@@ -340,7 +436,7 @@ export default function Home() {
       </section>
 
       {/* ── Popular Courses ───────────────────────────────────────────────── */}
-      <section className="pt-12 pb-20 bg-gray-50 relative group">
+      <section className="pt-12 pb-20 bg-gray-50 relative group snap-start scroll-mt-20">
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
@@ -454,216 +550,445 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Why Choose Us ────────────────────────────────────────────────── */}
-      <section className="py-20 bg-white">
+      {/* ── Why Choose Us (Career Ecosystem Redesign) ───────────────────── */}
+      <section className="py-24 bg-white relative overflow-hidden snap-start scroll-mt-20">
+        {/* Background Accents */}
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-50 rounded-full blur-3xl -z-10" />
+        <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-emerald-50 rounded-full blur-3xl -z-10" />
+
         <div className="w-full px-4 md:px-10 lg:px-16">
-          <div className="text-center mb-12">
-            <Badge className="mb-3 bg-emerald-50 text-emerald-700 border-emerald-200">
-              Why Global College
+          <div className="text-center mb-20">
+            <Badge className="mb-4 bg-blue-50 text-blue-700 border-blue-100 px-4 py-1.5 text-sm font-bold rounded-full">
+              The Global College Edge
             </Badge>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
-              Everything You Need to Succeed
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight">
+              Everything You Need to <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-600">Succeed</span>
             </h2>
-            <p className="text-gray-500 max-w-2xl mx-auto">
+            <p className="text-gray-500 text-lg max-w-2xl mx-auto leading-relaxed">
               We go beyond teaching — we build careers. Here's what makes us
-              different from every other institute.
+              different from every other institute in Pakistan.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {FEATURES.map(({ icon: Icon, title, desc, color }) => (
               <div
                 key={title}
-                className="p-6 rounded-2xl border border-gray-100 hover:shadow-lg transition-shadow bg-white group"
+                className="group p-10 rounded-[2.5rem] border border-gray-100 bg-white shadow-sm hover:shadow-2xl hover:shadow-blue-900/5 transition-all duration-500 relative overflow-hidden"
               >
+                {/* Hover Glow Effect */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-50/0 via-transparent to-emerald-50/0 group-hover:from-blue-50/50 group-hover:to-emerald-50/50 transition-colors duration-500 -z-10" />
+                
                 <div
-                  className={`h-12 w-12 rounded-xl flex items-center justify-center mb-4 ${color} group-hover:scale-110 transition-transform`}
+                  className={`h-16 w-16 rounded-2xl flex items-center justify-center mb-8 ${color} shadow-lg shadow-current/10 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500`}
                 >
-                  <Icon className="h-6 w-6" />
+                  <Icon className="h-8 w-8" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
+
+                <h3 className="text-2xl font-black text-gray-900 mb-4 group-hover:text-blue-600 transition-colors">
+                  {title}
+                </h3>
+                <p className="text-gray-500 leading-relaxed font-medium">
+                  {desc}
+                </p>
+
+                {/* Decorative corner element */}
+                <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                  <div className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Success Stories ───────────────────────────────────────────────── */}
-      {(successStories?.length ?? 0) > 0 && (
-        <section className="py-20 bg-gradient-to-br from-[#0f2c6f] to-[#1a47b8] text-white overflow-hidden">
-          <div className="w-full px-4 md:px-10 lg:px-16">
-            <div className="text-center mb-12">
-              <Badge className="mb-3 bg-white/10 text-white border-white/20">
-                Success Stories
-              </Badge>
-              <h2 className="text-3xl md:text-4xl font-extrabold mb-4">
-                Our Students Are Thriving
-              </h2>
-              <p className="text-blue-200 max-w-2xl mx-auto">
-                Real stories from real graduates who transformed their lives with
-                Global College.
-              </p>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {successStories!.slice(0, 3).map((story: any) => (
-                <div
-                  key={story.id}
-                  className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-6 hover:bg-white/15 transition"
-                >
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="h-14 w-14 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-300 text-2xl font-bold border border-orange-400/30">
-                      {story.name?.charAt(0) ?? "?"}
-                    </div>
-                    <div>
-                      <p className="font-bold text-white">{story.name}</p>
-                      <p className="text-sm text-blue-200">{story.currentJob}</p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-blue-100 italic leading-relaxed mb-4">
-                    "{story.story}"
-                  </p>
-                  <div className="flex items-center justify-between text-xs">
-                    <Badge className="bg-white/10 text-blue-200 border-white/20">
-                      {story.course}
-                    </Badge>
-                    {story.income && (
-                      <span className="text-emerald-300 font-semibold">
-                        💰 {story.income}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── Testimonials ─────────────────────────────────────────────────── */}
-      {(displayTestimonials?.length ?? 0) > 0 && (
-        <section className="py-20 bg-gray-50">
-          <div className="w-full px-4 md:px-10 lg:px-16">
-            <div className="text-center mb-12">
-              <Badge className="mb-3 bg-yellow-50 text-yellow-700 border-yellow-200">
-                Testimonials
-              </Badge>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
-                What Our Students Say
-              </h2>
-              <p className="text-gray-500 max-w-2xl mx-auto">
-                Hear directly from students who have completed our courses and
-                changed their careers.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {displayTestimonials.map((t: any) => (
-                <div
-                  key={t.id}
-                  className="bg-white rounded-2xl shadow-md p-6 border border-gray-100 hover:shadow-xl transition-shadow"
-                >
-                  <StarRating rating={t.rating ?? 5} />
-                  <p className="text-gray-600 italic my-4 text-sm leading-relaxed">
-                    "{t.content}"
-                  </p>
-                  <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
-                      {t.name?.charAt(0) ?? "S"}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-sm text-gray-900">
-                        {t.name}
-                      </p>
-                      <p className="text-xs text-gray-400">{t.course}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── Branches ─────────────────────────────────────────────────────── */}
-      {(branches?.length ?? 0) > 0 && (
-        <section className="py-20 bg-white">
-          <div className="w-full px-4 md:px-10 lg:px-16">
-            <div className="text-center mb-12">
-              <Badge className="mb-3 bg-purple-50 text-purple-700 border-purple-200">
-                Our Campuses
-              </Badge>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
-                Branches Across Pakistan
-              </h2>
-              <p className="text-gray-500 max-w-2xl mx-auto">
-                Visit your nearest campus for in-person classes or register
-                online — the choice is yours.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {branches!.map((branch: any) => (
-                <div
-                  key={branch.id}
-                  className="rounded-2xl border border-gray-100 p-5 hover:shadow-lg transition-shadow bg-white group"
-                >
-                  <div className="h-10 w-10 rounded-xl bg-purple-50 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <MapPin className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <h3 className="font-bold text-gray-900 mb-1">{branch.name}</h3>
-                  <p className="text-sm text-gray-500 mb-3 line-clamp-2">
-                    {branch.address}
-                  </p>
-                  {branch.phone && (
-                    <a
-                      href={`tel:${branch.phone}`}
-                      className="text-xs text-primary flex items-center gap-1 hover:underline"
-                    >
-                      <Phone className="h-3 w-3" /> {branch.phone}
-                    </a>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── Payment Methods ───────────────────────────────────────────────── */}
-      <section className="py-16 bg-gray-50">
+      {/* ── Our Campuses (Incubator Network) ─────────────────────────────── */}
+      <section className="py-24 bg-white relative overflow-hidden snap-start scroll-mt-20">
         <div className="w-full px-4 md:px-10 lg:px-16">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl font-bold text-gray-900">
-              Flexible Payment Options
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-black text-[#1a47b8] mb-4">
+              Physical Incubator Network
             </h2>
-            <p className="text-gray-500 mt-2">
-              We accept multiple payment methods for your convenience
+            <p className="text-gray-600 text-lg max-w-3xl mx-auto leading-relaxed">
+              Join our thriving community of entrepreneurs at these established locations
             </p>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-6">
-            {[
-              { name: "EasyPaisa", color: "bg-green-100 text-green-700 border-green-200", emoji: "📱" },
-              { name: "JazzCash", color: "bg-red-100 text-red-700 border-red-200", emoji: "📲" },
-              { name: "Bank Transfer", color: "bg-blue-100 text-blue-700 border-blue-200", emoji: "🏦" },
-              { name: "Cash Payment", color: "bg-yellow-100 text-yellow-700 border-yellow-200", emoji: "💵" },
-              { name: "Installments", color: "bg-purple-100 text-purple-700 border-purple-200", emoji: "📅" },
-            ].map(({ name, color, emoji }) => (
-              <div
-                key={name}
-                className={`flex items-center gap-2 px-6 py-3 rounded-full border font-semibold text-sm ${color} hover:shadow-md transition`}
-              >
-                <span>{emoji}</span>
-                {name}
-              </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+            {displayBranches.map((branch: any) => (
+              <Card key={branch.id} className="overflow-hidden border-gray-100 shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl group border-0 shadow-sm ring-1 ring-gray-100">
+                <CardContent className="p-8">
+                  {/* Card Header: Icon and Title */}
+                  <div className="flex items-start justify-between mb-8">
+                    <div className="flex items-center gap-4">
+                      <div className="h-16 w-16 rounded-2xl bg-gray-50 flex items-center justify-center border border-gray-100 shadow-sm group-hover:scale-110 transition-transform">
+                        {/* Placeholder for city-specific icon/image */}
+                        <Globe className="h-8 w-8 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-black text-gray-900">{branch.name}</h3>
+                        <p className="text-xs text-gray-400 font-bold flex items-center gap-1 uppercase tracking-wider mt-1">
+                          <MapPin className="h-3 w-3" /> {branch.location || "Active Location"}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 px-3 py-1 flex items-center gap-1.5 font-bold shadow-none pointer-events-none">
+                      <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                      {branch.status || "Active"}
+                    </Badge>
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-gray-500 text-sm leading-relaxed mb-8 min-h-[40px]">
+                    {branch.desc || "Empowering people with world-class skills and training."}
+                  </p>
+
+                  {/* Info List */}
+                  <div className="space-y-4 mb-10 bg-gray-50/50 p-6 rounded-2xl border border-gray-50">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-400 flex items-center gap-2">
+                        <User2 className="h-4 w-4" /> City Leader:
+                      </span>
+                      <span className="font-bold text-gray-900">{branch.leader || "TBA"}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-400 flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4" /> Students:
+                      </span>
+                      <span className="font-bold text-emerald-600">{branch.students || "Growing"}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-400 flex items-center gap-2">
+                        <Phone className="h-4 w-4" /> Phone:
+                      </span>
+                      <span className="font-bold text-gray-900">{branch.phone}</span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="space-y-4">
+                    <Link href={`/incubators/${branch.id}`}>
+                      <Button className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#10b981] to-[#3b82f6] hover:from-[#059669] hover:to-[#2563eb] text-white font-black text-base shadow-lg shadow-blue-500/10 flex items-center justify-center gap-2 group/btn border-0">
+                        View Details 
+                        <ChevronRight className="h-5 w-5 group-hover/btn:translate-x-1 transition-transform" />
+                      </Button>
+                    </Link>
+                    <Link href="/register">
+                      <Button variant="outline" className="w-full h-14 rounded-2xl border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-black text-base transition-colors">
+                        Apply Now
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Edu-Sphere Achievers (Success Stories Redesign) ─────────────── */}
+      <section className="py-24 bg-slate-50 relative overflow-hidden snap-start scroll-mt-20">
+        <div className="absolute top-1/4 right-0 w-64 h-64 bg-blue-100/40 rounded-full blur-3xl -z-10" />
+        <div className="absolute bottom-1/4 left-0 w-96 h-96 bg-emerald-100/40 rounded-full blur-3xl -z-10" />
+
+        <div className="w-full px-4 md:px-10 lg:px-16">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
+              Global College Achievers
+            </h2>
+            <p className="text-gray-500 text-lg font-medium">
+              Our 6 Figures & 7 Figures Club Students
+            </p>
+          </div>
+
+          <div className="max-w-6xl mx-auto">
+            <div className="relative group/achievers">
+              {/* Featured Achiever Card */}
+              <div className="bg-white/80 backdrop-blur-md rounded-[2.5rem] p-8 md:p-16 shadow-2xl shadow-blue-900/5 border border-white relative overflow-hidden min-h-[500px] flex items-center">
+                <div className="flex flex-col lg:flex-row items-center gap-12 w-full transition-all duration-700">
+                  {/* Left Side: Content */}
+                  <div className="flex-1 text-left animate-in fade-in slide-in-from-left duration-700" key={activeAchiever}>
+                    <div className="flex gap-1 mb-6">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                      ))}
+                    </div>
+                    
+                    <div className="relative">
+                      <Quote className="h-12 w-12 text-blue-100 absolute -top-6 -left-6 -z-10" />
+                      <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight mb-8">
+                        "{displaySuccessStories[activeAchiever].story}"
+                      </h3>
+                    </div>
+
+                    <div className="mb-6">
+                      <p className="text-2xl font-black text-gray-900">{displaySuccessStories[activeAchiever].name}</p>
+                      <p className="text-gray-500 font-bold">{displaySuccessStories[activeAchiever].role}</p>
+                    </div>
+
+                    <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 px-4 py-2 text-base font-black rounded-xl pointer-events-none">
+                      💰 {displaySuccessStories[activeAchiever].income}
+                    </Badge>
+                  </div>
+
+                  {/* Right Side: Visual */}
+                  <div className="w-full lg:w-[400px] relative animate-in fade-in zoom-in duration-700" key={`img-${activeAchiever}`}>
+                    <div className="aspect-[1/1] rounded-full bg-gray-200 overflow-hidden shadow-2xl border-[12px] border-white relative">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10" />
+                      <div className="w-full h-full bg-slate-300 flex items-center justify-center">
+                        <Users className="h-24 w-24 text-white/50" />
+                      </div>
+                    </div>
+                    <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-blue-400/20 rounded-full blur-2xl -z-10" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Navigation Controls */}
+              <div className="flex items-center justify-center gap-6 mt-12 mb-16">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => setActiveAchiever((prev) => (prev - 1 + displaySuccessStories.length) % displaySuccessStories.length)}
+                  className="rounded-full h-12 w-12 border-gray-200 bg-white shadow-lg hover:bg-primary hover:text-white transition-all"
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </Button>
+                
+                <div className="flex gap-3">
+                  {displaySuccessStories.map((_, i) => (
+                    <div 
+                      key={i} 
+                      onClick={() => setActiveAchiever(i)}
+                      className={`h-3 w-3 rounded-full transition-all duration-500 cursor-pointer ${i === activeAchiever ? 'bg-emerald-500 w-10' : 'bg-gray-200 hover:bg-gray-300'}`} 
+                    />
+                  ))}
+                </div>
+
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => setActiveAchiever((prev) => (prev + 1) % displaySuccessStories.length)}
+                  className="rounded-full h-12 w-12 border-gray-200 bg-white shadow-lg hover:bg-primary hover:text-white transition-all"
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </Button>
+              </div>
+
+              {/* ── Thumbnail Gallery (User Requested Section) ────────────────── */}
+              <div className="w-full overflow-x-auto hide-scrollbar pb-4 pt-2">
+                <div className="flex items-center justify-center gap-6 min-w-max px-4 mx-auto">
+                  {displaySuccessStories.map((achiever, i) => (
+                    <div 
+                      key={achiever.id}
+                      onClick={() => setActiveAchiever(i)}
+                      className={`group cursor-pointer transition-all duration-500 w-52 p-6 rounded-2xl border-2 flex flex-col items-center text-center ${
+                        i === activeAchiever 
+                        ? 'border-emerald-500 bg-emerald-50/30 shadow-lg scale-105' 
+                        : 'border-transparent bg-white shadow-sm hover:shadow-md grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:scale-105'
+                      }`}
+                    >
+                      <div className={`h-20 w-20 rounded-full mb-4 overflow-hidden border-4 transition-colors ${i === activeAchiever ? 'border-emerald-500' : 'border-gray-100'}`}>
+                        <div className="w-full h-full bg-slate-200 flex items-center justify-center">
+                          <Users className="h-8 w-8 text-slate-400" />
+                        </div>
+                      </div>
+                      <h4 className="font-black text-gray-900 text-sm mb-1">{achiever.name}</h4>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">{achiever.role}</p>
+                      <p className={`text-xs font-black transition-colors ${i === activeAchiever ? 'text-emerald-600' : 'text-gray-400'}`}>
+                        {achiever.income.split('-')[0]}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Recent Articles (Blog Section) ─────────────────────────────────── */}
+      <section className="py-24 bg-white snap-start scroll-mt-20">
+        <div className="w-full px-4 md:px-10 lg:px-16">
+          <div className="flex items-center justify-between mb-12">
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900">
+              Recent Articles
+            </h2>
+            <Link href="/resources">
+              <Button variant="ghost" className="text-emerald-600 font-bold hover:bg-emerald-50 gap-2">
+                View All Articles <ChevronRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+            {[
+              {
+                id: 1,
+                title: "eBay SEO Tips: How to Rank Higher in Search Results (2025 Guide)",
+                category: "eBay Tips",
+                readTime: "5 min read",
+                excerpt: "By optimizing titles, item specifics, pricing, and shipping, sellers can improve their rankings, attract more buyers, and increase sales effectively.",
+                author: "Samam Amer",
+                date: "October 13, 2025",
+                imageBg: "bg-emerald-900",
+                imageUrl: "https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&q=80&w=800"
+              },
+              {
+                id: 2,
+                title: "10 Mistakes New eBay Sellers Make (and How to Avoid Them)",
+                category: "eBay Tips",
+                readTime: "4 min read",
+                excerpt: "In 2025, many new eBay sellers fail due to simple mistakes like poor SEO, bad photos, overpricing, and slow shipping. By focusing on keywords, clear image...",
+                author: "Admin",
+                date: "October 13, 2025",
+                imageBg: "bg-emerald-800",
+                imageUrl: "https://images.unsplash.com/photo-1556740758-90de374c12ad?auto=format&fit=crop&q=80&w=800"
+              },
+              {
+                id: 3,
+                title: "Why eBay Stands Out in 2025",
+                category: "Beginner Guide",
+                readTime: "5 min read",
+                excerpt: "In 2025, eBay is more than a marketplace—it's a global platform empowering entrepreneurs, promoting sustainability, and connecting people...",
+                author: "Samam Amer",
+                date: "October 13, 2025",
+                imageBg: "bg-emerald-700",
+                imageUrl: "https://images.unsplash.com/photo-1556740734-792f46efeb05?auto=format&fit=crop&q=80&w=800"
+              }
+            ].map((article) => (
+              <Card key={article.id} className="overflow-hidden border-gray-100 shadow-lg hover:shadow-2xl transition-all duration-500 rounded-3xl border-0 shadow-sm ring-1 ring-gray-100 flex flex-col h-full group">
+                <div className={`h-52 ${article.imageBg} relative overflow-hidden flex items-center justify-center`}>
+                  {article.imageUrl ? (
+                    <img 
+                      src={article.imageUrl} 
+                      alt={article.title}
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-80"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 opacity-20">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-3xl" />
+                      <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-400 rounded-full blur-3xl" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  <h4 className="text-white font-black text-xl px-8 text-center relative z-10 group-hover:scale-105 transition-transform duration-500 line-clamp-2">
+                    {article.title}
+                  </h4>
+                </div>
+                <CardContent className="p-8 flex flex-col flex-1">
+                  <div className="flex items-center justify-between mb-4">
+                    <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 font-bold">
+                      {article.category}
+                    </Badge>
+                    <span className="text-xs text-gray-400 font-medium">
+                      {article.readTime}
+                    </span>
+                  </div>
+                  
+                  <h3 className="text-xl font-black text-gray-900 mb-4 line-clamp-2 group-hover:text-emerald-600 transition-colors">
+                    {article.title}
+                  </h3>
+                  
+                  <p className="text-gray-500 text-sm leading-relaxed mb-8 flex-1">
+                    {article.excerpt}
+                  </p>
+                  
+                  <div className="flex items-center justify-between mt-auto pt-6 border-t border-gray-50">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-black text-xs">
+                        {article.author.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-gray-900">{article.author}</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{article.date}</p>
+                      </div>
+                    </div>
+                    <Link href={`/resources/${article.id}`}>
+                      <span className="text-emerald-600 font-black text-sm flex items-center gap-1 hover:underline cursor-pointer">
+                        Read <ChevronRight className="h-4 w-4" />
+                      </span>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ Section ──────────────────────────────────────────────────── */}
+      <section className="py-24 bg-gray-50/50 snap-start scroll-mt-20">
+        <div className="w-full px-4 md:px-10 lg:px-16">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
+              Frequently Asked <span className="text-emerald-600">Questions</span>
+            </h2>
+            <p className="text-gray-500 text-lg max-w-2xl mx-auto">
+              Get answers to the most common questions about eBay, Etsy, and eCommerce in Pakistan
+            </p>
+          </div>
+
+          <div className="max-w-4xl mx-auto space-y-4">
+            <Accordion type="single" collapsible className="w-full space-y-4">
+              {[
+                {
+                  q: "Is eBay available in Pakistan?",
+                  a: "Yes, you can create an eBay account from Pakistan and sell globally. While eBay doesn't have a local .pk site, Pakistani sellers are thriving on eBay.com, eBay.co.uk, and other international marketplaces."
+                },
+                {
+                  q: "Can eBay Ship to Pakistan?",
+                  a: "Yes, many international sellers on eBay ship to Pakistan. Additionally, as a seller, you can use various logistics partners to ship your products from Pakistan to customers worldwide."
+                },
+                {
+                  q: "Is there any eBay dropshipping course in Pakistan?",
+                  a: "Global College offers the most comprehensive and practical eBay dropshipping and EBC (eBay Business Course) training in Pakistan, designed to help you start earning in dollars."
+                },
+                {
+                  q: "Can we earn money on Etsy?",
+                  a: "Absolutely! Etsy is a massive marketplace for handmade, vintage, and craft items. Many Pakistani artisans and entrepreneurs are earning significant income by selling their unique products on Etsy."
+                },
+                {
+                  q: "Is Etsy officially available in Pakistan?",
+                  a: "Etsy Payments is not currently available in Pakistan, but there are legitimate ways to manage your business and get paid through alternative methods which we cover in our specialized training."
+                },
+                {
+                  q: "How to get paid on Etsy in Pakistan?",
+                  a: "Sellers in Pakistan typically use services like Payoneer or partner with entities in supported countries to manage their Etsy finances securely. Our course provides a step-by-step guide on this."
+                }
+              ].map((faq, i) => (
+                <AccordionItem 
+                  key={i} 
+                  value={`item-${i}`}
+                  className="bg-white border-gray-100 rounded-2xl shadow-sm border px-6 hover:shadow-md transition-all data-[state=open]:ring-2 data-[state=open]:ring-emerald-500/20 data-[state=open]:border-emerald-500"
+                >
+                  <AccordionTrigger className="text-lg font-black text-gray-900 hover:no-underline py-6 text-left">
+                    {faq.q}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-gray-500 text-base leading-relaxed pb-6">
+                    {faq.a}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+
+          <div className="text-center mt-16">
+            <p className="text-gray-500 font-bold mb-6">
+              Still have questions? Our experts are here to help!
+            </p>
+            <a href="https://wa.me/923001234567" target="_blank" rel="noreferrer">
+              <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-10 h-14 rounded-2xl gap-2 shadow-lg shadow-emerald-500/20">
+                Ask Our Experts <MessageCircle className="h-5 w-5" />
+              </Button>
+            </a>
           </div>
         </div>
       </section>
 
       {/* ── CTA ──────────────────────────────────────────────────────────── */}
-      <section className="py-20 bg-gradient-to-r from-[#0f2c6f] to-[#1a47b8] text-white">
+      <section className="py-20 bg-gradient-to-r from-[#0f2c6f] to-[#1a47b8] text-white snap-start scroll-mt-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-extrabold mb-4">
             Ready to Start Your Journey?

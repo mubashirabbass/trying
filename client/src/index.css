@@ -191,6 +191,10 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+    @apply snap-y snap-proximity;
+  }
   * {
     @apply border-border;
   }

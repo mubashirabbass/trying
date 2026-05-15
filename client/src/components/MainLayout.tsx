@@ -22,7 +22,7 @@ export function MainLayout({ children }: { children: ReactNode }) {
       </a>
 
       <footer className="bg-[#0b1e4a] text-gray-300 py-14 border-t border-[#1a3570] mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="space-y-4">
               <h3 className="text-xl font-bold text-white flex items-center gap-2">
