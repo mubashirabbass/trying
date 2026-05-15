@@ -900,11 +900,11 @@ export const CreateForumReplyBody = zod.object({
 /**
  * @summary Pin/unpin a post
  */
-export const PinForumPostParams = zod.object({
+export const UpdateForumPostParams = zod.object({
   "postId": zod.coerce.number()
 })
 
-export const PinForumPostBody = zod.object({
+export const UpdateForumPostBody = zod.object({
   "isPinned": zod.boolean()
 })
 
@@ -930,6 +930,240 @@ export const DeleteForumPostParams = zod.object({
  */
 export const DeleteForumReplyParams = zod.object({
   "replyId": zod.coerce.number()
+})
+
+
+/**
+ * @summary List message threads for a user
+ */
+export const ListMessageThreadsQueryParams = zod.object({
+  "userId": zod.coerce.number().optional()
+})
+
+export const ListMessageThreadsResponseItem = zod.object({
+  "id": zod.number(),
+  "studentId": zod.number(),
+  "teacherId": zod.number(),
+  "courseId": zod.number().optional(),
+  "lastMessageAt": zod.string().optional(),
+  "createdAt": zod.string(),
+  "courseName": zod.string().optional(),
+  "studentName": zod.string().optional(),
+  "teacherName": zod.string().optional(),
+  "lastMessagePreview": zod.string().optional(),
+  "messageCount": zod.number().optional()
+})
+export const ListMessageThreadsResponse = zod.array(ListMessageThreadsResponseItem)
+
+
+/**
+ * @summary Create a new message thread
+ */
+export const CreateMessageThreadBody = zod.object({
+  "studentId": zod.number(),
+  "teacherId": zod.number(),
+  "courseId": zod.number().optional()
+})
+
+
+/**
+ * @summary Get messages for a thread
+ */
+export const GetMessageThreadParams = zod.object({
+  "threadId": zod.coerce.number()
+})
+
+export const GetMessageThreadResponseItem = zod.object({
+  "id": zod.number(),
+  "threadId": zod.number(),
+  "senderId": zod.number(),
+  "body": zod.string(),
+  "isRead": zod.boolean(),
+  "createdAt": zod.string(),
+  "senderName": zod.string().optional(),
+  "senderRole": zod.string().optional()
+})
+export const GetMessageThreadResponse = zod.array(GetMessageThreadResponseItem)
+
+
+/**
+ * @summary Send a message in a thread
+ */
+export const SendMessageParams = zod.object({
+  "threadId": zod.coerce.number()
+})
+
+export const SendMessageBody = zod.object({
+  "senderId": zod.number(),
+  "body": zod.string()
+})
+
+
+/**
+ * @summary Mark all messages in a thread as read
+ */
+export const MarkThreadAsReadParams = zod.object({
+  "threadId": zod.coerce.number()
+})
+
+export const MarkThreadAsReadBody = zod.object({
+  "userId": zod.number()
+})
+
+
+/**
+ * @summary List notifications for a user
+ */
+export const ListNotificationsQueryParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const ListNotificationsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "type": zod.string().optional(),
+  "title": zod.string(),
+  "message": zod.string(),
+  "link": zod.string().optional(),
+  "isRead": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const ListNotificationsResponse = zod.array(ListNotificationsResponseItem)
+
+
+/**
+ * @summary Create a notification (system)
+ */
+export const CreateNotificationBody = zod.object({
+  "userId": zod.number(),
+  "type": zod.string().optional(),
+  "title": zod.string(),
+  "message": zod.string(),
+  "link": zod.string().optional()
+})
+
+
+/**
+ * @summary Mark all notifications as read for a user
+ */
+export const MarkAllNotificationsAsReadQueryParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+
+/**
+ * @summary Mark a single notification as read
+ */
+export const MarkNotificationAsReadParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Delete a notification
+ */
+export const DeleteNotificationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Get identity verification for a user
+ */
+export const GetIdentityVerificationQueryParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+export const GetIdentityVerificationResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "documentType": zod.string(),
+  "cnicNumber": zod.string().optional(),
+  "documentUrl": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "rejectionReason": zod.string().optional(),
+  "submittedAt": zod.string(),
+  "reviewedAt": zod.string().optional(),
+  "userName": zod.string().optional(),
+  "userEmail": zod.string().optional()
+})
+
+
+/**
+ * @summary Submit identity verification request
+ */
+export const SubmitIdentityVerificationBody = zod.object({
+  "userId": zod.number(),
+  "documentType": zod.string().optional(),
+  "cnicNumber": zod.string().optional(),
+  "documentUrl": zod.string()
+})
+
+
+/**
+ * @summary List all identity verifications (admin)
+ */
+export const ListIdentityVerificationsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "documentType": zod.string(),
+  "cnicNumber": zod.string().optional(),
+  "documentUrl": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "rejectionReason": zod.string().optional(),
+  "submittedAt": zod.string(),
+  "reviewedAt": zod.string().optional(),
+  "userName": zod.string().optional(),
+  "userEmail": zod.string().optional()
+})
+export const ListIdentityVerificationsResponse = zod.array(ListIdentityVerificationsResponseItem)
+
+
+/**
+ * @summary Approve identity verification
+ */
+export const ApproveIdentityVerificationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ApproveIdentityVerificationResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "documentType": zod.string(),
+  "cnicNumber": zod.string().optional(),
+  "documentUrl": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "rejectionReason": zod.string().optional(),
+  "submittedAt": zod.string(),
+  "reviewedAt": zod.string().optional(),
+  "userName": zod.string().optional(),
+  "userEmail": zod.string().optional()
+})
+
+
+/**
+ * @summary Reject identity verification
+ */
+export const RejectIdentityVerificationParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const RejectIdentityVerificationBody = zod.object({
+  "rejectionReason": zod.string()
+})
+
+export const RejectIdentityVerificationResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "documentType": zod.string(),
+  "cnicNumber": zod.string().optional(),
+  "documentUrl": zod.string(),
+  "status": zod.enum(['pending', 'approved', 'rejected']),
+  "rejectionReason": zod.string().optional(),
+  "submittedAt": zod.string(),
+  "reviewedAt": zod.string().optional(),
+  "userName": zod.string().optional(),
+  "userEmail": zod.string().optional()
 })
 
 

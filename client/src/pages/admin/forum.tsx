@@ -3,7 +3,8 @@ import {
   useListForumPosts, 
   useDeleteForumPost,
   useUpdateForumPost,
-  getListForumPostsQueryKey
+  getListForumPostsQueryKey,
+  ForumPost
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
@@ -36,12 +37,12 @@ export default function AdminForum() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { data: posts = [], isLoading } = useListForumPosts({ courseId: 0 }); // Fetch all posts if possible or just latest
+  const { data: posts = [], isLoading } = useListForumPosts(0); // Fetch all posts if possible or just latest
 
   const deleteMutation = useDeleteForumPost({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListForumPostsQueryKey({ courseId: 0 }) });
+        queryClient.invalidateQueries({ queryKey: getListForumPostsQueryKey(0) });
         toast({ title: "Post deleted" });
       }
     }
@@ -50,13 +51,13 @@ export default function AdminForum() {
   const pinMutation = useUpdateForumPost({
     mutation: {
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListForumPostsQueryKey({ courseId: 0 }) });
+        queryClient.invalidateQueries({ queryKey: getListForumPostsQueryKey(0) });
         toast({ title: "Post status updated" });
       }
     }
   });
 
-  const filteredPosts = posts.filter((p: any) => 
+  const filteredPosts = posts.filter((p: ForumPost) => 
     p.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.userName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -109,7 +110,7 @@ export default function AdminForum() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredPosts.map((post: any) => (
+                filteredPosts.map((post: ForumPost) => (
                   <tr key={post.id} className="border-b last:border-0 hover:bg-gray-50/50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-start gap-3">
@@ -160,14 +161,14 @@ export default function AdminForum() {
                         <DropdownMenuContent align="end" className="w-48 rounded-xl">
                           <DropdownMenuItem 
                             className="cursor-pointer font-bold"
-                            onClick={() => pinMutation.mutate({ id: post.id, data: { isPinned: !post.isPinned } as any })}
+                            onClick={() => pinMutation.mutate({ postId: post.id, data: { isPinned: !post.isPinned } })}
                           >
                             <Pin className="h-4 w-4 mr-2" /> {post.isPinned ? "Unpin Post" : "Pin Post"}
                           </DropdownMenuItem>
                           <DropdownMenuItem className="cursor-pointer font-bold text-red-600 focus:text-red-600 focus:bg-red-50"
                             onClick={() => {
                               if (confirm("Are you sure? This will permanently remove this discussion.")) {
-                                deleteMutation.mutate({ id: post.id });
+                                deleteMutation.mutate({ postId: post.id });
                               }
                             }}
                           >

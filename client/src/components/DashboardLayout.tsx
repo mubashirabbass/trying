@@ -28,6 +28,9 @@ import {
   UserCog,
   ClipboardList,
   MailOpen,
+  User,
+  BarChart3,
+  Compass,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -203,7 +206,9 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       case "student":
         return [
           { name: "Overview", path: "/dashboard", icon: LayoutDashboard },
+          { name: "Browse Courses", path: "/dashboard/browse", icon: Compass },
           { name: "My Courses", path: "/dashboard/courses", icon: BookOpen },
+          { name: "Progress", path: "/dashboard/progress", icon: BarChart3 },
           { name: "Assignments", path: "/dashboard/assignments", icon: FileText },
           { name: "Quizzes", path: "/dashboard/quizzes", icon: CheckSquare },
           { name: "Forum", path: "/dashboard/forum", icon: MessageSquare },
@@ -211,6 +216,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           { name: "Leaderboard", path: "/dashboard/leaderboard", icon: Trophy },
           { name: "Certificates", path: "/dashboard/certificates", icon: Award },
           { name: "Verify Identity", path: "/dashboard/verify-identity", icon: ShieldCheck },
+          { name: "My Profile", path: "/dashboard/profile", icon: User },
         ];
       case "teacher":
         return [
@@ -221,6 +227,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           { name: "Grading", path: "/teacher/grading", icon: GraduationCap },
           { name: "Forum", path: "/teacher/forum", icon: MessageSquare },
           { name: "Messages", path: "/teacher/messages", icon: MessageCircle },
+          { name: "My Profile", path: "/teacher/profile", icon: User },
         ];
       default:
         return [];

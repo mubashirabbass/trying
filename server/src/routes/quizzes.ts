@@ -8,6 +8,7 @@ import {
   SubmitQuizBody,
 } from "@workspace/api-zod";
 import { AuthRequest } from "../middleware/auth";
+import { notificationTriggers } from "../lib/notifications";
 
 const router: IRouter = Router();
 
@@ -116,7 +117,68 @@ router.post("/quizzes/:id/submit", async (req: AuthRequest, res): Promise<void> 
     answers,
   }).returning();
 
+  // Trigger notification
+  notificationTriggers.quizCompleted(userId, quiz.title, score, passed)
+    .catch(err => console.error("Failed to trigger quiz notification:", err));
+
   res.json({ ...result, answers });
+});
+
+router.get("/quizzes/results", async (req: AuthRequest, res): Promise<void> => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const results = await db.select({
+    id: quizResultsTable.id,
+    quizId: quizResultsTable.quizId,
+    score: quizResultsTable.score,
+    totalMarks: quizResultsTable.totalMarks,
+    percentage: quizResultsTable.percentage,
+    passed: quizResultsTable.passed,
+    createdAt: quizResultsTable.createdAt,
+    quizTitle: quizzesTable.title,
+  })
+  .from(quizResultsTable)
+  .leftJoin(quizzesTable, eq(quizResultsTable.quizId, quizzesTable.id))
+  .where(eq(quizResultsTable.userId, userId))
+  .orderBy(quizResultsTable.createdAt);
+
+  res.json(results);
+});
+
+router.get("/quizzes/results/:id", async (req: AuthRequest, res): Promise<void> => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const resultId = parseInt(req.params.id, 10);
+  if (isNaN(resultId)) { res.status(400).json({ error: "Invalid result id" }); return; }
+
+  const [result] = await db.select().from(quizResultsTable).where(eq(quizResultsTable.id, resultId));
+  if (!result) { res.status(404).json({ error: "Result not found" }); return; }
+  
+  if (result.userId !== userId && req.user?.role !== 'admin') {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  const [quiz] = await db.select().from(quizzesTable).where(eq(quizzesTable.id, result.quizId));
+  const questions = await db.select().from(questionsTable).where(eq(questionsTable.quizId, result.quizId)).orderBy(questionsTable.orderIndex);
+
+  const formattedQuestions = questions.map(q => ({
+    id: q.id,
+    question: q.questionText,
+    options: [q.optionA, q.optionB, q.optionC, q.optionD],
+    correctOption: q.correctOption.charCodeAt(0) - 65,
+    marks: q.marks,
+  }));
+
+  res.json({
+    ...result,
+    quiz: {
+      ...quiz,
+      questions: formattedQuestions
+    }
+  });
 });
 
 export default router;

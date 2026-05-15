@@ -19,6 +19,7 @@ import settingsRouter from "./settings";
 import leaderboardRouter from "./leaderboard";
 import sectionsRouter from "./sections";
 import branchesRouter from "./branches";
+import reportsRouter from "./reports";
 
 import { authenticate } from "../middleware/auth";
 
@@ -47,5 +48,6 @@ router.use(identityVerificationRouter);
 router.use(settingsRouter);
 router.use(leaderboardRouter);
 router.use(sectionsRouter);
+router.use(reportsRouter);
 
 export default router;

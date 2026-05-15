@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, assignmentsTable, assignmentSubmissionsTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { notificationTriggers } from "../lib/notifications";
 import {
   ListAssignmentsQueryParams,
   CreateAssignmentBody,
@@ -119,6 +120,18 @@ router.post("/assignments/:id/grade", async (req, res): Promise<void> => {
     .returning();
     
   if (!submission) { res.status(404).json({ error: "Submission not found" }); return; }
+
+  // Trigger notification
+  try {
+    const [assignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, submission.assignmentId));
+    if (assignment) {
+      notificationTriggers.assignmentGraded(submission.userId, assignment.title, marks, assignment.totalMarks || 100)
+        .catch(err => console.error("Failed to trigger assignment notification:", err));
+    }
+  } catch (err) {
+    console.error("Error fetching assignment for notification:", err);
+  }
+
   res.json(submission);
 });
 

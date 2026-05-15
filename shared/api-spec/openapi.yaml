@@ -21,6 +21,10 @@ tags:
   - name: success-stories
   - name: dashboard
   - name: certificates
+  - name: forum
+  - name: messages
+  - name: notifications
+  - name: identity-verification
 
 paths:
   /healthz:
@@ -1016,7 +1020,7 @@ paths:
 
   /forum/posts/{postId}/pin:
     patch:
-      operationId: pinForumPost
+      operationId: updateForumPost
       tags: [forum]
       summary: Pin/unpin a post
       parameters:
@@ -1083,6 +1087,297 @@ paths:
       responses:
         "204":
           description: Deleted
+
+  /messages/threads:
+    get:
+      operationId: listMessageThreads
+      tags: [messages]
+      summary: List message threads for a user
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of threads
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MessageThread"
+    post:
+      operationId: createMessageThread
+      tags: [messages]
+      summary: Create a new message thread
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMessageThreadBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageThread"
+
+  /messages/threads/{threadId}:
+    get:
+      operationId: getMessageThread
+      tags: [messages]
+      summary: Get messages for a thread
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+
+  /messages/threads/{threadId}/messages:
+    post:
+      operationId: sendMessage
+      tags: [messages]
+      summary: Send a message in a thread
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageBody"
+      responses:
+        "201":
+          description: Sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+
+  /messages/threads/{threadId}/read:
+    patch:
+      operationId: markThreadAsRead
+      tags: [messages]
+      summary: Mark all messages in a thread as read
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+              required: [userId]
+      responses:
+        "200":
+          description: Marked as read
+
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications for a user
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+    post:
+      operationId: createNotification
+      tags: [notifications]
+      summary: Create a notification (system)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNotificationBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+  /notifications/read-all:
+    patch:
+      operationId: markAllNotificationsAsRead
+      tags: [notifications]
+      summary: Mark all notifications as read for a user
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Marked all as read
+
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationAsRead
+      tags: [notifications]
+      summary: Mark a single notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Marked as read
+
+  /notifications/{id}:
+    delete:
+      operationId: deleteNotification
+      tags: [notifications]
+      summary: Delete a notification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /identity-verification:
+    get:
+      operationId: getIdentityVerification
+      tags: [identity-verification]
+      summary: Get identity verification for a user
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Verification record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityVerification"
+    post:
+      operationId: submitIdentityVerification
+      tags: [identity-verification]
+      summary: Submit identity verification request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitIdentityVerificationBody"
+      responses:
+        "201":
+          description: Submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityVerification"
+
+  /admin/identity-verifications:
+    get:
+      operationId: listIdentityVerifications
+      tags: [identity-verification]
+      summary: List all identity verifications (admin)
+      responses:
+        "200":
+          description: List of verifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/IdentityVerification"
+
+  /admin/identity-verifications/{id}/approve:
+    patch:
+      operationId: approveIdentityVerification
+      tags: [identity-verification]
+      summary: Approve identity verification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityVerification"
+
+  /admin/identity-verifications/{id}/reject:
+    patch:
+      operationId: rejectIdentityVerification
+      tags: [identity-verification]
+      summary: Reject identity verification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rejectionReason:
+                  type: string
+              required: [rejectionReason]
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityVerification"
 
   /users/{id}:
     get:
@@ -2369,3 +2664,155 @@ components:
         sentAt:
           type: string
       required: [id, sentBy, title, message, sentAt]
+
+    MessageThread:
+      type: object
+      properties:
+        id:
+          type: integer
+        studentId:
+          type: integer
+        teacherId:
+          type: integer
+        courseId:
+          type: integer
+        lastMessageAt:
+          type: string
+        createdAt:
+          type: string
+        courseName:
+          type: string
+        studentName:
+          type: string
+        teacherName:
+          type: string
+        lastMessagePreview:
+          type: string
+        messageCount:
+          type: integer
+      required: [id, studentId, teacherId, createdAt]
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+        threadId:
+          type: integer
+        senderId:
+          type: integer
+        body:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+        senderName:
+          type: string
+        senderRole:
+          type: string
+      required: [id, threadId, senderId, body, isRead, createdAt]
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        type:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        link:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+      required: [id, userId, title, message, isRead, createdAt]
+
+    IdentityVerification:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        documentType:
+          type: string
+        cnicNumber:
+          type: string
+        documentUrl:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        rejectionReason:
+          type: string
+        submittedAt:
+          type: string
+        reviewedAt:
+          type: string
+        userName:
+          type: string
+        userEmail:
+          type: string
+      required: [id, userId, documentType, documentUrl, status, submittedAt]
+
+    CreateMessageThreadBody:
+      type: object
+      properties:
+        studentId:
+          type: integer
+        teacherId:
+          type: integer
+        courseId:
+          type: integer
+      required: [studentId, teacherId]
+
+    SendMessageBody:
+      type: object
+      properties:
+        senderId:
+          type: integer
+        body:
+          type: string
+      required: [senderId, body]
+
+    CreateNotificationBody:
+      type: object
+      properties:
+        userId:
+          type: integer
+        type:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        link:
+          type: string
+      required: [userId, title, message]
+
+    SubmitIdentityVerificationBody:
+      type: object
+      properties:
+        userId:
+          type: integer
+        documentType:
+          type: string
+        cnicNumber:
+          type: string
+        documentUrl:
+          type: string
+      required: [userId, documentUrl]
+
+    HealthCheckResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required: [status]

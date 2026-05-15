@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,13 +9,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Loader2, ShieldCheck, Clock, CheckCircle2, XCircle, Eye, ExternalLink, ZoomIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
-
-interface Verification {
-  id: number; userId: number; documentType: string; cnicNumber?: string;
-  documentUrl: string; status: string; submittedAt: string; reviewedAt?: string;
-  userName?: string; userEmail?: string; rejectionReason?: string;
-}
+import { 
+  useListIdentityVerifications, 
+  useApproveIdentityVerification, 
+  useRejectIdentityVerification,
+  IdentityVerification
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 const STATUS_CFG: Record<string, { color: string; icon: any; label: string }> = {
   pending: { color: "bg-yellow-100 text-yellow-700", icon: Clock, label: "Pending" },
@@ -25,43 +24,48 @@ const STATUS_CFG: Record<string, { color: string; icon: any; label: string }> = 
 };
 
 export default function AdminIdentityVerifications() {
-  const { token } = useAuth();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [verifications, setVerifications] = useState<Verification[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<Verification | null>(null);
+  const [selected, setSelected] = useState<IdentityVerification | null>(null);
   const [rejectReason, setRejectReason] = useState("");
-  const [acting, setActing] = useState(false);
 
-  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  const { data: verifications = [], isLoading: loading } = useListIdentityVerifications();
+  const approveMutation = useApproveIdentityVerification({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Identity verified!" });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/identity-verifications"] });
+        setSelected(null);
+      }
+    }
+  });
 
-  const fetchAll = async () => {
-    const r = await fetch(`${BASE}/api/admin/identity-verifications`, { headers });
-    if (r.ok) setVerifications(await r.json());
-    setLoading(false);
-  };
-
-  useEffect(() => { fetchAll(); }, []);
+  const rejectMutation = useRejectIdentityVerification({
+    mutation: {
+      onSuccess: () => {
+        toast({ title: "Verification rejected" });
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/identity-verifications"] });
+        setSelected(null);
+        setRejectReason("");
+      }
+    }
+  });
 
   const approve = async (id: number) => {
-    setActing(true);
-    const r = await fetch(`${BASE}/api/admin/identity-verifications/${id}/approve`, { method: "PATCH", headers });
-    if (r.ok) { toast({ title: "Identity verified!" }); fetchAll(); setSelected(null); }
-    setActing(false);
+    approveMutation.mutate({ id });
   };
 
   const reject = async (id: number) => {
-    if (!rejectReason.trim()) { toast({ title: "Please provide a rejection reason", variant: "destructive" }); return; }
-    setActing(true);
-    const r = await fetch(`${BASE}/api/admin/identity-verifications/${id}/reject`, {
-      method: "PATCH", headers, body: JSON.stringify({ rejectionReason: rejectReason }),
-    });
-    if (r.ok) { toast({ title: "Verification rejected" }); fetchAll(); setSelected(null); setRejectReason(""); }
-    setActing(false);
+    if (!rejectReason.trim()) { 
+      toast({ title: "Please provide a rejection reason", variant: "destructive" }); 
+      return; 
+    }
+    rejectMutation.mutate({ id, data: { rejectionReason: rejectReason } });
   };
 
-  const pending = verifications.filter(v => v.status === "pending");
-  const others = verifications.filter(v => v.status !== "pending");
+  const acting = approveMutation.isPending || rejectMutation.isPending;
+  const pending = verifications.filter((v: IdentityVerification) => v.status === "pending");
+  const others = verifications.filter((v: IdentityVerification) => v.status !== "pending");
 
   return (
     <DashboardLayout>

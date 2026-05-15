@@ -21,6 +21,8 @@ import SuccessStories from "@/pages/success-stories";
 import Resources from "@/pages/resources";
 import Incubators from "@/pages/incubators";
 import Feedback from "@/pages/feedback";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 
 // Student Pages
 import StudentDashboard from "@/pages/student/dashboard";
@@ -35,6 +37,10 @@ import StudentLeaderboard from "@/pages/student/leaderboard";
 import VerifyIdentity from "@/pages/student/verify-identity";
 import StudentPayment from "@/pages/student/payment";
 import QuizPlayer from "@/pages/student/quiz-player";
+import StudentProfile from "@/pages/student/profile";
+import StudentProgress from "@/pages/student/progress";
+import StudentBrowse from "@/pages/student/browse";
+import QuizResultPage from "@/pages/student/quiz-result";
 
 // Teacher Pages
 import TeacherDashboard from "@/pages/teacher/dashboard";
@@ -44,6 +50,8 @@ import TeacherGrading from "@/pages/teacher/grading";
 import TeacherAssignments from "@/pages/teacher/assignments";
 import TeacherQuizzes from "@/pages/teacher/quizzes";
 import TeacherMessages from "@/pages/teacher/messages";
+import TeacherProfile from "@/pages/teacher/profile";
+import Branches from "@/pages/branches";
 
 // Admin Pages
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -103,6 +111,9 @@ function Router() {
         <Route path="/courses/:id" component={CourseDetail} />
         <Route path="/verify-certificate" component={VerifyCertificate} />
         <Route path="/feedback" component={Feedback} />
+        <Route path="/branches" component={Branches} />
+        <Route path="/forgot-password" component={ForgotPassword} />
+        <Route path="/reset-password/:token" component={ResetPassword} />
 
         {/* Student Protected Routes */}
         <Route path="/dashboard">
@@ -126,6 +137,9 @@ function Router() {
         <Route path="/dashboard/quizzes/:id">
           <ProtectedRoute component={QuizPlayer} />
         </Route>
+        <Route path="/dashboard/quizzes/results/:id">
+          <ProtectedRoute component={QuizResultPage} />
+        </Route>
         <Route path="/dashboard/certificates">
           <ProtectedRoute component={StudentCertificates} />
         </Route>
@@ -144,6 +158,15 @@ function Router() {
         <Route path="/dashboard/payment/:courseId">
           <ProtectedRoute component={StudentPayment} />
         </Route>
+        <Route path="/dashboard/profile">
+          <ProtectedRoute component={StudentProfile} />
+        </Route>
+        <Route path="/dashboard/progress">
+          <ProtectedRoute component={StudentProgress} />
+        </Route>
+        <Route path="/dashboard/browse">
+          <ProtectedRoute component={StudentBrowse} />
+        </Route>
 
         {/* Teacher Protected Routes */}
         <Route path="/teacher">
@@ -151,6 +174,9 @@ function Router() {
         </Route>
         <Route path="/teacher/messages">
           <ProtectedRoute component={TeacherMessages} />
+        </Route>
+        <Route path="/teacher/profile">
+          <ProtectedRoute component={TeacherProfile} />
         </Route>
         <Route path="/teacher/courses">
           <ProtectedRoute component={TeacherCourses} />

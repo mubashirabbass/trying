@@ -547,6 +547,95 @@ export interface Announcement {
   sentAt: string;
 }
 
+export interface MessageThread {
+  id: number;
+  studentId: number;
+  teacherId: number;
+  courseId?: number;
+  lastMessageAt?: string;
+  createdAt: string;
+  courseName?: string;
+  studentName?: string;
+  teacherName?: string;
+  lastMessagePreview?: string;
+  messageCount?: number;
+}
+
+export interface Message {
+  id: number;
+  threadId: number;
+  senderId: number;
+  body: string;
+  isRead: boolean;
+  createdAt: string;
+  senderName?: string;
+  senderRole?: string;
+}
+
+export interface Notification {
+  id: number;
+  userId: number;
+  type?: string;
+  title: string;
+  message: string;
+  link?: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export type IdentityVerificationStatus = typeof IdentityVerificationStatus[keyof typeof IdentityVerificationStatus];
+
+
+export const IdentityVerificationStatus = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface IdentityVerification {
+  id: number;
+  userId: number;
+  documentType: string;
+  cnicNumber?: string;
+  documentUrl: string;
+  status: IdentityVerificationStatus;
+  rejectionReason?: string;
+  submittedAt: string;
+  reviewedAt?: string;
+  userName?: string;
+  userEmail?: string;
+}
+
+export interface CreateMessageThreadBody {
+  studentId: number;
+  teacherId: number;
+  courseId?: number;
+}
+
+export interface SendMessageBody {
+  senderId: number;
+  body: string;
+}
+
+export interface CreateNotificationBody {
+  userId: number;
+  type?: string;
+  title: string;
+  message: string;
+  link?: string;
+}
+
+export interface SubmitIdentityVerificationBody {
+  userId: number;
+  documentType?: string;
+  cnicNumber?: string;
+  documentUrl: string;
+}
+
+export interface HealthCheckResponse {
+  status: string;
+}
+
 export type ListCoursesParams = {
 category?: string;
 featured?: boolean;
@@ -631,8 +720,32 @@ export type CreateForumReplyBody = {
   body: string;
 };
 
-export type PinForumPostBody = {
+export type UpdateForumPostBody = {
   isPinned: boolean;
+};
+
+export type ListMessageThreadsParams = {
+userId?: number;
+};
+
+export type MarkThreadAsReadBody = {
+  userId: number;
+};
+
+export type ListNotificationsParams = {
+userId: number;
+};
+
+export type MarkAllNotificationsAsReadParams = {
+userId: number;
+};
+
+export type GetIdentityVerificationParams = {
+userId: number;
+};
+
+export type RejectIdentityVerificationBody = {
+  rejectionReason: string;
 };
 
 export type ResetPasswordBody = {

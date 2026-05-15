@@ -1,7 +1,8 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { 
   useListMessageThreads, 
-  useListMessages 
+  useGetMessageThread,
+  MessageThread
 } from "@workspace/api-client-react";
 import { 
   Loader2, 
@@ -23,9 +24,9 @@ import { Link } from "wouter";
 
 export default function AdminMessages() {
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: threads = [], isLoading } = useListMessageThreads();
+  const { data: threads = [], isLoading } = useListMessageThreads({});
 
-  const filteredThreads = threads.filter((t: any) => 
+  const filteredThreads = threads.filter((t: MessageThread) => 
     t.studentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.teacherName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.courseName?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -64,7 +65,7 @@ export default function AdminMessages() {
             </CardContent>
           </Card>
         ) : (
-          filteredThreads.map((thread: any) => (
+          filteredThreads.map((thread: MessageThread) => (
             <Card key={thread.id} className="border-none shadow-sm ring-1 ring-gray-100 rounded-[24px] overflow-hidden hover:ring-primary/20 transition-all group">
               <CardContent className="p-0">
                 <div className="flex flex-col md:flex-row items-stretch">

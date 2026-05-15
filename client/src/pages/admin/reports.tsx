@@ -2,6 +2,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/lib/AuthContext";
 import {
   FileBarChart,
   Download,
@@ -13,8 +14,12 @@ import {
   Filter,
   FileText,
   Table,
+  Loader2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+
+const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
 type ReportType = "branch" | "students" | "enrollments" | "revenue" | "full-list";
 
@@ -56,179 +61,126 @@ const REPORT_TYPES: { id: ReportType; label: string; icon: any; description: str
   },
 ];
 
-// Mock preview data per report type
-const MOCK_DATA: Record<ReportType, any[]> = {
-  branch: [
-    { name: "Lahore Main", city: "Lahore", students: 1842, active: 1720, courses: 12 },
-    { name: "Karachi Hub", city: "Karachi", students: 1100, active: 980, courses: 10 },
-    { name: "Islamabad Center", city: "Islamabad", students: 870, active: 810, courses: 8 },
-    { name: "Faisalabad Branch", city: "Faisalabad", students: 688, active: 620, courses: 7 },
-  ],
-  students: [
-    { name: "Ahmed Ali", branch: "Lahore", courses: 3, completion: "78%", quizAvg: "82%", assignAvg: "75%" },
-    { name: "Sara Khan", branch: "Karachi", courses: 2, completion: "91%", quizAvg: "90%", assignAvg: "88%" },
-    { name: "Bilal Hussain", branch: "Islamabad", courses: 1, completion: "45%", quizAvg: "60%", assignAvg: "55%" },
-    { name: "Fatima Zahra", branch: "Lahore", courses: 4, completion: "100%", quizAvg: "95%", assignAvg: "92%" },
-  ],
-  enrollments: [
-    { course: "eBay Business Course", enrolled: 920, completed: 680, active: 240, free: false },
-    { course: "Amazon FBA Mastery", enrolled: 740, completed: 510, active: 230, free: false },
-    { course: "Graphics & Logo Design", enrolled: 520, completed: 390, active: 130, free: true },
-    { course: "Freelancing Bootcamp", enrolled: 610, completed: 420, active: 190, free: false },
-  ],
-  revenue: [
-    { method: "EasyPaisa", transactions: 410, totalPKR: 2050000, approved: 390, pending: 20 },
-    { method: "JazzCash", transactions: 280, totalPKR: 1400000, approved: 265, pending: 15 },
-    { method: "Bank Transfer", transactions: 190, totalPKR: 950000, approved: 180, pending: 10 },
-    { method: "Card", transactions: 120, totalPKR: 600000, approved: 115, pending: 5 },
-  ],
-  "full-list": [
-    { name: "Ahmed Ali", email: "ahmed@example.com", branch: "Lahore", enrolled: 3, status: "Active", joined: "2026-01-15" },
-    { name: "Sara Khan", email: "sara@example.com", branch: "Karachi", enrolled: 2, status: "Active", joined: "2026-02-20" },
-    { name: "Bilal Hussain", email: "bilal@example.com", branch: "Islamabad", enrolled: 1, status: "Active", joined: "2026-03-05" },
-    { name: "Fatima Zahra", email: "fatima@example.com", branch: "Lahore", enrolled: 4, status: "Inactive", joined: "2025-12-01" },
-  ],
-};
-
-function PreviewTable({ type }: { type: ReportType }) {
-  const data = MOCK_DATA[type];
-
-  const renderHeaders = () => {
-    switch (type) {
-      case "branch":
-        return ["Branch Name", "City", "Students", "Active", "Courses"];
-      case "students":
-        return ["Student", "Branch", "Courses", "Completion", "Quiz Avg", "Assignment Avg"];
-      case "enrollments":
-        return ["Course", "Enrolled", "Completed", "Active", "Type"];
-      case "revenue":
-        return ["Payment Method", "Transactions", "Total PKR", "Approved", "Pending"];
-      case "full-list":
-        return ["Name", "Email", "Branch", "Enrolled", "Status", "Joined"];
-    }
-  };
-
-  const renderRow = (row: any, idx: number) => {
-    switch (type) {
-      case "branch":
-        return (
-          <tr key={idx} className="hover:bg-slate-50/50">
-            <td className="px-5 py-3 font-bold text-gray-900">{row.name}</td>
-            <td className="px-5 py-3 text-gray-500">{row.city}</td>
-            <td className="px-5 py-3 font-bold">{row.students.toLocaleString()}</td>
-            <td className="px-5 py-3 text-emerald-600 font-bold">{row.active.toLocaleString()}</td>
-            <td className="px-5 py-3">{row.courses}</td>
-          </tr>
-        );
-      case "students":
-        return (
-          <tr key={idx} className="hover:bg-slate-50/50">
-            <td className="px-5 py-3 font-bold text-gray-900">{row.name}</td>
-            <td className="px-5 py-3 text-gray-500">{row.branch}</td>
-            <td className="px-5 py-3">{row.courses}</td>
-            <td className="px-5 py-3"><Badge className="bg-blue-50 text-blue-700 font-bold">{row.completion}</Badge></td>
-            <td className="px-5 py-3 text-gray-600">{row.quizAvg}</td>
-            <td className="px-5 py-3 text-gray-600">{row.assignAvg}</td>
-          </tr>
-        );
-      case "enrollments":
-        return (
-          <tr key={idx} className="hover:bg-slate-50/50">
-            <td className="px-5 py-3 font-bold text-gray-900">{row.course}</td>
-            <td className="px-5 py-3 font-bold">{row.enrolled}</td>
-            <td className="px-5 py-3 text-emerald-600 font-bold">{row.completed}</td>
-            <td className="px-5 py-3 text-blue-600 font-bold">{row.active}</td>
-            <td className="px-5 py-3"><Badge className={row.free ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-600"}>{row.free ? "Free" : "Paid"}</Badge></td>
-          </tr>
-        );
-      case "revenue":
-        return (
-          <tr key={idx} className="hover:bg-slate-50/50">
-            <td className="px-5 py-3 font-bold text-gray-900">{row.method}</td>
-            <td className="px-5 py-3">{row.transactions}</td>
-            <td className="px-5 py-3 font-black text-gray-900">Rs. {row.totalPKR.toLocaleString()}</td>
-            <td className="px-5 py-3 text-emerald-600 font-bold">{row.approved}</td>
-            <td className="px-5 py-3 text-amber-600 font-bold">{row.pending}</td>
-          </tr>
-        );
-      case "full-list":
-        return (
-          <tr key={idx} className="hover:bg-slate-50/50">
-            <td className="px-5 py-3 font-bold text-gray-900">{row.name}</td>
-            <td className="px-5 py-3 text-gray-500 text-sm">{row.email}</td>
-            <td className="px-5 py-3">{row.branch}</td>
-            <td className="px-5 py-3">{row.enrolled}</td>
-            <td className="px-5 py-3"><Badge className={row.status === "Active" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}>{row.status}</Badge></td>
-            <td className="px-5 py-3 text-gray-500">{row.joined}</td>
-          </tr>
-        );
-    }
-  };
-
-  const headers = renderHeaders();
-
-  return (
-    <div className="overflow-x-auto rounded-xl border border-gray-100">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-slate-50 border-b border-gray-100">
-            {headers.map((h) => (
-              <th key={h} className="px-5 py-3 text-left text-xs font-black text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-50">
-          {data.map((row, idx) => renderRow(row, idx))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 export default function AdminReports() {
+  const { token } = useAuth();
+  const { toast } = useToast();
   const [activeReport, setActiveReport] = useState<ReportType>("branch");
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const r = await fetch(`${BASE}/api/reports/${activeReport}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (r.ok) {
+          setData(await r.json());
+        }
+      } catch (err) {
+        console.error(err);
+        toast({ title: "Failed to fetch report data", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (token) fetchData();
+  }, [activeReport, token]);
+
+  const getHeaders = (type: ReportType) => {
+    switch (type) {
+      case "branch": return ["Branch Name", "City", "Students", "Active", "Courses"];
+      case "students": return ["Student", "Branch", "Courses", "Completion", "Quiz Avg", "Assignment Avg"];
+      case "enrollments": return ["Course", "Enrolled", "Completed", "Active", "Type"];
+      case "revenue": return ["Payment Method", "Transactions", "Total PKR", "Approved", "Pending"];
+      case "full-list": return ["Name", "Email", "Branch", "Enrolled", "Status", "Joined"];
+    }
+  };
+
+  const handleExportPdf = async () => {
+    setExporting(true);
+    try {
+      const headers = getHeaders(activeReport);
+      const rows = data.map(row => {
+        switch (activeReport) {
+          case "branch": return [row.name, row.city, row.students, row.active, row.courses];
+          case "students": return [row.name, row.branch, row.courses, row.completion, row.quizAvg, row.assignAvg];
+          case "enrollments": return [row.course, row.enrolled, row.completed, row.active, row.free ? "Free" : "Paid"];
+          case "revenue": return [row.method, row.transactions, `Rs. ${row.totalPKR.toLocaleString()}`, row.approved, row.pending];
+          case "full-list": return [row.name, row.email, row.branch, row.enrolled, row.status, row.joined];
+        }
+      });
+
+      const r = await fetch(`${BASE}/api/reports/export-pdf`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({
+          title: REPORT_TYPES.find(t => t.id === activeReport)?.label,
+          headers,
+          rows
+        })
+      });
+
+      if (r.ok) {
+        const blob = await r.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${activeReport}-report.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } else {
+        throw new Error("Export failed");
+      }
+    } catch (err) {
+      toast({ title: "PDF Export failed", variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <DashboardLayout>
       <div className="flex flex-col gap-8">
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-black text-gray-900">Reports</h1>
           <p className="text-gray-500 font-medium mt-1">
-            Preview and export platform data as PDF or Excel
+            Real-time analytics and audit reports
           </p>
         </div>
 
-        {/* Report Type Selector */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {REPORT_TYPES.map(({ id, label, icon: Icon, color }) => (
             <button
               key={id}
               onClick={() => setActiveReport(id)}
-              className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 text-center transition-all duration-200 cursor-pointer ${
+              className={`flex flex-col items-center gap-2 p-5 rounded-[24px] border-2 text-center transition-all duration-200 cursor-pointer ${
                 activeReport === id
                   ? "border-primary bg-primary/5 shadow-lg shadow-primary/10"
-                  : "border-gray-100 bg-white hover:border-gray-200"
+                  : "border-gray-50 bg-white hover:border-gray-200"
               }`}
             >
-              <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${activeReport === id ? "bg-primary text-white" : color}`}>
-                <Icon className="h-5 w-5" />
+              <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${activeReport === id ? "bg-primary text-white shadow-lg shadow-primary/20" : color}`}>
+                <Icon className="h-6 w-6" />
               </div>
-              <span className={`text-xs font-black leading-tight ${activeReport === id ? "text-primary" : "text-gray-700"}`}>
+              <span className={`text-xs font-black leading-tight mt-1 ${activeReport === id ? "text-primary" : "text-gray-600"}`}>
                 {label}
               </span>
             </button>
           ))}
         </div>
 
-        {/* Preview Card */}
-        <Card className="border border-gray-100 rounded-2xl overflow-hidden">
-          <CardHeader className="px-6 py-5 border-b border-gray-50">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <Card className="border-none shadow-2xl ring-1 ring-gray-100 rounded-[32px] overflow-hidden bg-white">
+          <CardHeader className="px-8 py-8 border-b border-gray-50">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
-                <CardTitle className="text-xl font-black text-gray-900">
+                <CardTitle className="text-2xl font-black text-gray-900">
                   {REPORT_TYPES.find((r) => r.id === activeReport)?.label} Report
                 </CardTitle>
                 <p className="text-sm text-gray-400 mt-1 font-medium">
@@ -238,28 +190,65 @@ export default function AdminReports() {
               <div className="flex gap-3">
                 <Button
                   variant="outline"
-                  className="font-black gap-2 rounded-xl border-gray-200 h-10 text-sm"
-                  onClick={() => alert("Excel export — connect to backend exceljs endpoint")}
+                  className="font-black gap-2 rounded-2xl border-gray-200 h-12 px-6 text-sm hover:bg-slate-50"
+                  onClick={() => toast({ title: "Coming soon: Excel export" })}
                 >
                   <Table className="h-4 w-4 text-emerald-600" />
-                  Export Excel
+                  Excel
                 </Button>
                 <Button
-                  className="font-black gap-2 rounded-xl bg-primary hover:bg-primary/90 h-10 text-sm shadow-lg shadow-primary/20"
-                  onClick={() => alert("PDF export — connect to backend Puppeteer endpoint")}
+                  disabled={exporting || loading}
+                  className="font-black gap-2 rounded-2xl bg-primary hover:bg-primary/90 h-12 px-6 text-sm shadow-xl shadow-primary/20 transition-all active:scale-95"
+                  onClick={handleExportPdf}
                 >
-                  <FileText className="h-4 w-4" />
+                  {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                   Export PDF
                 </Button>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
-            <div className="mb-4 flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest">
-              <Filter className="h-3.5 w-3.5" />
-              Preview (showing sample data — connect API for live data)
-            </div>
-            <PreviewTable type={activeReport} />
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="flex justify-center items-center h-96">
+                <Loader2 className="h-10 w-10 animate-spin text-primary opacity-20" />
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50/50 border-b border-gray-50">
+                      {getHeaders(activeReport).map((h) => (
+                        <th key={h} className="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {data.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/30 transition-colors">
+                        {Object.values(row).map((val: any, vIdx) => (
+                          <td key={vIdx} className={`px-8 py-5 ${vIdx === 0 ? "font-black text-gray-900" : "text-gray-500 font-medium"}`}>
+                            {typeof val === "boolean" ? (
+                              <Badge className={val ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-600"}>{val ? "Free" : "Paid"}</Badge>
+                            ) : (
+                              val?.toLocaleString()
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                    {data.length === 0 && (
+                      <tr>
+                        <td colSpan={getHeaders(activeReport).length} className="px-8 py-20 text-center text-gray-400 font-bold uppercase tracking-widest text-xs">
+                          No data found for this report
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

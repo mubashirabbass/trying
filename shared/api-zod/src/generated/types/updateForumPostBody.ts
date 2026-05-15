@@ -6,6 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type PinForumPostBody = {
+export type UpdateForumPostBody = {
   isPinned: boolean;
 };

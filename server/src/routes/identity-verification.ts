@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, identityVerificationsTable, usersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
+import { notificationTriggers } from "../lib/notifications";
 
 const router: IRouter = Router();
 
@@ -48,6 +49,12 @@ router.patch("/admin/identity-verifications/:id/approve", async (req, res): Prom
     .set({ status: "approved", reviewedAt: new Date() })
     .where(eq(identityVerificationsTable.id, id))
     .returning();
+  
+  if (row) {
+    notificationTriggers.identityVerified(row.userId, true)
+      .catch(err => console.error("Failed to trigger verification notification:", err));
+  }
+  
   res.json(row);
 });
 
@@ -58,6 +65,12 @@ router.patch("/admin/identity-verifications/:id/reject", async (req, res): Promi
     .set({ status: "rejected", rejectionReason, reviewedAt: new Date() })
     .where(eq(identityVerificationsTable.id, id))
     .returning();
+
+  if (row) {
+    notificationTriggers.identityVerified(row.userId, false, rejectionReason)
+      .catch(err => console.error("Failed to trigger verification notification:", err));
+  }
+
   res.json(row);
 });
 

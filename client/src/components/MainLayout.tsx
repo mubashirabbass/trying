@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Navbar } from "./Navbar";
 import { Link } from "wouter";
+import { WhatsAppButton } from "./WhatsAppButton";
 import { Facebook, Instagram, Twitter, Youtube, MapPin, Phone, Mail } from "lucide-react";
 
 export function MainLayout({ children }: { children: ReactNode }) {
@@ -9,17 +10,8 @@ export function MainLayout({ children }: { children: ReactNode }) {
       <Navbar />
       <main className="flex-grow flex flex-col">{children}</main>
       
-      {/* Floating WhatsApp Button */}
-      <a
-        href="https://wa.me/1234567890"
-        target="_blank"
-        rel="noreferrer"
-        className="fixed bottom-6 right-6 bg-green-500 text-white p-4 rounded-full shadow-lg hover:bg-green-600 transition-colors z-50 flex items-center justify-center"
-      >
-        <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
-        </svg>
-      </a>
+      {/* Dynamic WhatsApp Float Button — fetches number from admin settings */}
+      <WhatsAppButton />
 
       <footer className="bg-[#0b1e4a] text-gray-300 py-14 border-t border-[#1a3570] mt-auto">
         <div className="w-full px-4 md:px-10 lg:px-16">
@@ -35,10 +27,10 @@ export function MainLayout({ children }: { children: ReactNode }) {
                 Empowering students with world-class education in IT, Graphics, and AI.
               </p>
               <div className="flex space-x-4">
-                <a href="#" className="text-gray-400 hover:text-white"><Facebook className="h-5 w-5" /></a>
-                <a href="#" className="text-gray-400 hover:text-white"><Instagram className="h-5 w-5" /></a>
-                <a href="#" className="text-gray-400 hover:text-white"><Twitter className="h-5 w-5" /></a>
-                <a href="#" className="text-gray-400 hover:text-white"><Youtube className="h-5 w-5" /></a>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors"><Facebook className="h-5 w-5" /></a>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors"><Instagram className="h-5 w-5" /></a>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors"><Twitter className="h-5 w-5" /></a>
+                <a href="#" className="text-gray-400 hover:text-white transition-colors"><Youtube className="h-5 w-5" /></a>
               </div>
             </div>
             
@@ -46,6 +38,7 @@ export function MainLayout({ children }: { children: ReactNode }) {
               <h4 className="text-lg font-semibold text-white mb-4">Quick Links</h4>
               <ul className="space-y-2 text-sm">
                 <li><Link href="/courses" className="hover:text-white transition-colors">Browse Courses</Link></li>
+                <li><Link href="/branches" className="hover:text-white transition-colors">Our Campuses</Link></li>
                 <li><Link href="/about" className="hover:text-white transition-colors">About Us</Link></li>
                 <li><Link href="/verify-certificate" className="hover:text-white transition-colors">Verify Certificate</Link></li>
                 <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
@@ -59,6 +52,7 @@ export function MainLayout({ children }: { children: ReactNode }) {
                 <li><Link href="/courses?category=Graphics" className="hover:text-white transition-colors">Graphic Design</Link></li>
                 <li><Link href="/courses?category=Freelancing" className="hover:text-white transition-colors">Freelancing</Link></li>
                 <li><Link href="/courses?category=AI" className="hover:text-white transition-colors">Artificial Intelligence</Link></li>
+                <li><Link href="/courses?category=Web" className="hover:text-white transition-colors">Web Development</Link></li>
               </ul>
             </div>
             
@@ -82,7 +76,7 @@ export function MainLayout({ children }: { children: ReactNode }) {
           </div>
           
           <div className="border-t border-gray-800 mt-12 pt-8 text-sm text-center text-gray-400">
-            <p>&copy; {new Date().getFullYear()} Global College LMS. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} Global College LMS. All rights reserved. | <Link href="/login" className="hover:text-white transition-colors">Student Login</Link></p>
           </div>
         </div>
       </footer>

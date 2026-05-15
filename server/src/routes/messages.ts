@@ -5,9 +5,10 @@ import { eq, or, desc } from "drizzle-orm";
 const router: IRouter = Router();
 
 router.get("/messages/threads", async (req, res): Promise<void> => {
-  const userId = Number(req.query.userId);
-  if (!userId) { res.status(400).json({ error: "userId required" }); return; }
-  const threads = await db.select({
+  const userId = req.query.userId ? Number(req.query.userId) : null;
+  const userRole = (req as any).user?.role;
+
+  let queryBuilder = db.select({
     id: messageThreadsTable.id,
     studentId: messageThreadsTable.studentId,
     teacherId: messageThreadsTable.teacherId,
@@ -16,16 +17,40 @@ router.get("/messages/threads", async (req, res): Promise<void> => {
     createdAt: messageThreadsTable.createdAt,
     courseName: coursesTable.title,
   }).from(messageThreadsTable)
-    .leftJoin(coursesTable, eq(messageThreadsTable.courseId, coursesTable.id))
-    .where(or(eq(messageThreadsTable.studentId, userId), eq(messageThreadsTable.teacherId, userId)))
-    .orderBy(desc(messageThreadsTable.lastMessageAt));
+    .leftJoin(coursesTable, eq(messageThreadsTable.courseId, coursesTable.id));
 
-  const threadsWithUsers = await Promise.all(threads.map(async (t) => {
+  let threads;
+  if (userId) {
+    threads = await queryBuilder
+      .where(or(eq(messageThreadsTable.studentId, userId), eq(messageThreadsTable.teacherId, userId)))
+      .orderBy(desc(messageThreadsTable.lastMessageAt));
+  } else if (userRole === "admin") {
+    threads = await queryBuilder.orderBy(desc(messageThreadsTable.lastMessageAt));
+  } else {
+    res.status(400).json({ error: "userId required for non-admin users" });
+    return;
+  }
+
+  const threadsWithDetails = await Promise.all(threads.map(async (t) => {
     const [student] = await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(eq(usersTable.id, t.studentId));
     const [teacher] = await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(eq(usersTable.id, t.teacherId));
-    return { ...t, studentName: student?.name, teacherName: teacher?.name };
+    
+    const [lastMsg] = await db.select().from(messagesTable)
+      .where(eq(messagesTable.threadId, t.id))
+      .orderBy(desc(messagesTable.createdAt))
+      .limit(1);
+    
+    const allMsgs = await db.select().from(messagesTable).where(eq(messagesTable.threadId, t.id));
+
+    return { 
+      ...t, 
+      studentName: student?.name, 
+      teacherName: teacher?.name,
+      lastMessagePreview: lastMsg?.body,
+      messageCount: allMsgs.length
+    };
   }));
-  res.json(threadsWithUsers);
+  res.json(threadsWithDetails);
 });
 
 router.post("/messages/threads", async (req, res): Promise<void> => {

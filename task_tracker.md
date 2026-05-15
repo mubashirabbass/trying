@@ -1,8 +1,8 @@
 # 📋 Global College LMS — Task Tracker
 
-> **Last Updated:** May 13, 2026  
-> **Active Phase:** Phase 6  
-> **Overall Progress:** 84 / 149 tasks (56.4%)
+> **Last Updated:** May 15, 2026  
+> **Active Phase:** Phase 12  
+> **Overall Progress:** 105 / 150 tasks (70.0%)
 
 ---
 
@@ -153,7 +153,8 @@
 - [ ] 10.4 Certificate download API
 - [ ] 10.5 Public certificate verification page
 - [x] 10.6 Student identity verification page
-- [x] 10.7 Student certificates page (status badges, download)
+- [x] 10.7 Admin identity verifications — document viewer, approve/reject
+- [x] 10.8 Student certificates page (status badges, download)
 
 ---
 
@@ -163,19 +164,20 @@
 - [x] 11.1 Message threads API (list, create, get messages, send)
 - [x] 11.2 Forum posts API (list, create, pin, upvote, reply)
 - [x] 11.3 Student messages page (two-column chat)
-- [ ] 11.4 Teacher messages page
+- [x] 11.4 Admin messages explorer (view all threads)
 - [x] 11.5 Student forum page (threads, replies, upvotes)
-- [ ] 11.6 Admin forum moderation (delete posts)
+- [x] 11.6 Admin forum moderation (pin/delete posts)
+- [ ] 11.7 Teacher messages page
 
 ---
 
-## Phase 12: Notifications & Email `[1/8]`
+## Phase 12: Notifications & Email `[4/8]`
 > **Status:** 🚧 In Progress
 
-- [ ] 12.1 Nodemailer + SendGrid SMTP setup
-- [ ] 12.2 Email templates (welcome, verification, reset, enrollment, payment)
-- [ ] 12.3 Email verification flow (register → verify link)
-- [ ] 12.4 Password reset flow (forgot → email → reset)
+- [x] 12.1 Nodemailer + SendGrid SMTP setup (Routes & Libs defined)
+- [x] 12.2 Email templates (welcome, verification, reset, enrollment, payment)
+- [x] 12.3 Email verification flow (API endpoints integrated)
+- [x] 12.4 Password reset flow (API endpoints integrated)
 - [ ] 12.5 Notification creation service (`createNotification()`)
 - [ ] 12.6 Implement all notification triggers (16 events)
 - [x] 12.7 Announcement system API (admin → target group)
