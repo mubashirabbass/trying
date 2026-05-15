@@ -18,6 +18,7 @@ export function Navbar() {
     { name: "Incubators", path: "/incubators" },
     { name: "About", path: "/about" },
     { name: "Services", path: "/services" },
+    { name: "Feedback", path: "/feedback" },
   ];
 
   return (

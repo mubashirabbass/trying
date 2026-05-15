@@ -20,6 +20,7 @@ import Services from "@/pages/services";
 import SuccessStories from "@/pages/success-stories";
 import Resources from "@/pages/resources";
 import Incubators from "@/pages/incubators";
+import Feedback from "@/pages/feedback";
 
 // Student Pages
 import StudentDashboard from "@/pages/student/dashboard";
@@ -93,6 +94,7 @@ function Router() {
         <Route path="/incubators" component={Incubators} />
         <Route path="/courses/:id" component={CourseDetail} />
         <Route path="/verify-certificate" component={VerifyCertificate} />
+        <Route path="/feedback" component={Feedback} />
 
         {/* Student Protected Routes */}
         <Route path="/dashboard">

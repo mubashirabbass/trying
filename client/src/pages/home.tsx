@@ -1,3 +1,15 @@
+/**
+ * Edu-Sphere: Premium Service & LMS Platform
+ * 
+ * Goals:
+ * - High-fidelity, enterprise-grade service website.
+ * - Full mobile responsiveness for all sections.
+ * - Step-by-step modular development (Home Page Complete).
+ * - Optimized for future production deployment.
+ * 
+ * Layout Standard: w-full px-4 md:px-10 lg:px-16
+ * Theme: Clean White / Professional Blue / Emerald Highlights
+ */
 import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,6 +50,7 @@ import {
   BarChart3,
   Quote,
   MessageCircle,
+  MessageSquare,
 } from "lucide-react";
 import {
   Accordion,
@@ -117,6 +130,7 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function Home() {
+  console.log("Home component rendering");
   const { data: courses } = useListCourses(
     { featured: "true" },
     { query: { queryKey: getListCoursesQueryKey({ featured: "true" }) } }
@@ -174,6 +188,7 @@ export default function Home() {
   ];
 
   const [activeAchiever, setActiveAchiever] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Auto-scroll logic for Achievers
   useEffect(() => {
@@ -182,6 +197,15 @@ export default function Home() {
     }, 5000); // Change every 5 seconds
     return () => clearInterval(interval);
   }, [displaySuccessStories.length]);
+
+  // Force play hero video
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.play().catch((error) => {
+        console.log("Autoplay was prevented:", error);
+      });
+    }
+  }, []);
 
   const { data: branches } = useListBranches({
     query: { queryKey: getListBranchesQueryKey() },
@@ -300,10 +324,12 @@ export default function Home() {
         <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden snap-start scroll-mt-20">
           {/* Video Background */}
           <video 
+            ref={videoRef}
             autoPlay 
             loop 
             muted 
             playsInline
+            preload="auto"
             className="absolute inset-0 w-full h-full object-cover z-0"
           >
             <source src="/assets/videos/eBay-Course-Etsy-Training-Pakistan.mp4" type="video/mp4" />
@@ -603,7 +629,6 @@ export default function Home() {
       </section>
 
 
-      {/* ── Our Campuses (Incubator Network) ─────────────────────────────── */}
       <section className="py-24 bg-white relative overflow-hidden snap-start scroll-mt-20">
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="text-center mb-16">
