@@ -18,6 +18,7 @@ import {
   useDeleteAssignment,
   useListQuizzes,
   useCreateQuiz,
+  useUpdateCourse,
   getGetCourseQueryKey,
   getListSectionsQueryKey,
   getListLessonsQueryKey,
@@ -51,6 +52,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 export default function TeacherCourseBuilder() {
   const { id } = useParams();
@@ -237,6 +239,22 @@ export default function TeacherCourseBuilder() {
     }
   };
 
+  const updateCourse = useUpdateCourse();
+
+  const handleSubmitForReview = async () => {
+    if (!confirm("Are you sure you want to submit this course for review? You won't be able to edit it until it's reviewed.")) return;
+    try {
+      await updateCourse.mutateAsync({
+        id: courseId,
+        data: { ...course, status: "pending" }
+      });
+      toast({ title: "Course submitted for review" });
+      queryClient.invalidateQueries({ queryKey: getGetCourseQueryKey(courseId) });
+    } catch (error) {
+      toast({ title: "Error submitting course", variant: "destructive" });
+    }
+  };
+
   if (courseLoading || sectionsLoading || lessonsLoading || assignmentsLoading || quizzesLoading) {
     return (
       <DashboardLayout>
@@ -247,14 +265,32 @@ export default function TeacherCourseBuilder() {
     );
   }
 
+  const getStatusBadge = (status?: string) => {
+    switch (status) {
+      case "live": return <Badge className="bg-green-500 hover:bg-green-600">Live</Badge>;
+      case "pending": return <Badge className="bg-yellow-500 hover:bg-yellow-600 text-black">Pending Review</Badge>;
+      case "rejected": return <Badge className="bg-red-500 hover:bg-red-600">Rejected</Badge>;
+      default: return <Badge variant="outline">Draft</Badge>;
+    }
+  };
+
   return (
     <DashboardLayout>
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{course?.title}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight">{course?.title}</h1>
+            {getStatusBadge(course?.status)}
+          </div>
           <p className="text-muted-foreground mt-1">Course Builder & Curriculum Management</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {course?.status === "draft" && (
+            <Button variant="default" className="bg-indigo-600 hover:bg-indigo-700" onClick={handleSubmitForReview}>
+              <Save className="h-4 w-4 mr-2" />
+              Submit for Review
+            </Button>
+          )}
           <Button variant="outline" onClick={() => {
             setSectionTitle("");
             setEditingSectionId(null);

@@ -422,6 +422,59 @@ paths:
               schema:
                 $ref: "#/components/schemas/LessonProgress"
 
+  /lessons/{id}/stream-token:
+    get:
+      operationId: getLessonStreamToken
+      tags: [lessons]
+      summary: Get short-lived token for video streaming
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Stream token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+        "403":
+          description: Not enrolled in course
+
+  /lessons/{id}/embed:
+    get:
+      operationId: getLessonEmbed
+      tags: [lessons]
+      summary: Get decrypted video URL for embedding
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Embed details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+        "401":
+          description: Invalid or expired token
+
   /enrollments:
     get:
       operationId: listEnrollments

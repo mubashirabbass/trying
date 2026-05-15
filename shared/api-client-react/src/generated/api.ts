@@ -48,6 +48,9 @@ import type {
   Enrollment,
   ForumPost,
   ForumReply,
+  GetLessonEmbed200,
+  GetLessonEmbedParams,
+  GetLessonStreamToken200,
   GetStudentDashboardParams,
   GetTeacherDashboardParams,
   GradeAssignmentBody,
@@ -1736,6 +1739,172 @@ export const useUpdateLessonProgress = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getUpdateLessonProgressMutationOptions(options));
     }
+
+export const getGetLessonStreamTokenUrl = (id: number,) => {
+
+
+
+
+  return `/api/lessons/${id}/stream-token`
+}
+
+/**
+ * @summary Get short-lived token for video streaming
+ */
+export const getLessonStreamToken = async (id: number, options?: RequestInit): Promise<GetLessonStreamToken200> => {
+
+  return customFetch<GetLessonStreamToken200>(getGetLessonStreamTokenUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLessonStreamTokenQueryKey = (id: number,) => {
+    return [
+    `/api/lessons/${id}/stream-token`
+    ] as const;
+    }
+
+
+export const getGetLessonStreamTokenQueryOptions = <TData = Awaited<ReturnType<typeof getLessonStreamToken>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonStreamToken>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLessonStreamTokenQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLessonStreamToken>>> = ({ signal }) => getLessonStreamToken(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLessonStreamToken>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLessonStreamTokenQueryResult = NonNullable<Awaited<ReturnType<typeof getLessonStreamToken>>>
+export type GetLessonStreamTokenQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get short-lived token for video streaming
+ */
+
+export function useGetLessonStreamToken<TData = Awaited<ReturnType<typeof getLessonStreamToken>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonStreamToken>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLessonStreamTokenQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetLessonEmbedUrl = (id: number,
+    params: GetLessonEmbedParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/lessons/${id}/embed?${stringifiedParams}` : `/api/lessons/${id}/embed`
+}
+
+/**
+ * @summary Get decrypted video URL for embedding
+ */
+export const getLessonEmbed = async (id: number,
+    params: GetLessonEmbedParams, options?: RequestInit): Promise<GetLessonEmbed200> => {
+
+  return customFetch<GetLessonEmbed200>(getGetLessonEmbedUrl(id,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetLessonEmbedQueryKey = (id: number,
+    params?: GetLessonEmbedParams,) => {
+    return [
+    `/api/lessons/${id}/embed`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetLessonEmbedQueryOptions = <TData = Awaited<ReturnType<typeof getLessonEmbed>>, TError = ErrorType<void>>(id: number,
+    params: GetLessonEmbedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonEmbed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetLessonEmbedQueryKey(id,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getLessonEmbed>>> = ({ signal }) => getLessonEmbed(id,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getLessonEmbed>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetLessonEmbedQueryResult = NonNullable<Awaited<ReturnType<typeof getLessonEmbed>>>
+export type GetLessonEmbedQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get decrypted video URL for embedding
+ */
+
+export function useGetLessonEmbed<TData = Awaited<ReturnType<typeof getLessonEmbed>>, TError = ErrorType<void>>(
+ id: number,
+    params: GetLessonEmbedParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getLessonEmbed>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetLessonEmbedQueryOptions(id,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getListEnrollmentsUrl = (params?: ListEnrollmentsParams,) => {
   const normalizedParams = new URLSearchParams();

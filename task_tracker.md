@@ -82,44 +82,44 @@
 
 ---
 
-## Phase 6: Course System `[8/11]`
+## Phase 6: Course System `[9/11]`
 > **Status:** 🚧 In Progress | **Goal:** Full course lifecycle
 
 - [x] 6.1 Course CRUD API (admin) — create, edit, approve, reject, archive
 - [x] 6.2 Course CRUD API (teacher) — create draft, edit own, submit for approval
-- [ ] 6.3 Section CRUD API — create, edit, delete, reorder within course
+- [x] 6.3 Section CRUD API — create, edit, delete, reorder within course
 - [x] 6.4 Lesson CRUD API — create, edit, delete within section, PDF upload
 - [x] 6.5 Course catalog API (public) — LIVE courses with filters, search, pagination
 - [x] 6.6 Course detail API (public) — sections, lessons, teacher info
-- [ ] 6.7 Teacher course builder page (form + sections/lessons builder)
+- [x] 6.7 Teacher course builder page (form + sections/lessons builder)
 - [x] 6.8 Admin course management page (table, status filters, actions)
-- [ ] 6.9 Admin course review page (preview + approve/reject)
+- [x] 6.9 Admin course review page (preview + approve/reject)
 - [x] 6.10 Public course catalog page (search, filter, sort, cards)
 - [x] 6.11 Public course detail page (syllabus accordion, teacher card, enroll)
 
 ---
 
-## Phase 7: Enrollment & Payment System `[5/9]`
+## Phase 7: Enrollment & Payment System `[6/9]`
 > **Status:** 🚧 In Progress | **Goal:** Complete enrollment flow
 
 - [x] 7.1 Free enrollment API (immediate, unique constraint)
 - [x] 7.2 Payment submission API (receipt upload to Cloudinary)
 - [x] 7.3 Payment review API (approve → auto-enroll, reject → reason)
-- [ ] 7.4 Manual enrollment API (admin bypasses payment)
+- [x] 7.4 Manual enrollment API (admin bypasses payment)
 - [ ] 7.5 Student payment page (instructions from settings, upload)
 - [x] 7.6 Admin payments page (table, receipt viewer, approve/reject)
-- [ ] 7.7 Admin manual enrollment page
+- [x] 7.7 Admin manual enrollment page
 - [x] 7.8 Student enrolled courses page (progress bars, continue)
-- [ ] 7.9 Enrollment status on course detail page
+- [x] 7.9 Enrollment status on course detail page
 
 ---
 
-## Phase 8: Video Learning System `[3/8]`
+## Phase 8: Video Learning System `[7/8]`
 > **Status:** 🚧 In Progress | **Goal:** Protected YouTube video playback
 
-- [ ] 8.1 AES-256 encryption service (encrypt/decrypt YouTube IDs)
-- [ ] 8.2 Stream token endpoint (verify enrollment, signed JWT)
-- [ ] 8.3 Embed endpoint (validate token, return youtube-nocookie URL)
+- [x] 8.1 AES-256 encryption service (encrypt/decrypt YouTube IDs)
+- [x] 8.2 Stream token endpoint (verify enrollment, signed JWT)
+- [x] 8.3 Embed endpoint (validate token, return youtube-nocookie URL)
 - [ ] 8.4 Video access logging
 - [x] 8.5 Progress tracking API (upsert watchedPercent, check completion)
 - [ ] 8.6 Course completion service (all lessons done → mark complete)

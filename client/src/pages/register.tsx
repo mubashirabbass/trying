@@ -45,11 +45,12 @@ export default function Register() {
   const { toast } = useToast();
   
   const registerMutation = useRegister();
-  const { data: branchesResponse } = useListBranches({
+  const { data: branchesResponse, isLoading: branchesLoading } = useListBranches({
     query: { queryKey: getListBranchesQueryKey() }
   });
 
   const branches = branchesResponse || [];
+  console.log("Branches loaded:", branches.length, branches);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,19 +173,25 @@ export default function Register() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="branch" className="text-slate-700 font-medium ml-1">Select Branch / Campus</Label>
-                  <Select value={branchId} onValueChange={setBranchId} required>
+                  <Select value={branchId} onValueChange={setBranchId} required disabled={branchesLoading}>
                     <SelectTrigger className="h-12 bg-slate-50 border-slate-200 rounded-xl px-4">
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-slate-400" />
-                        <SelectValue placeholder="Choose your campus" />
+                        <SelectValue placeholder={branchesLoading ? "Loading campuses..." : "Choose your campus"} />
                       </div>
                     </SelectTrigger>
                     <SelectContent>
-                      {branches.map((branch: any) => (
-                        <SelectItem key={branch.id} value={branch.id.toString()}>
-                          {branch.name} ({branch.city})
-                        </SelectItem>
-                      ))}
+                      {branches.length === 0 && !branchesLoading ? (
+                        <div className="p-4 text-center text-sm text-slate-500">
+                          No campuses found.
+                        </div>
+                      ) : (
+                        branches.map((branch: any) => (
+                          <SelectItem key={branch.id} value={branch.id.toString()}>
+                            {branch.name} ({branch.city})
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

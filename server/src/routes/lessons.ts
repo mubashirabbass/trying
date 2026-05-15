@@ -12,6 +12,9 @@ import {
   UpdateLessonProgressBody,
 } from "@workspace/api-zod";
 import { AuthRequest } from "../middleware/auth";
+import { encrypt, decrypt } from "../lib/crypto";
+import jwt from "jsonwebtoken";
+import { enrollmentsTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -34,7 +37,14 @@ router.get("/lessons", async (req: AuthRequest, res): Promise<void> => {
 router.post("/lessons", async (req, res): Promise<void> => {
   const parsed = CreateLessonBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-  const [lesson] = await db.insert(lessonsTable).values(parsed.data).returning();
+  
+  const data = { ...parsed.data };
+  if (data.videoUrl && (data.videoUrl.includes("youtube.com") || data.videoUrl.includes("youtu.be"))) {
+    // Basic extraction of ID if it's a URL, or just encrypt what's there
+    data.encryptedYoutubeId = encrypt(data.videoUrl);
+  }
+
+  const [lesson] = await db.insert(lessonsTable).values(data).returning();
   res.status(201).json({ ...lesson, isCompleted: false });
 });
 
@@ -53,7 +63,13 @@ router.put("/lessons/:id", async (req, res): Promise<void> => {
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   const parsed = UpdateLessonBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-  const [lesson] = await db.update(lessonsTable).set(parsed.data).where(eq(lessonsTable.id, id)).returning();
+  
+  const data = { ...parsed.data };
+  if (data.videoUrl && (data.videoUrl.includes("youtube.com") || data.videoUrl.includes("youtu.be"))) {
+    data.encryptedYoutubeId = encrypt(data.videoUrl);
+  }
+
+  const [lesson] = await db.update(lessonsTable).set(data).where(eq(lessonsTable.id, id)).returning();
   if (!lesson) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ ...lesson, isCompleted: false });
 });
@@ -102,6 +118,64 @@ router.post("/lessons/:id/progress", async (req: AuthRequest, res): Promise<void
       .returning();
   }
   res.json(completion);
+});
+
+router.get("/lessons/:id/stream-token", async (req: AuthRequest, res): Promise<void> => {
+  const lessonId = parseInt(req.params.id, 10);
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId));
+  if (!lesson) { res.status(404).json({ error: "Lesson not found" }); return; }
+
+  // Verify enrollment
+  const [enrollment] = await db.select().from(enrollmentsTable)
+    .where(and(eq(enrollmentsTable.userId, userId), eq(enrollmentsTable.courseId, lesson.courseId)));
+  
+  if (!enrollment && req.user?.role !== "admin") {
+    res.status(403).json({ error: "Not enrolled in this course" });
+    return;
+  }
+
+  const token = jwt.sign(
+    { userId, lessonId, exp: Math.floor(Date.now() / 1000) + (60 * 60) }, // 1 hour
+    process.env.JWT_SECRET || "fallback_secret"
+  );
+
+  res.json({ token });
+});
+
+router.get("/lessons/:id/embed", async (req, res): Promise<void> => {
+  const lessonId = parseInt(req.params.id, 10);
+  const token = req.query.token as string;
+
+  if (!token) { res.status(401).json({ error: "Token required" }); return; }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret") as any;
+    if (decoded.lessonId !== lessonId) {
+      res.status(401).json({ error: "Invalid token for this lesson" });
+      return;
+    }
+
+    const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId));
+    if (!lesson) { res.status(404).json({ error: "Lesson not found" }); return; }
+
+    let videoUrl = "";
+    if (lesson.encryptedYoutubeId) {
+      videoUrl = decrypt(lesson.encryptedYoutubeId);
+    } else if (lesson.videoUrl) {
+      // Legacy fallback
+      videoUrl = lesson.videoUrl;
+    } else {
+      res.status(404).json({ error: "No video available for this lesson" });
+      return;
+    }
+
+    res.json({ url: videoUrl });
+  } catch (error) {
+    res.status(401).json({ error: "Invalid or expired token" });
+  }
 });
 
 export default router;

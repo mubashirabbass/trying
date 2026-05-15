@@ -61,6 +61,7 @@ router.post("/auth/login", authRateLimiter, catchAsync(async (req: Request, res:
 router.post("/auth/register", authRateLimiter, catchAsync(async (req: Request, res: Response): Promise<void> => {
   const parsed = RegisterBody.safeParse(req.body);
   if (!parsed.success) {
+    logger.error(`Registration validation failed for ${req.body.email}: ${JSON.stringify(parsed.error.format())}`);
     res.status(400).json({ error: parsed.error.message });
     return;
   }

@@ -416,6 +416,34 @@ export const UpdateLessonProgressResponse = zod.object({
 
 
 /**
+ * @summary Get short-lived token for video streaming
+ */
+export const GetLessonStreamTokenParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetLessonStreamTokenResponse = zod.object({
+  "token": zod.string().optional()
+})
+
+
+/**
+ * @summary Get decrypted video URL for embedding
+ */
+export const GetLessonEmbedParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetLessonEmbedQueryParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const GetLessonEmbedResponse = zod.object({
+  "url": zod.string().optional()
+})
+
+
+/**
  * @summary List enrollments
  */
 export const ListEnrollmentsQueryParams = zod.object({

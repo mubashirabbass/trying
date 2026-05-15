@@ -7,7 +7,9 @@ import {
   getListLessonsQueryKey, 
   useUpdateLessonProgress,
   useListSections,
-  getListSectionsQueryKey
+  getListSectionsQueryKey,
+  useGetLessonStreamToken,
+  useGetLessonEmbed
 } from "@workspace/api-client-react";
 import { useRoute, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,6 +42,16 @@ export default function LessonPlayer() {
   });
 
   const updateProgress = useUpdateLessonProgress();
+
+  const { data: streamToken } = useGetLessonStreamToken(currentLessonId, {
+    query: { enabled: !!currentLessonId }
+  });
+
+  const { data: embedData, isLoading: isLoadingEmbed } = useGetLessonEmbed(
+    currentLessonId, 
+    { token: streamToken?.token || "" },
+    { query: { enabled: !!streamToken?.token } }
+  );
 
   const handleMarkComplete = () => {
     if (!lesson) return;
@@ -86,8 +98,12 @@ export default function LessonPlayer() {
           {lesson ? (
             <>
               <div className="aspect-video bg-black rounded-2xl overflow-hidden relative shadow-2xl shadow-slate-900/30">
-                {lesson.videoUrl ? (() => {
-                  const url = lesson.videoUrl;
+                {isLoadingEmbed ? (
+                  <div className="w-full h-full flex items-center justify-center text-primary">
+                    <Loader2 className="h-12 w-12 animate-spin" />
+                  </div>
+                ) : embedData?.url ? (() => {
+                  const url = embedData.url;
                   // YouTube detection
                   const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
                   if (ytMatch) {
@@ -95,7 +111,7 @@ export default function LessonPlayer() {
                       <iframe
                         key={url}
                         className="w-full h-full"
-                        src={`https://www.youtube.com/embed/${ytMatch[1]}?rel=0&modestbranding=1`}
+                        src={`https://www.youtube.com/embed/${ytMatch[1]}?rel=0&modestbranding=1&autoplay=1`}
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
                         title={lesson.title}
@@ -109,7 +125,7 @@ export default function LessonPlayer() {
                       <iframe
                         key={url}
                         className="w-full h-full"
-                        src={`https://player.vimeo.com/video/${vimeoMatch[1]}?title=0&byline=0`}
+                        src={`https://player.vimeo.com/video/${vimeoMatch[1]}?title=0&byline=0&autoplay=1`}
                         allow="autoplay; fullscreen; picture-in-picture"
                         allowFullScreen
                         title={lesson.title}
@@ -122,6 +138,7 @@ export default function LessonPlayer() {
                       key={url}
                       src={url}
                       controls
+                      autoPlay
                       className="w-full h-full"
                       controlsList="nodownload"
                     />

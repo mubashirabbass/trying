@@ -561,6 +561,18 @@ export type ListSectionsParams = {
 courseId: number;
 };
 
+export type GetLessonStreamToken200 = {
+  token?: string;
+};
+
+export type GetLessonEmbedParams = {
+token: string;
+};
+
+export type GetLessonEmbed200 = {
+  url?: string;
+};
+
 export type ListEnrollmentsParams = {
 userId?: number;
 courseId?: number;
