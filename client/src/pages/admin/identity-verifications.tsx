@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, ShieldCheck, Clock, CheckCircle2, XCircle, Eye, ExternalLink } from "lucide-react";
+import { Loader2, ShieldCheck, Clock, CheckCircle2, XCircle, Eye, ExternalLink, ZoomIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
@@ -128,9 +128,29 @@ export default function AdminIdentityVerifications() {
                 <div className="flex justify-between"><span className="text-gray-500">Document:</span><span className="font-medium">{selected.documentType}</span></div>
                 {selected.cnicNumber && <div className="flex justify-between"><span className="text-gray-500">CNIC:</span><span className="font-medium">{selected.cnicNumber}</span></div>}
               </div>
-              <a href={selected.documentUrl} target="_blank" rel="noreferrer">
-                <Button variant="outline" className="w-full"><ExternalLink className="h-4 w-4 mr-2" /> Open Document</Button>
-              </a>
+              
+              <div className="relative group rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                <img 
+                  src={selected.documentUrl} 
+                  alt="Identity Document" 
+                  className="w-full h-auto max-h-[300px] object-contain"
+                  onError={(e) => {
+                    (e.target as any).style.display = 'none';
+                    (e.target as any).nextSibling.style.display = 'flex';
+                  }}
+                />
+                <div className="hidden flex-col items-center justify-center p-8 text-slate-400">
+                  <ExternalLink className="h-10 w-10 mb-2 opacity-20" />
+                  <p className="text-xs font-bold uppercase tracking-widest">Document Preview Unavailable</p>
+                  <p className="text-[10px] mt-1">Click below to open in new tab</p>
+                </div>
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                   <a href={selected.documentUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-white font-bold text-sm">
+                      <ZoomIn className="h-5 w-5" /> View Full Size
+                   </a>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <Button onClick={() => approve(selected.id)} disabled={acting} className="bg-emerald-600 hover:bg-emerald-700">
                   {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1" />} Approve

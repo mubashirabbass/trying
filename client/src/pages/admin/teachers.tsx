@@ -19,8 +19,10 @@ import {
   Edit, 
   Trash2, 
   Search,
-  GraduationCap
+  GraduationCap,
+  UserCircle
 } from "lucide-react";
+import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -248,7 +250,9 @@ export default function AdminTeachers() {
                           <GraduationCap className="h-5 w-5" />
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-bold text-gray-900">{teacher.name}</span>
+                          <Link href={`/admin/teachers/${teacher.id}`}>
+                            <span className="font-bold text-gray-900 hover:text-indigo-600 cursor-pointer transition-colors">{teacher.name}</span>
+                          </Link>
                           <span className="text-xs text-gray-500 font-medium tracking-tight">ID: #INST-{teacher.id}</span>
                         </div>
                       </div>
@@ -288,6 +292,11 @@ export default function AdminTeachers() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <Link href={`/admin/teachers/${teacher.id}`}>
+                            <DropdownMenuItem className="cursor-pointer">
+                              <UserCircle className="h-4 w-4 mr-2" /> View Full Profile
+                            </DropdownMenuItem>
+                          </Link>
                           <DropdownMenuItem className="cursor-pointer">
                             <Edit className="h-4 w-4 mr-2" /> Edit Instructor
                           </DropdownMenuItem>

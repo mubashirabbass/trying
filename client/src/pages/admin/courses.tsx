@@ -90,10 +90,12 @@ export default function AdminCourses() {
               {courses?.map((course) => (
                 <TableRow key={course.id}>
                   <TableCell className="font-medium">
-                    <div>
-                      {course.title}
-                      <p className="text-xs text-muted-foreground">by {course.teacherName || "Unknown"}</p>
-                    </div>
+                    <Link href={`/admin/courses/${course.id}/review`}>
+                      <div className="cursor-pointer hover:text-primary transition-colors">
+                        {course.title}
+                        <p className="text-xs text-muted-foreground font-normal">by {course.teacherName || "Unknown"}</p>
+                      </div>
+                    </Link>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">{course.category}</Badge>
@@ -109,23 +111,27 @@ export default function AdminCourses() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <Link href={`/admin/courses/${course.id}/review`}>
+                          <DropdownMenuItem className="cursor-pointer">
+                            <Eye className="h-4 w-4 mr-2" /> Full Review
+                          </DropdownMenuItem>
+                        </Link>
                         <DropdownMenuItem asChild>
                           <Link href={`/courses/${course.id}`} target="_blank">
                             <div className="flex items-center w-full">
-                              <Eye className="h-4 w-4 mr-2" /> Preview
+                              <ExternalLink className="h-4 w-4 mr-2" /> View Public Page
                             </div>
                           </Link>
                         </DropdownMenuItem>
                         {course.status === "pending" && (
-                          <DropdownMenuItem onClick={() => {
-                            setReviewCourse(course);
-                            setIsReviewOpen(true);
-                          }}>
-                            <CheckCircle className="h-4 w-4 mr-2" /> Review & Approve
-                          </DropdownMenuItem>
+                          <Link href={`/admin/courses/${course.id}/review`}>
+                            <DropdownMenuItem className="cursor-pointer">
+                              <CheckCircle className="h-4 w-4 mr-2 text-emerald-600" /> Review & Approve
+                            </DropdownMenuItem>
+                          </Link>
                         )}
-                        <DropdownMenuItem>Edit Course</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
+                        <DropdownMenuItem>Edit Metadata</DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600">Delete Course</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -135,37 +141,6 @@ export default function AdminCourses() {
           </Table>
         </CardContent>
       </Card>
-
-      <Dialog open={isReviewOpen} onOpenChange={setIsReviewOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Review Course: {reviewCourse?.title}</DialogTitle>
-            <DialogDescription>
-              Review the course content and syllabus before making it live for students.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Rejection Note (only if rejecting)</Label>
-              <Textarea 
-                placeholder="Explain why the course was rejected..." 
-                value={rejectionNote}
-                onChange={(e) => setRejectionNote(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="destructive" onClick={() => handleStatusUpdate(reviewCourse.id, "rejected", rejectionNote)}>
-              <XCircle className="h-4 w-4 mr-2" /> Reject
-            </Button>
-            <Button className="bg-green-600 hover:bg-green-700" onClick={() => handleStatusUpdate(reviewCourse.id, "live")}>
-              <CheckCircle className="h-4 w-4 mr-2" /> Approve & Publish
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </DashboardLayout>
   );
 }

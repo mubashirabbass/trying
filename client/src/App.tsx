@@ -57,6 +57,14 @@ import AdminSettings from "@/pages/admin/settings";
 import AdminAnnouncements from "@/pages/admin/announcements";
 import AdminEnrollments from "@/pages/admin/enrollments";
 import AdminIdentityVerifications from "@/pages/admin/identity-verifications";
+import AdminTeachers from "@/pages/admin/teachers";
+import AdminCertificates from "@/pages/admin/certificates";
+import AdminReports from "@/pages/admin/reports";
+import AdminStudentDetail from "@/pages/admin/student-detail";
+import AdminTeacherDetail from "@/pages/admin/teacher-detail";
+import AdminCourseReview from "@/pages/admin/course-review";
+import AdminForum from "@/pages/admin/forum";
+import AdminMessages from "@/pages/admin/messages";
 
 const queryClient = new QueryClient();
 
@@ -170,8 +178,14 @@ function Router() {
         <Route path="/admin/users">
           <ProtectedRoute component={AdminUsers} />
         </Route>
+        <Route path="/admin/users/:id">
+          <ProtectedRoute component={AdminStudentDetail} />
+        </Route>
         <Route path="/admin/courses">
           <ProtectedRoute component={AdminCourses} />
+        </Route>
+        <Route path="/admin/courses/:id/review">
+          <ProtectedRoute component={AdminCourseReview} />
         </Route>
         <Route path="/admin/payments">
           <ProtectedRoute component={AdminPayments} />
@@ -191,11 +205,29 @@ function Router() {
         <Route path="/admin/announcements">
           <ProtectedRoute component={AdminAnnouncements} />
         </Route>
+        <Route path="/admin/forum">
+          <ProtectedRoute component={AdminForum} />
+        </Route>
+        <Route path="/admin/messages">
+          <ProtectedRoute component={AdminMessages} />
+        </Route>
         <Route path="/admin/identity-verifications">
           <ProtectedRoute component={AdminIdentityVerifications} />
         </Route>
         <Route path="/admin/enrollments">
           <ProtectedRoute component={AdminEnrollments} />
+        </Route>
+        <Route path="/admin/teachers">
+          <ProtectedRoute component={AdminTeachers} />
+        </Route>
+        <Route path="/admin/teachers/:id">
+          <ProtectedRoute component={AdminTeacherDetail} />
+        </Route>
+        <Route path="/admin/certificates">
+          <ProtectedRoute component={AdminCertificates} />
+        </Route>
+        <Route path="/admin/reports">
+          <ProtectedRoute component={AdminReports} />
         </Route>
 
         <Route component={NotFound} />

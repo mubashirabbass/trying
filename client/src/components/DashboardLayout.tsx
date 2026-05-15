@@ -23,6 +23,11 @@ import {
   TrendingUp,
   GraduationCap,
   MessageCircle,
+  FileBarChart,
+  BadgeCheck,
+  UserCog,
+  ClipboardList,
+  MailOpen,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -126,6 +131,66 @@ function NotificationBell({ userId, token }: { userId: number; token: string | n
   );
 }
 
+// Admin grouped navigation per spec
+const ADMIN_NAV_GROUPS = [
+  {
+    label: "OVERVIEW",
+    items: [
+      { name: "Dashboard", path: "/admin", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "USERS",
+    items: [
+      { name: "Students", path: "/admin/users", icon: Users },
+      { name: "Teachers", path: "/admin/teachers", icon: UserCog },
+    ],
+  },
+  {
+    label: "CONTENT",
+    items: [
+      { name: "Courses", path: "/admin/courses", icon: BookOpen },
+      { name: "Success Stories", path: "/admin/success-stories", icon: Award },
+      { name: "Testimonials", path: "/admin/testimonials", icon: Star },
+    ],
+  },
+  {
+    label: "PAYMENTS",
+    items: [
+      { name: "Payments", path: "/admin/payments", icon: CreditCard },
+      { name: "Manual Enrollment", path: "/admin/enrollments", icon: ClipboardList },
+    ],
+  },
+  {
+    label: "VERIFICATION",
+    items: [
+      { name: "Identity Verifications", path: "/admin/identity-verifications", icon: ShieldCheck },
+      { name: "Certificates", path: "/admin/certificates", icon: BadgeCheck },
+    ],
+  },
+  {
+    label: "COMMUNICATION",
+    items: [
+      { name: "Messages", path: "/admin/messages", icon: MessageCircle },
+      { name: "Announcements", path: "/admin/announcements", icon: Megaphone },
+      { name: "Forum", path: "/admin/forum", icon: MessageSquare },
+    ],
+  },
+  {
+    label: "DATA",
+    items: [
+      { name: "Reports", path: "/admin/reports", icon: FileBarChart },
+    ],
+  },
+  {
+    label: "SETTINGS",
+    items: [
+      { name: "Branches", path: "/admin/branches", icon: Building },
+      { name: "Settings", path: "/admin/settings", icon: Settings },
+    ],
+  },
+];
+
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const { user, logout, token } = useAuth();
   const [location] = useLocation();
@@ -156,19 +221,6 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           { name: "Grading", path: "/teacher/grading", icon: GraduationCap },
           { name: "Forum", path: "/teacher/forum", icon: MessageSquare },
           { name: "Messages", path: "/teacher/messages", icon: MessageCircle },
-        ];
-      case "admin":
-        return [
-          { name: "Overview", path: "/admin", icon: LayoutDashboard },
-          { name: "Users", path: "/admin/users", icon: Users },
-          { name: "Courses", path: "/admin/courses", icon: BookOpen },
-          { name: "Payments", path: "/admin/payments", icon: CreditCard },
-          { name: "Identity Verify", path: "/admin/identity-verifications", icon: ShieldCheck },
-          { name: "Announcements", path: "/admin/announcements", icon: Megaphone },
-          { name: "Success Stories", path: "/admin/success-stories", icon: Award },
-          { name: "Testimonials", path: "/admin/testimonials", icon: Star },
-          { name: "Branches", path: "/admin/branches", icon: Building },
-          { name: "Settings", path: "/admin/settings", icon: Settings },
         ];
       default:
         return [];
@@ -208,26 +260,70 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </Link>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location === item.path || (item.path !== "/dashboard" && item.path !== "/teacher" && item.path !== "/admin" && location.startsWith(item.path));
-            return (
-              <Link
-                key={item.path}
-                href={item.path}
-                onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                }`}
-              >
-                <Icon className={`h-4 w-4 ${isActive ? "text-primary" : "text-gray-400"}`} />
-                {item.name}
-              </Link>
-            );
-          })}
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2">
+          {user.role === "admin" ? (
+            // Admin: grouped navigation
+            <div className="space-y-4">
+              {ADMIN_NAV_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] px-3 mb-1">
+                    {group.label}
+                  </p>
+                  <div className="space-y-0.5">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive =
+                        location === item.path ||
+                        (item.path !== "/admin" && location.startsWith(item.path));
+                      return (
+                        <Link
+                          key={item.path}
+                          href={item.path}
+                          onClick={() => setSidebarOpen(false)}
+                          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            isActive
+                              ? "bg-primary/10 text-primary"
+                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                          }`}
+                        >
+                          <Icon className={`h-4 w-4 ${isActive ? "text-primary" : "text-gray-400"}`} />
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            // Student/Teacher: flat navigation
+            <div className="space-y-0.5">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive =
+                  location === item.path ||
+                  (item.path !== "/dashboard" &&
+                    item.path !== "/teacher" &&
+                    location.startsWith(item.path));
+                return (
+                  <Link
+                    key={item.path}
+                    href={item.path}
+                    onClick={() => setSidebarOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`}
+                  >
+                    <Icon className={`h-4 w-4 ${isActive ? "text-primary" : "text-gray-400"}`} />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </nav>
 
         <div className="p-3 border-t shrink-0">
@@ -282,3 +378,4 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     </div>
   );
 }
+

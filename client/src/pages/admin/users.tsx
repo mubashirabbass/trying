@@ -209,7 +209,9 @@ export default function AdminUsers() {
                           {user.name.charAt(0)}
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-bold text-gray-900">{user.name}</span>
+                          <Link href={`/admin/users/${user.id}`}>
+                            <span className="font-bold text-gray-900 hover:text-primary cursor-pointer transition-colors">{user.name}</span>
+                          </Link>
                           <span className="text-xs text-gray-500 flex items-center gap-1">
                             <Mail className="h-3 w-3" /> {user.email}
                           </span>
@@ -255,6 +257,11 @@ export default function AdminUsers() {
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuLabel>User Options</DropdownMenuLabel>
                           <DropdownMenuSeparator />
+                          <Link href={`/admin/users/${user.id}`}>
+                            <DropdownMenuItem className="cursor-pointer">
+                              <Users className="h-4 w-4 mr-2" /> View Profile
+                            </DropdownMenuItem>
+                          </Link>
                           <DropdownMenuItem className="cursor-pointer">
                             <Edit className="h-4 w-4 mr-2" /> Edit Details
                           </DropdownMenuItem>
