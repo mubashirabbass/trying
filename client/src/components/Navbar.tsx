@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/AuthContext";
-import { Menu, X, BookOpen, Phone, Mail, Facebook, Instagram, Youtube } from "lucide-react";
+import { Menu, X, BookOpen, Phone, Mail, Facebook, Instagram, Youtube, Linkedin, MessageSquare, MessageCircle } from "lucide-react";
 import { useState } from "react";
 
 export function Navbar() {
@@ -11,37 +11,41 @@ export function Navbar() {
 
   const navLinks = [
     { name: "Home", path: "/" },
-    { name: "Courses", path: "/courses" },
-    { name: "About Us", path: "/about" },
+    { name: "Trainings", path: "/trainings" },
+    { name: "Success Stories", path: "/success-stories" },
     { name: "Contact", path: "/contact" },
-    { name: "Verify Certificate", path: "/verify-certificate" },
+    { name: "Resources", path: "/resources" },
+    { name: "Incubators", path: "/incubators" },
+    { name: "About", path: "/about" },
+    { name: "Services", path: "/services" },
   ];
 
   return (
     <>
       {/* Top bar */}
-      <div className="bg-[#0f2c6f] text-white text-xs py-2 hidden md:block">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          <div className="flex items-center gap-6">
+      <div className="bg-[#0f2c6f] text-white text-[10px] sm:text-xs py-2 hidden md:block border-b border-white/10">
+        <div className="w-full px-4 md:px-10 lg:px-16 flex items-center justify-between">
+          <div className="flex items-center gap-5">
             <a href="tel:+923001234567" className="flex items-center gap-1.5 hover:text-blue-200 transition-colors">
-              <Phone className="h-3 w-3" /> +92 300 1234567
+              <Phone className="h-3 w-3" /> <span className="hidden lg:inline">Call:</span> +92 300 1234567
             </a>
-            <a href="mailto:info@globalcollege.edu.pk" className="flex items-center gap-1.5 hover:text-blue-200 transition-colors">
-              <Mail className="h-3 w-3" /> info@globalcollege.edu.pk
+            <a href="sms:+923001234567" className="flex items-center gap-1.5 hover:text-blue-200 transition-colors">
+              <MessageSquare className="h-3 w-3" /> <span className="hidden lg:inline">SMS:</span> +92 300 1234567
+            </a>
+            <a href="https://wa.me/923001234567" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-blue-200 transition-colors">
+              <MessageCircle className="h-3.5 w-3.5" /> <span className="hidden lg:inline">WhatsApp:</span> +92 300 1234567
             </a>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-blue-300">Follow us:</span>
-            <a href="#" className="hover:text-blue-200 transition-colors"><Facebook className="h-3.5 w-3.5" /></a>
-            <a href="#" className="hover:text-blue-200 transition-colors"><Instagram className="h-3.5 w-3.5" /></a>
-            <a href="#" className="hover:text-blue-200 transition-colors"><Youtube className="h-3.5 w-3.5" /></a>
-            <a
-              href="https://wa.me/923001234567"
-              target="_blank"
-              rel="noreferrer"
-              className="bg-green-500 hover:bg-green-600 text-white px-3 py-0.5 rounded-full text-xs font-semibold transition-colors"
-            >
-              💬 WhatsApp
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-4">
+              <a href="#" className="hover:text-blue-200 transition-colors" title="Facebook"><Facebook className="h-3.5 w-3.5" /></a>
+              <a href="#" className="hover:text-blue-200 transition-colors" title="Instagram"><Instagram className="h-3.5 w-3.5" /></a>
+              <a href="#" className="hover:text-blue-200 transition-colors" title="YouTube"><Youtube className="h-3.5 w-3.5" /></a>
+              <a href="#" className="hover:text-blue-200 transition-colors" title="LinkedIn"><Linkedin className="h-3.5 w-3.5" /></a>
+            </div>
+            <div className="h-3 w-[1px] bg-white/20 mx-1 hidden sm:block" />
+            <a href="mailto:info@globalcollege.edu.pk" className="flex items-center gap-1.5 hover:text-blue-200 transition-colors hidden sm:flex">
+              <Mail className="h-3 w-3" /> info@globalcollege.edu.pk
             </a>
           </div>
         </div>
@@ -49,58 +53,58 @@ export function Navbar() {
 
       {/* Main navbar */}
       <nav className="bg-white border-b sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <Link href="/" className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center">
-                  <BookOpen className="h-5 w-5 text-white" />
+        <div className="w-full px-4 md:px-10 lg:px-16">
+          <div className="flex items-center h-20">
+            <div className="flex items-center shrink-0">
+              <Link href="/" className="flex items-center gap-3">
+                <div className="h-11 w-11 rounded-xl bg-primary flex items-center justify-center shadow-md">
+                  <BookOpen className="h-6 w-6 text-white" />
                 </div>
                 <div className="hidden sm:block">
-                  <span className="font-extrabold text-lg text-gray-900 leading-tight block">Global College</span>
-                  <span className="text-xs text-gray-500 leading-tight block">Learning Management System</span>
+                  <span className="font-black text-2xl text-gray-900 leading-none block">Global College</span>
+                  <span className="text-sm font-semibold text-gray-500 leading-none block mt-1">Learning Management System</span>
                 </div>
               </Link>
             </div>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-6">
+            {/* Desktop Navigation - Shifted Right with a large gap */}
+            <div className="hidden md:flex items-center space-x-8 ml-20">
               {navLinks.map((link) => (
                 <Link
                   key={link.path}
                   href={link.path}
-                  className={`text-sm font-medium transition-colors hover:text-primary ${
+                  className={`text-base font-bold transition-all hover:text-primary relative group ${
                     location === link.path
-                      ? "text-primary border-b-2 border-primary pb-0.5"
+                      ? "text-primary"
                       : "text-gray-600"
                   }`}
                 >
                   {link.name}
+                  <span className={`absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-300 group-hover:w-full ${location === link.path ? 'w-full' : ''}`} />
                 </Link>
               ))}
             </div>
 
-            <div className="hidden md:flex items-center space-x-3">
+            <div className="hidden md:flex items-center space-x-4 ml-auto">
               {user ? (
                 <>
-                  <span className="text-sm text-gray-600">
-                    Hi, <span className="font-semibold text-gray-900">{user.name.split(" ")[0]}</span>
-                  </span>
+                  <div className="flex flex-col items-end mr-2">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Welcome back</span>
+                    <span className="text-sm font-bold text-gray-900">{user.name.split(" ")[0]}</span>
+                  </div>
                   <Link href={user.role === "admin" ? "/admin" : user.role === "teacher" ? "/teacher" : "/dashboard"}>
-                    <Button variant="outline" size="sm">Dashboard</Button>
+                    <Button variant="outline" size="default" className="font-bold border-2 rounded-xl">Dashboard</Button>
                   </Link>
                   <Button 
                     onClick={() => {
-                      console.log("Logout clicked");
                       logout();
-                      console.log("State cleared, redirecting...");
                       setTimeout(() => {
                         window.location.href = "/login";
                       }, 100);
                     }} 
                     variant="ghost" 
                     size="sm" 
-                    className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                    className="text-red-500 hover:text-red-600 hover:bg-red-50 font-bold"
                   >
                     Logout
                   </Button>
@@ -108,10 +112,10 @@ export function Navbar() {
               ) : (
                 <>
                   <Link href="/login">
-                    <Button variant="ghost" size="sm">Log in</Button>
+                    <Button variant="ghost" className="font-bold text-gray-600 hover:text-primary">Log in</Button>
                   </Link>
                   <Link href="/register">
-                    <Button size="sm" className="bg-orange-500 hover:bg-orange-600 text-white font-semibold">
+                    <Button className="bg-orange-500 hover:bg-orange-600 text-white font-black px-10 h-12 rounded-xl shadow-lg shadow-orange-500/20">
                       Enroll Free
                     </Button>
                   </Link>

@@ -30,8 +30,12 @@ import {
   Trophy,
   GraduationCap,
   ChevronRight,
+  ChevronLeft,
   Mail,
+  Play,
+  Globe,
 } from "lucide-react";
+import { useState, useRef } from "react";
 
 const CATEGORY_COLORS: Record<string, string> = {
   IT: "from-blue-600 to-blue-400",
@@ -120,73 +124,137 @@ export default function Home() {
     query: { queryKey: getListBranchesQueryKey() },
   });
 
-  const displayCourses = courses?.slice(0, 6) ?? [];
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const checkScroll = () => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  const scroll = (direction: "left" | "right") => {
+    if (scrollRef.current) {
+      const { scrollLeft, clientWidth } = scrollRef.current;
+      const scrollTo = direction === "left" 
+        ? scrollLeft - clientWidth 
+        : scrollLeft + clientWidth;
+      
+      scrollRef.current.scrollTo({
+        left: scrollTo,
+        behavior: "smooth"
+      });
+      
+      // Check again after animation
+      setTimeout(checkScroll, 500);
+    }
+  };
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const displayCourses = (courses && courses.length > 0) ? courses : [
+    {
+      id: 1,
+      title: "MS Office Complete Course",
+      category: "MS Office",
+      duration: "3 Months",
+      isFree: false,
+      fee: 5000,
+      isFeatured: true,
+      description: "Master Word, Excel, PowerPoint and more with hands-on projects.",
+    },
+    {
+      id: 2,
+      title: "Graphic Design with Canva & Photoshop",
+      category: "Graphics",
+      duration: "4 Months",
+      isFree: false,
+      fee: 8000,
+      isFeatured: true,
+      description: "Design logos, posters, and social media content professionally.",
+    },
+    {
+      id: 3,
+      title: "Freelancing Mastery",
+      category: "Freelancing",
+      duration: "2 Months",
+      isFree: false,
+      fee: 6000,
+      isFeatured: false,
+      description: "Start earning on Upwork, Fiverr, and Freelancer from day one.",
+    },
+    {
+      id: 4,
+      title: "Web Development with React",
+      category: "Web",
+      duration: "6 Months",
+      isFree: false,
+      fee: 15000,
+      isFeatured: true,
+      description: "Build modern web applications using the most popular framework.",
+    },
+  ];
   const displayTestimonials = testimonials?.slice(0, 3) ?? [];
 
   return (
     <MainLayout>
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#0f2c6f] via-[#1a47b8] to-[#2563eb] text-white">
-        {/* background decorations */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-24 -right-24 w-96 h-96 rounded-full bg-white/5" />
-          <div className="absolute top-1/2 -left-32 w-80 h-80 rounded-full bg-white/5" />
-          <div className="absolute bottom-0 right-1/4 w-64 h-64 rounded-full bg-orange-500/10" />
+      {/* ── Hero with Video Background ──────────────────────────────────── */}
+      <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
+        {/* Video Background */}
+        <video 
+          autoPlay 
+          loop 
+          muted 
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover z-0"
+        >
+          <source src="/assets/videos/eBay-Course-Etsy-Training-Pakistan.mp4" type="video/mp4" />
+        </video>
+        
+        {/* Dark Overlay for readability */}
+        <div className="absolute inset-0 bg-black/60 z-10" />
+        
+        {/* Content Container */}
+        <div className="relative z-20 w-full px-4 md:px-10 lg:px-16 text-center text-white">
+          <div className="mb-8">
+            <span className="bg-[#e6fcf5] text-[#0ca678] border border-[#b2f2bb] rounded-md px-6 py-2.5 text-sm md:text-base font-bold shadow-lg uppercase tracking-wider">
+              Global College — Redefining Digital Excellence in Pakistan
+            </span>
+          </div>
+          
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black leading-tight mb-12 drop-shadow-2xl">
+            Empowering the Next Generation of <span className="text-[#ffec99]">Digital Leaders Globally</span>
+          </h1>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+            <Link href="/courses">
+              <Button className="bg-[#20c997] hover:bg-[#12b886] text-white font-bold text-lg px-10 h-16 rounded-xl shadow-xl transition-all hover:scale-105 flex items-center gap-2 border-0">
+                Start Your Training <ChevronRight className="h-5 w-5" />
+              </Button>
+            </Link>
+            <Link href="/success-stories">
+              <Button variant="outline" className="border-2 border-white/40 bg-white/10 backdrop-blur-md text-white font-bold text-lg px-10 h-16 rounded-xl hover:bg-white/20 transition-all flex items-center gap-2">
+                <div className="h-7 w-7 rounded-full border-2 border-white flex items-center justify-center">
+                  <Play className="h-3 w-3 fill-white ml-0.5" />
+                </div>
+                View Success Stories
+              </Button>
+            </Link>
+          </div>
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32 flex flex-col md:flex-row items-center gap-12">
-          <div className="flex-1 text-center md:text-left">
-            <Badge className="mb-4 bg-orange-500/20 text-orange-300 border-orange-500/30 hover:bg-orange-500/30 text-sm px-3 py-1">
-              🎓 Pakistan's #1 Online Learning Platform
-            </Badge>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-tight mb-6">
-              Build Your Future
-              <span className="block text-orange-400">With Global College</span>
-            </h1>
-            <p className="text-lg md:text-xl text-blue-100 mb-8 max-w-xl">
-              Join thousands of students mastering IT, Graphic Design, AI,
-              Freelancing &amp; more — with live classes, offline notes, and job
-              placement support.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-              <Link href="/courses">
-                <Button
-                  size="lg"
-                  className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 shadow-lg"
-                >
-                  Enroll Now <ChevronRight className="ml-1 h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/courses">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="bg-white/10 border-white/30 text-white hover:bg-white/20 font-semibold px-8"
-                >
-                  Browse Free Courses
-                </Button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Stats card cluster */}
-          <div className="flex-shrink-0 grid grid-cols-2 gap-4 w-full md:w-auto">
-            {STATS.map(({ value, label, icon: Icon }) => (
-              <div
-                key={label}
-                className="bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-5 text-center hover:bg-white/15 transition"
-              >
-                <Icon className="h-6 w-6 mx-auto mb-2 text-orange-300" />
-                <p className="text-2xl font-extrabold">{value}</p>
-                <p className="text-xs text-blue-200 mt-1">{label}</p>
-              </div>
-            ))}
+        {/* Scroll Indicator - Now relative to the entire section */}
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce cursor-pointer z-30">
+          <div className="h-10 w-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+            <ChevronRight className="h-6 w-6 text-white rotate-90" />
           </div>
         </div>
       </section>
 
       {/* ── Announcement Bar ──────────────────────────────────────────────── */}
-      <div className="bg-orange-500 text-white text-sm py-2 overflow-hidden">
+      <div className="bg-[#0f2c6f] text-white text-sm py-3 overflow-hidden border-y border-white/10">
         <div className="flex whitespace-nowrap animate-marquee gap-16 px-4">
           {[
             "🎉 New Batch Starting May 2025 — Register Now!",
@@ -204,13 +272,77 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── Popular Courses ───────────────────────────────────────────────── */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* ── Statistics Section (Clean White Style) ───────────────────────── */}
+      <section className="pt-4 pb-8 bg-slate-50 relative overflow-hidden">
+        <div className="w-full px-4 md:px-10 lg:px-16 relative z-10">
           <div className="text-center mb-12">
-            <Badge className="mb-3 bg-blue-50 text-blue-700 border-blue-200">
-              Our Courses
-            </Badge>
+            <h2 className="text-3xl md:text-5xl font-black text-gray-900 mb-6">
+              Trusted by Thousands Worldwide
+            </h2>
+            <p className="text-gray-500 text-lg max-w-2xl mx-auto leading-relaxed">
+              Global College is building Pakistan's largest ecosystem for 
+              international eCommerce success and digital entrepreneurship.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {[
+              { 
+                value: "4500+", 
+                label: "Students Trained", 
+                icon: Users, 
+                color: "text-emerald-600", 
+                bg: "bg-emerald-50",
+                border: "border-emerald-100"
+              },
+              { 
+                value: "4+", 
+                label: "Fulfillment Centers", 
+                icon: Globe, 
+                color: "text-blue-600", 
+                bg: "bg-blue-50",
+                border: "border-blue-100"
+              },
+              { 
+                value: "800+", 
+                label: "Community Meetups", 
+                icon: Trophy, 
+                color: "text-purple-600", 
+                bg: "bg-purple-50",
+                border: "border-purple-100"
+              },
+              { 
+                value: "200+", 
+                label: "Consultation Clients", 
+                icon: TrendingUp, 
+                color: "text-rose-600", 
+                bg: "bg-rose-50",
+                border: "border-rose-100"
+              },
+            ].map((stat, i) => (
+              <div 
+                key={i}
+                className="group p-8 rounded-3xl border border-white bg-white shadow-sm hover:shadow-xl transition-all duration-500 hover:-translate-y-2 flex flex-col items-center text-center"
+              >
+                <div className={`h-16 w-16 rounded-2xl ${stat.bg} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-sm`}>
+                  <stat.icon className={`h-8 w-8 ${stat.color}`} />
+                </div>
+                <h3 className={`text-4xl font-black ${stat.color} mb-2 tracking-tight`}>
+                  {stat.value}
+                </h3>
+                <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">
+                  {stat.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Popular Courses ───────────────────────────────────────────────── */}
+      <section className="pt-12 pb-20 bg-gray-50 relative group">
+        <div className="w-full px-4 md:px-10 lg:px-16">
+          <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
               Popular Courses
             </h2>
@@ -220,105 +352,100 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {(displayCourses.length > 0
-              ? displayCourses
-              : [
-                  {
-                    id: 1,
-                    title: "MS Office Complete Course",
-                    category: "MS Office",
-                    duration: "3 Months",
-                    isFree: false,
-                    fee: 5000,
-                    isFeatured: true,
-                    description:
-                      "Master Word, Excel, PowerPoint and more with hands-on projects.",
-                  },
-                  {
-                    id: 2,
-                    title: "Graphic Design with Canva & Photoshop",
-                    category: "Graphics",
-                    duration: "4 Months",
-                    isFree: false,
-                    fee: 8000,
-                    isFeatured: true,
-                    description:
-                      "Design logos, posters, and social media content professionally.",
-                  },
-                  {
-                    id: 3,
-                    title: "Freelancing Mastery",
-                    category: "Freelancing",
-                    duration: "2 Months",
-                    isFree: false,
-                    fee: 6000,
-                    isFeatured: false,
-                    description:
-                      "Start earning on Upwork, Fiverr, and Freelancer from day one.",
-                  },
-                ]
-            ).map((course: any) => {
-              const gradient =
-                CATEGORY_COLORS[course.category] || CATEGORY_COLORS.Default;
-              return (
-                <Card
-                  key={course.id}
-                  className="overflow-hidden hover:shadow-xl transition-all duration-300 group border-0 shadow-md"
-                >
-                  <div
-                    className={`h-44 bg-gradient-to-br ${gradient} relative flex items-center justify-center`}
-                  >
-                    <BookOpen className="h-16 w-16 text-white/30 group-hover:scale-110 transition-transform" />
-                    <div className="absolute top-3 left-3 flex gap-2">
-                      <Badge className="bg-white/20 text-white border-white/30 text-xs">
-                        {course.category}
-                      </Badge>
-                      {course.isFeatured && (
-                        <Badge className="bg-orange-500 text-white border-0 text-xs">
-                          ⭐ Featured
-                        </Badge>
-                      )}
-                    </div>
+          <div className="relative group/carousel px-20 -mx-4">
+            {/* Navigation Buttons - Shshifted further away */}
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 z-40 hidden lg:block">
+              <Button 
+                variant="outline" 
+                size="icon"
+                disabled={!canScrollLeft}
+                onClick={() => scroll("left")}
+                className={`rounded-full h-14 w-14 border-gray-200 bg-white shadow-xl transition-all hover:scale-110 ${!canScrollLeft ? 'opacity-20 cursor-not-allowed' : 'hover:bg-primary hover:text-white hover:border-primary'}`}
+              >
+                <ChevronLeft className="h-7 w-7" />
+              </Button>
+            </div>
+
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 z-40 hidden lg:block">
+              <Button 
+                variant="outline" 
+                size="icon"
+                disabled={!canScrollRight}
+                onClick={() => scroll("right")}
+                className={`rounded-full h-14 w-14 border-gray-200 bg-white shadow-xl transition-all hover:scale-110 ${!canScrollRight ? 'opacity-20 cursor-not-allowed' : 'hover:bg-primary hover:text-white hover:border-primary'}`}
+              >
+                <ChevronRight className="h-7 w-7" />
+              </Button>
+            </div>
+
+            <div 
+              ref={scrollRef}
+              onScroll={checkScroll}
+              className="flex gap-8 overflow-x-auto hide-scrollbar snap-x snap-mandatory pb-8"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {displayCourses.map((course: any) => {
+                const gradient =
+                  CATEGORY_COLORS[course.category] || CATEGORY_COLORS.Default;
+                return (
+                  <div key={course.id} className="min-w-[300px] md:min-w-[calc((100%-6rem)/4)] snap-start">
+                    <Card
+                      className="overflow-hidden h-full hover:shadow-xl transition-all duration-300 group/card border-0 shadow-md"
+                    >
+                      <div
+                        className={`h-48 bg-gradient-to-br ${gradient} relative flex items-center justify-center`}
+                      >
+                        <BookOpen className="h-16 w-16 text-white/30 group-hover/card:scale-110 transition-transform" />
+                        <div className="absolute top-3 left-3 flex gap-2">
+                          <Badge className="bg-white/20 text-white border-white/30 text-xs">
+                            {course.category}
+                          </Badge>
+                          {course.isFeatured && (
+                            <Badge className="bg-orange-500 text-white border-0 text-xs">
+                              ⭐ Featured
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      <CardContent className="p-6">
+                        <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2 min-h-[56px]">
+                          {course.title}
+                        </h3>
+                        <p className="text-sm text-gray-500 line-clamp-2 mb-6 h-10">
+                          {course.description}
+                        </p>
+                        <div className="flex items-center justify-between text-sm mb-6">
+                          <span className="flex items-center gap-1.5 text-gray-500 font-medium">
+                            <Clock className="h-4 w-4 text-primary" />
+                            {course.duration}
+                          </span>
+                          <span className="font-bold text-lg text-primary">
+                            {course.isFree ? (
+                              <span className="text-emerald-600">Free</span>
+                            ) : (
+                              `Rs. ${course.fee?.toLocaleString()}`
+                            )}
+                          </span>
+                        </div>
+                        <Link href={`/courses/${course.id}`}>
+                          <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-base font-semibold rounded-xl">
+                            View Details
+                          </Button>
+                        </Link>
+                      </CardContent>
+                    </Card>
                   </div>
-
-                  <CardContent className="p-5">
-                    <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
-                      {course.title}
-                    </h3>
-                    <p className="text-sm text-gray-500 line-clamp-2 mb-4">
-                      {course.description}
-                    </p>
-                    <div className="flex items-center justify-between text-sm mb-4">
-                      <span className="flex items-center gap-1 text-gray-500">
-                        <Clock className="h-4 w-4" />
-                        {course.duration}
-                      </span>
-                      <span className="font-bold text-primary">
-                        {course.isFree ? (
-                          <span className="text-emerald-600">Free</span>
-                        ) : (
-                          `Rs. ${course.fee?.toLocaleString()}`
-                        )}
-                      </span>
-                    </div>
-                    <Link href={`/courses/${course.id}`}>
-                      <Button className="w-full bg-primary hover:bg-primary/90">
-                        View Details
-                      </Button>
-                    </Link>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-
           <div className="text-center mt-10">
             <Link href="/courses">
               <Button
                 size="lg"
                 variant="outline"
-                className="border-primary text-primary hover:bg-primary hover:text-white"
+                className="border-primary text-primary hover:bg-primary hover:text-white rounded-xl h-14 px-10"
               >
                 View All Courses <ChevronRight className="ml-1 h-4 w-4" />
               </Button>
@@ -329,7 +456,7 @@ export default function Home() {
 
       {/* ── Why Choose Us ────────────────────────────────────────────────── */}
       <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="text-center mb-12">
             <Badge className="mb-3 bg-emerald-50 text-emerald-700 border-emerald-200">
               Why Global College
@@ -365,7 +492,7 @@ export default function Home() {
       {/* ── Success Stories ───────────────────────────────────────────────── */}
       {(successStories?.length ?? 0) > 0 && (
         <section className="py-20 bg-gradient-to-br from-[#0f2c6f] to-[#1a47b8] text-white overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="w-full px-4 md:px-10 lg:px-16">
             <div className="text-center mb-12">
               <Badge className="mb-3 bg-white/10 text-white border-white/20">
                 Success Stories
@@ -417,7 +544,7 @@ export default function Home() {
       {/* ── Testimonials ─────────────────────────────────────────────────── */}
       {(displayTestimonials?.length ?? 0) > 0 && (
         <section className="py-20 bg-gray-50">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="w-full px-4 md:px-10 lg:px-16">
             <div className="text-center mb-12">
               <Badge className="mb-3 bg-yellow-50 text-yellow-700 border-yellow-200">
                 Testimonials
@@ -462,7 +589,7 @@ export default function Home() {
       {/* ── Branches ─────────────────────────────────────────────────────── */}
       {(branches?.length ?? 0) > 0 && (
         <section className="py-20 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="w-full px-4 md:px-10 lg:px-16">
             <div className="text-center mb-12">
               <Badge className="mb-3 bg-purple-50 text-purple-700 border-purple-200">
                 Our Campuses
@@ -506,7 +633,7 @@ export default function Home() {
 
       {/* ── Payment Methods ───────────────────────────────────────────────── */}
       <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="text-center mb-10">
             <h2 className="text-2xl font-bold text-gray-900">
               Flexible Payment Options
@@ -536,12 +663,12 @@ export default function Home() {
       </section>
 
       {/* ── CTA ──────────────────────────────────────────────────────────── */}
-      <section className="py-20 bg-gradient-to-r from-orange-500 to-orange-600 text-white">
+      <section className="py-20 bg-gradient-to-r from-[#0f2c6f] to-[#1a47b8] text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-extrabold mb-4">
             Ready to Start Your Journey?
           </h2>
-          <p className="text-orange-100 text-lg mb-8">
+          <p className="text-blue-100 text-lg mb-8">
             Join Global College today and take the first step towards a
             successful career. New batches start every month!
           </p>
@@ -549,7 +676,7 @@ export default function Home() {
             <Link href="/register">
               <Button
                 size="lg"
-                className="bg-white text-orange-600 hover:bg-orange-50 font-semibold px-10"
+                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-10"
               >
                 Register Free
               </Button>
@@ -565,7 +692,7 @@ export default function Home() {
             </a>
           </div>
 
-          <div className="mt-10 flex flex-wrap justify-center gap-8 text-sm text-orange-100">
+          <div className="mt-10 flex flex-wrap justify-center gap-8 text-sm text-blue-100">
             <span className="flex items-center gap-2">
               <Mail className="h-4 w-4" /> info@globalcollege.edu.pk
             </span>

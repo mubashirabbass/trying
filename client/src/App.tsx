@@ -15,6 +15,11 @@ import Contact from "@/pages/contact";
 import Courses from "@/pages/courses";
 import CourseDetail from "@/pages/course-detail";
 import VerifyCertificate from "@/pages/verify-certificate";
+import Trainings from "@/pages/trainings";
+import Services from "@/pages/services";
+import SuccessStories from "@/pages/success-stories";
+import Resources from "@/pages/resources";
+import Incubators from "@/pages/incubators";
 
 // Student Pages
 import StudentDashboard from "@/pages/student/dashboard";
@@ -81,6 +86,11 @@ function Router() {
         <Route path="/about" component={About} />
         <Route path="/contact" component={Contact} />
         <Route path="/courses" component={Courses} />
+        <Route path="/trainings" component={Trainings} />
+        <Route path="/services" component={Services} />
+        <Route path="/success-stories" component={SuccessStories} />
+        <Route path="/resources" component={Resources} />
+        <Route path="/incubators" component={Incubators} />
         <Route path="/courses/:id" component={CourseDetail} />
         <Route path="/verify-certificate" component={VerifyCertificate} />
 
