@@ -233,3 +233,12 @@
   animation: fadeInUp 0.5s ease-out forwards;
 }
 
+@keyframes blinking-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.7); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(37, 211, 102, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+}
+
+.animate-blinking-pulse {
+  animation: blinking-pulse 2s infinite;
+}

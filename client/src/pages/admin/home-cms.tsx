@@ -202,9 +202,6 @@ export default function AdminHomeCMS() {
             <TabsTrigger value="articles" className="rounded-xl px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <Newspaper className="h-4 w-4 mr-2" /> Articles & News
             </TabsTrigger>
-            <TabsTrigger value="faqs" className="rounded-xl px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">
-              <HelpCircle className="h-4 w-4 mr-2" /> FAQs
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="courses">
@@ -335,89 +332,6 @@ export default function AdminHomeCMS() {
                         </Button>
                         {isEditingArticle && (
                           <Button type="button" variant="ghost" onClick={() => { setIsEditingArticle(false); setArticleForm({id: null, title: "", excerpt: "", content: "", category: "General", imageUrl: "", isPublished: false}); }} className="rounded-xl">Cancel</Button>
-                        )}
-                      </div>
-                    </form>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="faqs">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* List */}
-              <div className="lg:col-span-2 space-y-4">
-                <Card className="border-2 border-slate-100 rounded-[32px] overflow-hidden">
-                  <CardHeader className="border-b border-slate-50">
-                    <CardTitle className="text-xl font-bold">Frequently Asked Questions</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    {loading ? (
-                      <div className="p-12 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></div>
-                    ) : faqs.length === 0 ? (
-                      <div className="p-12 text-center text-slate-400 font-medium">No FAQs yet.</div>
-                    ) : (
-                      <div className="divide-y divide-slate-50">
-                        {faqs.map(faq => (
-                          <div key={faq.id} className="p-6 hover:bg-slate-50/50 transition-colors flex items-center justify-between group">
-                            <div>
-                              <h3 className="font-bold text-slate-900">{faq.question}</h3>
-                              <p className="text-xs text-slate-500 font-medium mt-1 line-clamp-2">{faq.answer}</p>
-                              <div className="flex items-center gap-3 mt-2">
-                                <Badge variant="secondary" className="text-[10px] font-bold">{faq.category}</Badge>
-                                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Order: {faq.orderIndex}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button variant="ghost" size="icon" onClick={() => { setFaqForm(faq); setIsEditingFaq(true); }} className="rounded-xl">
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDeleteFaq(faq.id)} className="rounded-xl hover:bg-rose-50 hover:text-rose-600">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Form */}
-              <div>
-                <Card className="border-2 border-slate-100 rounded-[32px] sticky top-6">
-                  <CardHeader>
-                    <CardTitle className="text-xl font-bold">{isEditingFaq ? "Edit FAQ" : "New FAQ"}</CardTitle>
-                    <CardDescription>Answer common questions to help your students.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <form onSubmit={handleSaveFaq} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>Question</Label>
-                        <Input required value={faqForm.question} onChange={e => setFaqForm({...faqForm, question: e.target.value})} placeholder="What is...?" className="rounded-xl" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Answer</Label>
-                        <Textarea required value={faqForm.answer} onChange={e => setFaqForm({...faqForm, answer: e.target.value})} placeholder="Provide a clear answer..." className="rounded-xl h-32" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Category</Label>
-                          <Input value={faqForm.category} onChange={e => setFaqForm({...faqForm, category: e.target.value})} className="rounded-xl" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Display Order</Label>
-                          <Input type="number" value={faqForm.orderIndex} onChange={e => setFaqForm({...faqForm, orderIndex: parseInt(e.target.value)})} className="rounded-xl" />
-                        </div>
-                      </div>
-                      <div className="flex gap-2 pt-4">
-                        <Button type="submit" className="flex-1 rounded-xl shadow-lg shadow-primary/20">
-                          <Save className="h-4 w-4 mr-2" /> {isEditingFaq ? "Update" : "Save FAQ"}
-                        </Button>
-                        {isEditingFaq && (
-                          <Button type="button" variant="ghost" onClick={() => { setIsEditingFaq(false); setFaqForm({id: null, question: "", answer: "", category: "General", orderIndex: 0}); }} className="rounded-xl">Cancel</Button>
                         )}
                       </div>
                     </form>

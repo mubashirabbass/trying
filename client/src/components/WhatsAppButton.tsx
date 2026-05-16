@@ -8,12 +8,11 @@ import { MessageCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
-const DEFAULT_WA_NUMBER = "923001234567"; // fallback
+const DEFAULT_WA_NUMBER = "923019890076"; // fallback
 
 export function WhatsAppButton() {
   const [waNumber, setWaNumber] = useState(DEFAULT_WA_NUMBER);
   const [visible, setVisible] = useState(false);
-  const [pulse, setPulse] = useState(true);
 
   // Fetch WhatsApp number from settings
   useEffect(() => {
@@ -43,12 +42,9 @@ export function WhatsAppButton() {
   }, []);
 
   // Stop pulse after 4 seconds
-  useEffect(() => {
-    const t = setTimeout(() => setPulse(false), 4000);
-    return () => clearTimeout(t);
-  }, []);
 
-  const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent("Hello! I'm interested in learning more about Global College courses.")}`;
+
+  const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent("I have a question about your institute")}`;
 
   return (
     <div
@@ -69,16 +65,8 @@ export function WhatsAppButton() {
         target="_blank"
         rel="noreferrer"
         aria-label="Chat on WhatsApp"
-        className="group relative flex items-center gap-3 bg-[#25D366] hover:bg-[#1ebe5d] text-white rounded-full shadow-2xl shadow-green-500/40 transition-all duration-300 hover:scale-110 active:scale-95"
+        className="group relative flex items-center gap-3 bg-[#25D366] hover:bg-[#1ebe5d] text-white rounded-full shadow-2xl transition-all duration-300 active:scale-95 animate-blinking-pulse"
       >
-        {/* Pulse ring */}
-        {pulse && (
-          <>
-            <span className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-30" />
-            <span className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-20 animation-delay-200" />
-          </>
-        )}
-
         {/* Icon only (compact) */}
         <div className="h-14 w-14 rounded-full flex items-center justify-center shrink-0">
           {/* WhatsApp SVG Icon */}

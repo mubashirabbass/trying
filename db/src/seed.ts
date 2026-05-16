@@ -1,4 +1,4 @@
-import { db, usersTable, coursesTable } from "./index";
+import { db, usersTable, coursesTable, branchesTable } from "./index";
 import bcrypt from "bcryptjs";
 
 async function seed() {
@@ -103,10 +103,18 @@ async function seed() {
     },
   ];
 
-  console.log("📚 Seeding courses...");
-  for (const course of courses) {
-    await db.insert(coursesTable).values(course as any).onConflictDoNothing();
-  }
+  console.log("🏫 Seeding branches...");
+  const [mainBranch] = await db.insert(branchesTable).values({
+    name: "Global College of Computer Science, 18 Hazari",
+    city: "18 Hazari",
+    address: "18 Hazari, Jhang District, Punjab, Pakistan.",
+    phone: "+92 301 989 0076",
+    email: "info@globalcollege.edu.pk",
+    officeHours: "Monday - Saturday: 08:00 AM - 04:00 PM \nSunday: Closed",
+    isMain: true,
+    isActive: true,
+    manualStudentCount: 2500,
+  }).onConflictDoNothing().returning();
 
   console.log("✅ Seeding complete!");
   process.exit(0);

@@ -59,7 +59,9 @@ app.use(xssClean()); // Data sanitization against XSS
 // 3. Request Logging
 app.use((req, res, next) => {
   if (process.env.NODE_ENV === "development") {
-    logger.debug(`${req.method} ${req.url}`);
+    res.on("finish", () => {
+      logger.debug(`${req.method} ${req.url} ${res.statusCode}`);
+    });
   }
   next();
 });

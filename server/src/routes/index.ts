@@ -24,18 +24,60 @@ import faqsRouter from "./faqs";
 import articlesRouter from "./articles";
 import usersRouter from "./users";
 
-import { authenticate } from "../middleware/auth";
+import { db, successStoryCategoriesTable, pool } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { CreateSuccessStoryCategoryBody } from "@workspace/api-zod";
+
+import { authenticate, authorize } from "../middleware/auth";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
-router.use(coursesRouter); // courses/list and detail are public
-router.use(testimonialsRouter); // testimonials list is public
-router.use(successStoriesRouter); // success stories are public
-router.use(branchesRouter); // branches list is public
-router.use(faqsRouter); // faqs list is public
-router.use(articlesRouter); // public article reads
+router.use(coursesRouter);
+router.use(testimonialsRouter);
+router.use("/success-stories", successStoriesRouter);
+router.use(branchesRouter);
+router.use(faqsRouter);
+router.use(articlesRouter);
+
+// --- Success Story Categories (Directly in Index) ---
+router.get("/success-story-categories", async (req, res) => {
+  try {
+    const categories = await db.select().from(successStoryCategoriesTable);
+    res.json(categories);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch categories" });
+  }
+});
+
+router.post("/success-story-categories", async (req, res) => {
+  console.log("PUBLIC POST RECEIVED:", req.body);
+  const parsed = CreateSuccessStoryCategoryBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
+  try {
+    const [category] = await db.insert(successStoryCategoriesTable).values(parsed.data).returning();
+    res.status(201).json(category);
+  } catch (err) {
+    console.error("PUBLIC POST ERROR:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+router.post("/success-story-categories/", async (req, res) => {
+  console.log("TRAILING SLASH POST RECEIVED:", req.body);
+  const parsed = CreateSuccessStoryCategoryBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
+  try {
+    const [category] = await db.insert(successStoryCategoriesTable).values(parsed.data).returning();
+    res.status(201).json(category);
+  } catch (err) {
+    console.error("TRAILING SLASH POST ERROR:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+// ---------------------------------------------------
+
 router.use(certificatesRouter);
 
 // Private routes below this line

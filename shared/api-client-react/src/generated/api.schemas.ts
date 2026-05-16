@@ -401,6 +401,15 @@ export interface SuccessStory {
   image?: string;
   course?: string;
   achievement?: string;
+  rating?: string;
+  category?: string;
+  categoryId?: number;
+  metric1Value?: string;
+  metric1Label?: string;
+  metric2Value?: string;
+  metric2Label?: string;
+  metric3Value?: string;
+  metric3Label?: string;
   createdAt: string;
 }
 
@@ -411,6 +420,29 @@ export interface CreateSuccessStoryBody {
   image?: string;
   course?: string;
   achievement?: string;
+  rating?: string;
+  category?: string;
+  categoryId?: number;
+  metric1Value?: string;
+  metric1Label?: string;
+  metric2Value?: string;
+  metric2Label?: string;
+  metric3Value?: string;
+  metric3Label?: string;
+}
+
+export interface SuccessStoryCategory {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  createdAt: string;
+}
+
+export interface CreateSuccessStoryCategoryBody {
+  name: string;
+  slug: string;
+  description?: string;
 }
 
 export interface Section {

@@ -14,6 +14,7 @@ export const branchesTable = pgTable("branches", {
   headName: text("head_name"),
   manualStudentCount: integer("manual_student_count").notNull().default(0),
   image: text("image"),
+  officeHours: text("office_hours"),
   isMain: boolean("is_main").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -23,6 +23,7 @@ const ensureBranchColumns = (() => {
         ADD COLUMN IF NOT EXISTS head_name text,
         ADD COLUMN IF NOT EXISTS manual_student_count integer NOT NULL DEFAULT 0,
         ADD COLUMN IF NOT EXISTS image text,
+        ADD COLUMN IF NOT EXISTS office_hours text,
         ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true
     `);
 

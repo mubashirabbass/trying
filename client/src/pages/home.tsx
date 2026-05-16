@@ -21,11 +21,13 @@ import {
   useListTestimonials,
   useListSuccessStories,
   useListBranches,
+  useListSuccessStoryCategories,
 } from "@workspace/api-client-react";
 import {
   getListCoursesQueryKey,
   getListTestimonialsQueryKey,
   getListSuccessStoriesQueryKey,
+  getListSuccessStoryCategoriesQueryKey,
 } from "@workspace/api-client-react";
 import {
   Clock,
@@ -156,6 +158,12 @@ export default function Home() {
   const [articles, setArticles] = useState<any[]>([]);
   const [faqs, setFaqs] = useState<any[]>([]);
 
+  const { data: categories } = useListSuccessStoryCategories({
+    query: { queryKey: getListSuccessStoryCategoriesQueryKey() },
+  });
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | "all">("all");
+
   useEffect(() => {
     fetchPublic("/api/articles").then(setArticles);
     fetchPublic("/api/faqs").then(setFaqs);
@@ -166,43 +174,59 @@ export default function Home() {
       id: 1,
       studentName: "M. Samam Amir",
       title: "eBay Store Owner",
-      achievement: "$5,000+",
       description: "I made my first $1,000 in just 6 weeks after completing the EBC program. The support and training quality is unmatched.",
-      rating: 5,
+      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=2000",
+      course: "EBC Mastery",
+      achievement: "$5,000+ Earnings",
+      rating: "5",
+      category: "eBay",
+      metric1Value: "$1,000",
+      metric1Label: "First Month",
+      metric2Value: "50+",
+      metric2Label: "Orders",
+      metric3Value: "100%",
+      metric3Label: "Growth"
     },
     {
       id: 2,
       studentName: "Ayesha Waseem",
-      title: "eBay Consultant",
-      achievement: "$500",
+      title: "eCommerce Consultant",
       description: "The practical training here is what made the difference. I now manage multiple international client stores with confidence.",
-      rating: 5,
+      image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=2000",
+      course: "Amazon FBA",
+      achievement: "Managed $50k Account",
+      rating: "5",
+      category: "Amazon",
+      metric1Value: "$50k",
+      metric1Label: "Managed",
+      metric2Value: "12",
+      metric2Label: "Clients",
+      metric3Value: "4.9",
+      metric3Label: "Rating"
     },
     {
       id: 3,
       studentName: "Madiha Sadaf",
-      title: "eBay Consultant",
-      achievement: "200,000+ PKR",
+      title: "Freelance Specialist",
       description: "Global College gave me the roadmap to financial independence through freelancing. I started with zero and now I'm here.",
-      rating: 5,
-    },
-    {
-      id: 4,
-      studentName: "Mubashara Liaqat",
-      title: "eBay Consultant",
-      achievement: "First 6-Figure",
-      description: "The ecosystem here is incredible. You don't just learn; you grow with a community of like-minded entrepreneurs.",
-      rating: 5,
-    },
-    {
-      id: 5,
-      studentName: "Muhammad Tayyab",
-      title: "eBay Store Owner",
-      achievement: "£ — Multi-Currency Earner",
-      description: "Mastering international markets was my goal. Global College made it a reality. I'm now earning in multiple currencies.",
-      rating: 5,
-    },
+      image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=2000",
+      course: "Freelance Mastery",
+      achievement: "Top Rated Seller",
+      rating: "5",
+      category: "Freelancing",
+      metric1Value: "200k",
+      metric1Label: "PKR/mo",
+      metric2Value: "5.0",
+      metric2Label: "Feedback",
+      metric3Value: "80+",
+      metric3Label: "Projects"
+    }
   ];
+
+  const filteredStories = displaySuccessStories.filter((story: any) => {
+    if (selectedCategoryId === "all") return true;
+    return story.categoryId === selectedCategoryId;
+  });
 
   const [activeAchiever, setActiveAchiever] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -235,7 +259,8 @@ export default function Home() {
     query: { queryKey: ["home-branches"] },
   });
 
-  const displayBranches = (branches || []).filter((branch: any) => branch.isActive !== false);
+  const displayBranches = (branches || []).filter((branch: any) => branch.isActive !== false && !branch.isMain);
+  const mainCampus = branches?.find((b: any) => b.isMain);
 
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -266,6 +291,22 @@ export default function Home() {
   };
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const branchScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollBranches = (direction: "left" | "right") => {
+    if (branchScrollRef.current) {
+      const { scrollLeft, clientWidth } = branchScrollRef.current;
+      const scrollAmount = clientWidth > 600 ? 400 : 300;
+      const scrollTo = direction === "left" 
+        ? scrollLeft - scrollAmount 
+        : scrollLeft + scrollAmount;
+      
+      branchScrollRef.current.scrollTo({
+        left: scrollTo,
+        behavior: "smooth"
+      });
+    }
+  };
 
   const displayCourses = (courses && courses.length > 0) ? courses : [
     {
@@ -606,218 +647,254 @@ export default function Home() {
       <section className="py-24 bg-white relative overflow-hidden">
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black text-[#1a47b8] mb-4">
-              Physical Incubator Network
+            <h2 className="text-4xl md:text-5xl font-bold text-[#1a47b8] mb-4">
+              Explore Our <span className="text-emerald-600">Sub Campuses</span>
             </h2>
-            <p className="text-gray-600 text-lg max-w-3xl mx-auto leading-relaxed">
-              Join our thriving community of entrepreneurs at these established locations
+            <p className="text-gray-500 text-lg max-w-3xl mx-auto font-medium">
+              Connecting students across Pakistan with world-class facilities
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {displayBranches.map((branch: any) => (
-              <Card key={branch.id} className="overflow-hidden border-gray-100 shadow-sm hover:shadow-xl transition-all duration-500 rounded-3xl group border-0 ring-1 ring-gray-100 bg-white flex flex-col h-full">
-                {/* Compact Image/Header Area */}
-                <div className="relative h-32 bg-slate-100 overflow-hidden">
-                  {branch.image ? (
-                    <img src={branch.image} alt={branch.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-blue-50 to-emerald-50 flex items-center justify-center">
-                      <Globe className="h-10 w-10 text-blue-200" />
+          <div className="relative group/branches px-12">
+            {/* Scroll Buttons - Always Visible */}
+            <div className="absolute top-1/2 left-0 -translate-y-1/2 z-20">
+              <Button
+                onClick={() => scrollBranches("left")}
+                variant="outline"
+                size="icon"
+                className="h-14 w-14 rounded-full bg-white shadow-2xl border-gray-100 text-gray-400 hover:bg-primary hover:text-white transition-all active:scale-95 flex items-center justify-center"
+              >
+                <ChevronLeft className="h-8 w-8" />
+              </Button>
+            </div>
+
+            <div className="absolute top-1/2 right-0 -translate-y-1/2 z-20">
+              <Button
+                onClick={() => scrollBranches("right")}
+                variant="outline"
+                size="icon"
+                className="h-14 w-14 rounded-full bg-white shadow-2xl border-gray-100 text-gray-400 hover:bg-primary hover:text-white transition-all active:scale-95 flex items-center justify-center"
+              >
+                <ChevronRight className="h-8 w-8" />
+              </Button>
+            </div>
+
+            <div 
+              ref={branchScrollRef}
+              className="flex gap-6 overflow-x-auto scroll-smooth snap-x snap-mandatory hide-scrollbar pb-8 px-2"
+            >
+              {displayBranches.map((branch: any) => (
+                <div key={branch.id} className="min-w-[280px] sm:min-w-[320px] md:min-w-[350px] snap-center">
+                  <Card className="overflow-hidden border-gray-100 shadow-sm hover:shadow-xl transition-all duration-500 rounded-3xl group border-0 ring-1 ring-gray-100 bg-white flex flex-col h-[400px]">
+                    {/* Compact Image/Header Area */}
+                    <div className="relative h-32 bg-slate-100 overflow-hidden">
+                      {branch.image ? (
+                        <img src={branch.image} alt={branch.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-blue-50 to-emerald-50 flex items-center justify-center">
+                          <Globe className="h-10 w-10 text-blue-200" />
+                        </div>
+                      )}
+                      <Badge className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-emerald-600 border-none px-2 py-0.5 text-[10px] font-black uppercase shadow-sm pointer-events-none">
+                        Active
+                      </Badge>
                     </div>
-                  )}
-                  <Badge className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-emerald-600 border-none px-2 py-0.5 text-[10px] font-black uppercase shadow-sm pointer-events-none">
-                    {branch.isActive ? "Active" : "Inactive"}
-                  </Badge>
+
+                    <CardContent className="p-5 flex-1 flex flex-col">
+                      <div className="mb-4">
+                        <h3 className="text-base font-bold text-gray-900 line-clamp-1 group-hover:text-primary transition-colors">{branch.name}</h3>
+                        <div className="flex items-center gap-1.5 text-gray-400 mt-1.5">
+                          <MapPin className="h-3 w-3 text-emerald-500" />
+                          <span className="text-[10px] font-semibold uppercase tracking-wider">{branch.city || "Pakistan"}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 mb-5 flex-1">
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                          <div className="bg-slate-50/50 p-2.5 rounded-2xl border border-gray-50/50">
+                            <p className="text-[9px] text-gray-400 font-semibold uppercase tracking-tight">Students</p>
+                            <p className="text-sm font-bold text-emerald-600">{branch.studentCount || 0}</p>
+                          </div>
+                          <div className="bg-slate-50/50 p-2.5 rounded-2xl border border-gray-50/50">
+                            <p className="text-[9px] text-gray-400 font-semibold uppercase tracking-tight">Leader</p>
+                            <p className="text-sm font-bold text-gray-900 truncate">{branch.headName?.split(' ')[0] || "TBA"}</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5 text-[10px] text-gray-500 font-medium">
+                          <div className="flex items-start gap-2">
+                            <MapPin className="h-3 w-3 shrink-0 text-slate-300" />
+                            <span className="line-clamp-1 italic">{branch.address}</span>
+                          </div>
+                          {branch.phone && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-3 w-3 shrink-0 text-slate-300" />
+                              <span>{branch.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-auto pt-3 border-t border-gray-50 flex items-center justify-between">
+                        <div className="flex gap-1.5">
+                          <Link href={`/incubators/${branch.id}`}>
+                            <Button className="h-8 px-4 rounded-lg bg-slate-900 hover:bg-primary text-white font-black text-[10px] shadow-sm transition-all border-0">
+                              Details
+                            </Button>
+                          </Link>
+                          {branch.mapUrl && (
+                            <a href={branch.mapUrl} target="_blank" rel="noreferrer" className="h-8 w-8 rounded-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          )}
+                        </div>
+                        <Link href="/register">
+                          <Button variant="outline" className="h-8 px-4 rounded-lg border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-black text-[10px] transition-colors">
+                            Apply
+                          </Button>
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-
-                <CardContent className="p-4 flex-1 flex flex-col">
-                  <div className="mb-3">
-                    <h3 className="text-base font-black text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">{branch.name}</h3>
-                    <div className="flex items-center gap-1.5 text-gray-400 mt-1">
-                      <MapPin className="h-3 w-3 text-primary" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">{branch.city || "Pakistan"}</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 mb-4 flex-1">
-                    {/* Key Metrics */}
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      <div className="bg-slate-50 p-2 rounded-xl border border-gray-50">
-                        <p className="text-[9px] text-gray-400 font-bold uppercase">Students</p>
-                        <p className="text-xs font-black text-emerald-600">{branch.studentCount || 0}</p>
-                      </div>
-                      <div className="bg-slate-50 p-2 rounded-xl border border-gray-50">
-                        <p className="text-[9px] text-gray-400 font-bold uppercase">Leader</p>
-                        <p className="text-xs font-black text-gray-900 truncate">{branch.headName?.split(' ')[0] || "TBA"}</p>
-                      </div>
-                    </div>
-
-                    {/* Detailed Info */}
-                    <div className="space-y-1.5 text-[10px] text-gray-500 font-medium">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-3 w-3 shrink-0 text-slate-300" />
-                        <span className="line-clamp-1 italic">{branch.address}</span>
-                      </div>
-                      {branch.phone && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="h-3 w-3 shrink-0 text-slate-300" />
-                          <span>{branch.phone}</span>
-                        </div>
-                      )}
-                      {branch.email && (
-                        <div className="flex items-center gap-2">
-                          <Mail className="h-3 w-3 shrink-0 text-slate-300" />
-                          <span className="truncate">{branch.email}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-auto pt-3 border-t border-gray-50 flex items-center justify-between">
-                    <div className="flex gap-1.5">
-                      <Link href={`/incubators/${branch.id}`}>
-                        <Button className="h-8 px-4 rounded-lg bg-slate-900 hover:bg-primary text-white font-black text-[10px] shadow-sm transition-all border-0">
-                          Details
-                        </Button>
-                      </Link>
-                      {branch.mapUrl && (
-                        <a href={branch.mapUrl} target="_blank" rel="noreferrer" className="h-8 w-8 rounded-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
-                      )}
-                    </div>
-                    <Link href="/register">
-                      <Button variant="outline" className="h-8 px-4 rounded-lg border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-black text-[10px] transition-colors">
-                        Apply
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </section>
       {/* ────────────────────────────────────────────────────────────────── */}
 
-      {/* ── Edu-Sphere Achievers (Success Stories Redesign) ─────────────── */}
+      {/* ── Success Stories Section (Empowerers Style) ─────────────────── */}
       <section className="py-24 bg-slate-50 relative overflow-hidden">
         <div className="absolute top-1/4 right-0 w-64 h-64 bg-blue-100/40 rounded-full blur-3xl -z-10" />
         <div className="absolute bottom-1/4 left-0 w-96 h-96 bg-emerald-100/40 rounded-full blur-3xl -z-10" />
 
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
-              Global College Achievers
+            <Badge className="mb-4 bg-emerald-50 text-emerald-700 border-emerald-100 px-4 py-1.5 text-sm font-bold rounded-full">
+              Real Results, Real Stories
+            </Badge>
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight">
+              Our Students <span className="text-emerald-600">Success Stories</span>
             </h2>
-            <p className="text-gray-500 text-lg font-medium">
-              Our 6 Figures & 7 Figures Club Students
+            <p className="text-gray-500 text-lg max-w-2xl mx-auto leading-relaxed font-medium">
+              See how our practical training programs are changing lives across Pakistan and beyond.
             </p>
           </div>
 
-          <div className="max-w-6xl mx-auto">
-            <div className="relative group/achievers">
-              {/* Featured Achiever Card */}
-              <div className="bg-white/80 backdrop-blur-md rounded-[2.5rem] p-8 md:p-16 shadow-2xl shadow-blue-900/5 border border-white relative overflow-hidden min-h-[500px] flex items-center">
-                <div className="flex flex-col lg:flex-row items-center gap-12 w-full transition-all duration-700">
-                  {/* Left Side: Content */}
-                  <div className="flex-1 text-left animate-in fade-in slide-in-from-left duration-700" key={activeAchiever}>
-                    <div className="flex gap-1 mb-6">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+          {/* Category Filters */}
+          <div className="flex flex-wrap justify-center gap-3 mb-16">
+            <Button
+              variant={selectedCategoryId === "all" ? "default" : "outline"}
+              onClick={() => setSelectedCategoryId("all")}
+              className={`rounded-2xl px-8 h-12 font-black transition-all ${
+                selectedCategoryId === "all" 
+                  ? "bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200" 
+                  : "border-gray-200 text-gray-500 hover:border-emerald-600 hover:text-emerald-600"
+              }`}
+            >
+              All Stories
+            </Button>
+            {categories?.map((cat: any) => (
+              <Button
+                key={cat.id}
+                variant={selectedCategoryId === cat.id ? "default" : "outline"}
+                onClick={() => setSelectedCategoryId(cat.id)}
+                className={`rounded-2xl px-8 h-12 font-black transition-all ${
+                  selectedCategoryId === cat.id 
+                    ? "bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200" 
+                    : "border-gray-200 text-gray-500 hover:border-emerald-600 hover:text-emerald-600"
+                }`}
+              >
+                {cat.name}
+              </Button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+            {filteredStories.map((story: any) => (
+              <div key={story.id} className="group">
+                <Card className="overflow-hidden rounded-[2.5rem] border border-gray-100 bg-white shadow-sm hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 flex flex-col h-full">
+                  {/* Image Header with Badge */}
+                  <div className="relative h-64 overflow-hidden">
+                    {story.image ? (
+                      <img 
+                        src={story.image} 
+                        alt={story.studentName} 
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-300">
+                        <Users className="h-20 w-20" />
+                      </div>
+                    )}
+                    <div className="absolute top-6 left-6">
+                      <Badge className="bg-emerald-600 text-white border-0 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-lg">
+                        {categories?.find((c: any) => c.id === story.categoryId)?.name || story.category || "Success Story"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <CardContent className="p-8 flex-1 flex flex-col">
+                    <div className="flex items-center gap-1 mb-4">
+                      {[...Array(parseInt(story.rating || "5"))].map((_, i) => (
+                        <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
                       ))}
                     </div>
-                    
-                    <div className="relative">
-                      <Quote className="h-12 w-12 text-blue-100 absolute -top-6 -left-6 -z-10" />
-                      <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight mb-8">
-                        "{ (displaySuccessStories[activeAchiever] as any)?.description || (displaySuccessStories[activeAchiever] as any)?.story || "Success story coming soon..." }"
-                      </h3>
-                    </div>
 
-                    <div className="mb-6">
-                      <p className="text-2xl font-black text-gray-900">{ (displaySuccessStories[activeAchiever] as any)?.studentName || (displaySuccessStories[activeAchiever] as any)?.name || "Global Student" }</p>
-                      <p className="text-gray-500 font-bold">{ (displaySuccessStories[activeAchiever] as any)?.title || (displaySuccessStories[activeAchiever] as any)?.role || "Achiever" }</p>
-                    </div>
+                    <h3 className="text-2xl font-black text-gray-900 mb-2 group-hover:text-emerald-600 transition-colors">
+                      {story.studentName}
+                    </h3>
+                    <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px] mb-6">
+                      {story.title}
+                    </p>
 
-                    <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 px-4 py-2 text-base font-black rounded-xl pointer-events-none">
-                      💰 { (displaySuccessStories[activeAchiever] as any)?.achievement || (displaySuccessStories[activeAchiever] as any)?.income || "Verified Earnings" }
-                    </Badge>
-                  </div>
+                    <p className="text-gray-500 font-medium leading-relaxed mb-8 line-clamp-3 text-sm italic">
+                      "{story.description}"
+                    </p>
 
-                  {/* Right Side: Visual */}
-                  <div className="w-full lg:w-[400px] relative animate-in fade-in zoom-in duration-700" key={`img-${activeAchiever}`}>
-                    <div className="aspect-[1/1] rounded-full bg-gray-200 overflow-hidden shadow-2xl border-[12px] border-white relative">
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10" />
-                      <div className="w-full h-full bg-slate-300 flex items-center justify-center">
-                        <Users className="h-24 w-24 text-white/50" />
+                    {/* Performance Metrics Grid */}
+                    <div className="grid grid-cols-3 gap-3 pt-6 border-t border-gray-50 mt-auto">
+                      <div className="text-center">
+                        <p className="text-lg font-black text-gray-900 leading-tight">
+                          {story.metric1Value || "-"}
+                        </p>
+                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">
+                          {story.metric1Label || "Metric"}
+                        </p>
+                      </div>
+                      <div className="text-center border-x border-gray-50">
+                        <p className="text-lg font-black text-emerald-600 leading-tight">
+                          {story.metric2Value || "-"}
+                        </p>
+                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">
+                          {story.metric2Label || "Metric"}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-lg font-black text-gray-900 leading-tight">
+                          {story.metric3Value || "-"}
+                        </p>
+                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">
+                          {story.metric3Label || "Metric"}
+                        </p>
                       </div>
                     </div>
-                    <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-blue-400/20 rounded-full blur-2xl -z-10" />
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               </div>
+            ))}
+          </div>
 
-              {/* Navigation Controls */}
-              <div className="flex items-center justify-center gap-6 mt-12 mb-16">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={() => setActiveAchiever((prev) => (prev - 1 + displaySuccessStories.length) % displaySuccessStories.length)}
-                  className="rounded-full h-12 w-12 border-gray-200 bg-white shadow-lg hover:bg-primary hover:text-white transition-all"
-                >
-                  <ChevronLeft className="h-6 w-6" />
-                </Button>
-                
-                <div className="flex gap-3">
-                  {displaySuccessStories.map((_, i) => (
-                    <div 
-                      key={i} 
-                      onClick={() => setActiveAchiever(i)}
-                      className={`h-3 w-3 rounded-full transition-all duration-500 cursor-pointer ${i === activeAchiever ? 'bg-emerald-500 w-10' : 'bg-gray-200 hover:bg-gray-300'}`} 
-                    />
-                  ))}
-                </div>
-
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={() => setActiveAchiever((prev) => (prev + 1) % displaySuccessStories.length)}
-                  className="rounded-full h-12 w-12 border-gray-200 bg-white shadow-lg hover:bg-primary hover:text-white transition-all"
-                >
-                  <ChevronRight className="h-6 w-6" />
-                </Button>
-              </div>
-
-              {/* ── Thumbnail Gallery (User Requested Section) ────────────────── */}
-              <div className="w-full overflow-x-auto hide-scrollbar pb-4 pt-2">
-                <div className="flex items-center justify-center gap-6 min-w-max px-4 mx-auto">
-                  {displaySuccessStories.map((achiever, i) => (
-                    <div 
-                      key={achiever.id}
-                      onClick={() => setActiveAchiever(i)}
-                      className={`group cursor-pointer transition-all duration-500 w-52 p-6 rounded-2xl border-2 flex flex-col items-center text-center ${
-                        i === activeAchiever 
-                        ? 'border-emerald-500 bg-emerald-50/30 shadow-lg scale-105' 
-                        : 'border-transparent bg-white shadow-sm hover:shadow-md grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:scale-105'
-                      }`}
-                    >
-                      <div className={`h-20 w-20 rounded-full mb-4 overflow-hidden border-4 transition-colors ${i === activeAchiever ? 'border-emerald-500' : 'border-gray-100'}`}>
-                        <div className="w-full h-full bg-slate-200 flex items-center justify-center">
-                          <Users className="h-8 w-8 text-slate-400" />
-                        </div>
-                      </div>
-                      <h4 className="font-black text-gray-900 text-sm mb-1">{(achiever as any).studentName || (achiever as any).name}</h4>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">{(achiever as any).title || (achiever as any).role}</p>
-                      <p className={`text-xs font-black transition-colors ${i === activeAchiever ? 'text-emerald-600' : 'text-gray-400'}`}>
-                        {((achiever as any).achievement || (achiever as any).income || "").split('-')[0]}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+          <div className="text-center mt-16">
+            <Link href="/success-stories">
+              <Button
+                variant="outline"
+                className="border-2 border-emerald-600 text-emerald-600 font-black rounded-2xl h-14 px-10 text-base hover:bg-emerald-50 transition-all"
+              >
+                View More Success Stories <ChevronRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -954,7 +1031,7 @@ export default function Home() {
       <section className="py-24 bg-gray-50/50">
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
               Frequently Asked <span className="text-emerald-600">Questions</span>
             </h2>
             <p className="text-gray-500 text-lg max-w-2xl mx-auto">
@@ -970,10 +1047,10 @@ export default function Home() {
                   value={`item-${i}`}
                   className="bg-white border-gray-100 rounded-2xl shadow-sm border px-6 hover:shadow-md transition-all data-[state=open]:ring-2 data-[state=open]:ring-emerald-500/20 data-[state=open]:border-emerald-500"
                 >
-                  <AccordionTrigger className="text-lg font-black text-gray-900 hover:no-underline py-6 text-left">
+                  <AccordionTrigger className="text-base font-semibold text-gray-900 hover:no-underline py-5 text-left">
                     {faq.question}
                   </AccordionTrigger>
-                  <AccordionContent className="text-gray-500 text-base leading-relaxed pb-6">
+                  <AccordionContent className="text-gray-500 text-sm leading-relaxed pb-5">
                     {faq.answer}
                   </AccordionContent>
                 </AccordionItem>
@@ -997,10 +1074,10 @@ export default function Home() {
                     value={`item-${i}`}
                     className="bg-white border-gray-100 rounded-2xl shadow-sm border px-6 hover:shadow-md transition-all"
                   >
-                    <AccordionTrigger className="text-lg font-black text-gray-900 hover:no-underline py-6 text-left">
+                    <AccordionTrigger className="text-base font-semibold text-gray-900 hover:no-underline py-5 text-left">
                       {faq.q}
                     </AccordionTrigger>
-                    <AccordionContent className="text-gray-500 text-base leading-relaxed pb-6">
+                    <AccordionContent className="text-gray-500 text-sm leading-relaxed pb-5">
                       {faq.a}
                     </AccordionContent>
                   </AccordionItem>
@@ -1013,7 +1090,7 @@ export default function Home() {
             <p className="text-gray-500 font-bold mb-6">
               Still have questions? Our experts are here to help!
             </p>
-            <a href="https://wa.me/923001234567" target="_blank" rel="noreferrer">
+            <a href="https://wa.me/923019890076?text=I%20have%20a%20question%20about%20your%20institute" target="_blank" rel="noreferrer">
               <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-10 h-14 rounded-2xl gap-2 shadow-lg shadow-emerald-500/20">
                 Ask Our Experts <MessageCircle className="h-5 w-5" />
               </Button>
@@ -1032,7 +1109,7 @@ export default function Home() {
                 Visit Our Main Campus
               </Badge>
               <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-8 tracking-tight">
-                Global College of Computer Science, <span className="text-primary">18 Hazari</span>
+                {mainCampus?.name || "Global College of Computer Science, 18 Hazari"}
               </h2>
               <div className="space-y-8">
                 <div className="flex items-start gap-6 group">
@@ -1041,9 +1118,8 @@ export default function Home() {
                   </div>
                   <div>
                     <h4 className="text-lg font-black text-gray-900 mb-1">Campus Address</h4>
-                    <p className="text-gray-500 font-medium leading-relaxed">
-                      18 Hazari, Jhang District, <br/>
-                      Punjab, Pakistan.
+                    <p className="text-gray-500 font-medium leading-relaxed whitespace-pre-line">
+                      {mainCampus?.address || "18 Hazari, Jhang District, \nPunjab, Pakistan."}
                     </p>
                   </div>
                 </div>
@@ -1054,9 +1130,8 @@ export default function Home() {
                   </div>
                   <div>
                     <h4 className="text-lg font-black text-gray-900 mb-1">Office Hours</h4>
-                    <p className="text-gray-500 font-medium leading-relaxed">
-                      Monday - Saturday: 08:00 AM - 04:00 PM <br/>
-                      Sunday: Closed
+                    <p className="text-gray-500 font-medium leading-relaxed whitespace-pre-line">
+                      {mainCampus?.officeHours || "Monday - Saturday: 08:00 AM - 04:00 PM \nSunday: Closed"}
                     </p>
                   </div>
                 </div>
@@ -1068,15 +1143,15 @@ export default function Home() {
                   <div>
                     <h4 className="text-lg font-black text-gray-900 mb-1">Direct Contact</h4>
                     <p className="text-gray-500 font-medium leading-relaxed">
-                      Main Desk: +92 301 989 0076 <br/>
-                      Email: info@globalcollege.edu.pk
+                      Main Desk: {mainCampus?.phone || "+92 301 989 0076"} <br/>
+                      Email: {mainCampus?.email || "info@globalcollege.edu.pk"}
                     </p>
                   </div>
                 </div>
               </div>
 
               <div className="mt-12">
-                <a href="https://www.google.com/maps/place/GLOBAL+COLLEGE+OF+COMPUTER+SCIENCE+18+HAZARI+JHANG/@31.1619472,72.0953338,17z" target="_blank" rel="noreferrer">
+                <a href={mainCampus?.mapUrl || "https://www.google.com/maps/place/GLOBAL+COLLEGE+OF+COMPUTER+SCIENCE+18+HAZARI+JHANG/@31.1619472,72.0953338,17z"} target="_blank" rel="noreferrer">
                   <Button className="h-14 px-8 rounded-2xl bg-slate-900 hover:bg-black text-white font-black flex items-center gap-3 transition-all">
                     Get Directions <ChevronRight className="h-5 w-5" />
                   </Button>

@@ -18,5 +18,6 @@ export interface CreateBranchBody {
   headName?: string;
   manualStudentCount?: number;
   image?: string;
+  officeHours?: string;
   isActive?: boolean;
 }

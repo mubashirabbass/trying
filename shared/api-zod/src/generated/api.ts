@@ -1402,7 +1402,25 @@ export const CreateSuccessStoryBody = zod.object({
   "description": zod.string(),
   "image": zod.string().optional(),
   "course": zod.string().optional(),
-  "achievement": zod.string().optional()
+  "achievement": zod.string().optional(),
+  "rating": zod.string().optional(),
+  "category": zod.string().optional(),
+  "metric1Value": zod.string().optional(),
+  "metric1Label": zod.string().optional(),
+  "metric2Value": zod.string().optional(),
+  "metric2Label": zod.string().optional(),
+  "metric3Value": zod.string().optional(),
+  "metric3Label": zod.string().optional(),
+  "categoryId": zod.number().optional()
+})
+
+/**
+ * @summary Create success story category (admin)
+ */
+export const CreateSuccessStoryCategoryBody = zod.object({
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().optional()
 })
 
 
@@ -1451,6 +1469,7 @@ export const CreateBranchBody = zod.object({
   "headName": zod.string().optional(),
   "manualStudentCount": zod.number().optional(),
   "image": zod.string().optional(),
+  "officeHours": zod.string().optional(),
   "isActive": zod.boolean().optional()
 })
 
@@ -1474,6 +1493,7 @@ export const UpdateBranchBody = zod.object({
   "headName": zod.string().optional(),
   "manualStudentCount": zod.number().optional(),
   "image": zod.string().optional(),
+  "officeHours": zod.string().optional(),
   "isActive": zod.boolean().optional()
 })
 

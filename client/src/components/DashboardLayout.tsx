@@ -153,6 +153,7 @@ const ADMIN_NAV_GROUPS = [
     label: "CONTENT",
     items: [
       { name: "Courses", path: "/admin/courses", icon: BookOpen },
+      { name: "FAQs", path: "/admin/faqs", icon: ClipboardList },
       { name: "Success Stories", path: "/admin/success-stories", icon: Award },
       { name: "Home CMS", path: "/admin/home-cms", icon: LayoutDashboard },
       { name: "Testimonials", path: "/admin/testimonials", icon: Star },

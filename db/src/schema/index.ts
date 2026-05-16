@@ -18,3 +18,4 @@ export * from "./video-access-logs";
 export * from "./settings";
 export * from "./faqs";
 export * from "./articles";
+export * from "./success-story-categories";

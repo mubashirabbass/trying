@@ -19,6 +19,7 @@ export interface Branch {
   headName?: string;
   manualStudentCount?: number;
   image?: string;
+  officeHours?: string;
   isActive?: boolean;
   createdAt: string;
 }

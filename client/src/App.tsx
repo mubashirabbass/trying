@@ -78,6 +78,7 @@ import AdminForum from "@/pages/admin/forum";
 import AdminMessages from "@/pages/admin/messages";
 import AdminLeaderboard from "@/pages/admin/leaderboard";
 import AdminHomeCMS from "@/pages/admin/home-cms";
+import AdminFAQs from "@/pages/admin/faqs";
 
 const queryClient = new QueryClient();
 
@@ -272,6 +273,9 @@ function Router() {
         </Route>
         <Route path="/admin/home-cms">
           <ProtectedRoute component={AdminHomeCMS} />
+        </Route>
+        <Route path="/admin/faqs">
+          <ProtectedRoute component={AdminFAQs} />
         </Route>
 
         <Route component={NotFound} />

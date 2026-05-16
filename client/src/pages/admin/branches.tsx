@@ -42,6 +42,8 @@ export default function AdminBranches() {
     headName: "",
     manualStudentCount: 0,
     image: "",
+    officeHours: "",
+    isMain: false,
     isActive: true,
   });
 
@@ -101,6 +103,8 @@ export default function AdminBranches() {
       headName: branch.headName || "",
       manualStudentCount: branch.manualStudentCount || 0,
       image: branch.image || "",
+      officeHours: branch.officeHours || "",
+      isMain: branch.isMain || false,
       isActive: branch.isActive !== false,
     });
     setOpen(true);
@@ -110,7 +114,7 @@ export default function AdminBranches() {
     setOpen(false);
     setEditingBranch(null);
     setIsUploadingImage(false);
-    setForm({ name: "", address: "", city: "", phone: "", email: "", mapUrl: "", description: "", headName: "", manualStudentCount: 0, image: "", isActive: true });
+    setForm({ name: "", address: "", city: "", phone: "", email: "", mapUrl: "", description: "", headName: "", manualStudentCount: 0, image: "", officeHours: "", isMain: false, isActive: true });
   };
 
   const handleImageUpload = async (file: File | null) => {
@@ -189,7 +193,7 @@ export default function AdminBranches() {
                     placeholder="e.g. Lahore Main Campus"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="city">City *</Label>
                     <Input
@@ -313,6 +317,27 @@ export default function AdminBranches() {
                     placeholder="e.g. Prof. John Doe"
                   />
                 </div>
+                {/* Fixed layout: Toggle is now inside the grid */}
+                <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                  <div>
+                    <Label htmlFor="isMain" className="text-primary font-bold">Main Campus</Label>
+                    <p className="text-xs text-gray-500 mt-0.5">Designate this as the primary campus shown in the map section of the home page.</p>
+                  </div>
+                  <Switch
+                    id="isMain"
+                    checked={form.isMain}
+                    onCheckedChange={(checked) => setForm({ ...form, isMain: checked })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="officeHours">Office Hours</Label>
+                  <Input
+                    id="officeHours"
+                    value={form.officeHours}
+                    onChange={(e) => setForm({ ...form, officeHours: e.target.value })}
+                    placeholder="e.g. Mon-Sat: 8AM-4PM, Sun: Closed"
+                  />
+                </div>
                 <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
                   <div>
                     <Label htmlFor="isActive">Show on Website</Label>
@@ -324,7 +349,7 @@ export default function AdminBranches() {
                     onCheckedChange={(checked) => setForm({ ...form, isActive: checked })}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="manualStudentCount">Additional Students (Manual)</Label>
                     <Input
@@ -395,10 +420,15 @@ export default function AdminBranches() {
                     <ImageIcon className="h-12 w-12" />
                   </div>
                 )}
-                <div className="absolute left-4 top-4">
+                <div className="absolute left-4 top-4 flex flex-col gap-2">
                   <Badge className={branch.isActive === false ? "bg-slate-900/80 text-white border-0" : "bg-emerald-600 text-white border-0"}>
                     {branch.isActive === false ? "Hidden" : "Live"}
                   </Badge>
+                  {branch.isMain && (
+                    <Badge className="bg-primary text-white border-0">
+                      Main Campus
+                    </Badge>
+                  )}
                 </div>
               </div>
               <CardHeader className="pb-4">
