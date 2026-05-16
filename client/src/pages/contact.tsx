@@ -43,7 +43,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Main Campus</h3>
-                  <p className="text-gray-600 mt-1">123 Education Street, Tech Block<br />Lahore, Pakistan</p>
+                  <p className="text-gray-600 mt-1">18 Hazari, Jhang District,<br />Punjab, Pakistan</p>
                 </div>
               </div>
               
@@ -53,7 +53,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Phone & WhatsApp</h3>
-                  <p className="text-gray-600 mt-1">+92 300 1234567<br />+92 42 34567890</p>
+                  <p className="text-gray-600 mt-1">+92 301 989 0076<br />+92 300 1234567</p>
                 </div>
               </div>
               
@@ -63,7 +63,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Email</h3>
-                  <p className="text-gray-600 mt-1">info@globalcollege.edu.pk<br />admissions@globalcollege.edu.pk</p>
+                  <p className="text-gray-600 mt-1">info@globalcollege.edu.pk<br />support@globalcollege.edu.pk</p>
                 </div>
               </div>
               
@@ -73,15 +73,15 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Office Hours</h3>
-                  <p className="text-gray-600 mt-1">Monday - Friday: 9:00 AM - 6:00 PM<br />Saturday: 9:00 AM - 2:00 PM</p>
+                  <p className="text-gray-600 mt-1">Monday - Saturday: 8:00 AM - 4:00 PM<br />Sunday: Closed</p>
                 </div>
               </div>
             </div>
             
-            {/* Map Embed Placeholder */}
-            <div className="mt-10 bg-gray-200 h-64 rounded-xl w-full flex items-center justify-center text-gray-500 overflow-hidden">
+            {/* Map Embed Section */}
+            <div className="mt-10 bg-gray-200 h-64 rounded-xl w-full flex items-center justify-center text-gray-500 overflow-hidden border">
               <iframe 
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1m3!1d108851.35374972106!2d74.26573783456565!3d31.50346328325785!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39190483e58107d9%3A0xc23abe6ccc7e2462!2sLahore%, %Punjab%, %Pakistan!5e0!3m2!1sen!2sus!4v1709228800000!5m2!1sen!2sus" 
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3403.220123456789!2d72.0953338!3d31.1619472!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39238334fa95cf0b%3A0x8d18e20da5992720!2sGLOBAL%20COLLEGE%20OF%20COMPUTER%20SCIENCE%2018%20HAZARI%20JHANG!5e0!3m2!1sen!2spk!4v1715830000000!5m2!1sen!2spk" 
                 width="100%" 
                 height="100%" 
                 style={{ border: 0 }} 

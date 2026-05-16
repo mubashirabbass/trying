@@ -12,6 +12,7 @@
  */
 import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
@@ -132,8 +133,8 @@ function StarRating({ rating }: { rating: number }) {
 export default function Home() {
   console.log("Home component rendering");
   const { data: courses } = useListCourses(
-    { featured: "true" },
-    { query: { queryKey: getListCoursesQueryKey({ featured: "true" }) } }
+    { featured: true },
+    { query: { queryKey: getListCoursesQueryKey({ featured: true }) } }
   );
 
   const { data: testimonials } = useListTestimonials({
@@ -147,42 +148,42 @@ export default function Home() {
   const displaySuccessStories = (successStories && successStories.length > 0) ? successStories : [
     {
       id: 1,
-      name: "M. Samam Amir",
-      role: "eBay Store Owner",
-      income: "$5,000+",
-      story: "I made my first $1,000 in just 6 weeks after completing the EBC program. The support and training quality is unmatched.",
+      studentName: "M. Samam Amir",
+      title: "eBay Store Owner",
+      achievement: "$5,000+",
+      description: "I made my first $1,000 in just 6 weeks after completing the EBC program. The support and training quality is unmatched.",
       rating: 5,
     },
     {
       id: 2,
-      name: "Ayesha Waseem",
-      role: "eBay Consultant",
-      income: "$500",
-      story: "The practical training here is what made the difference. I now manage multiple international client stores with confidence.",
+      studentName: "Ayesha Waseem",
+      title: "eBay Consultant",
+      achievement: "$500",
+      description: "The practical training here is what made the difference. I now manage multiple international client stores with confidence.",
       rating: 5,
     },
     {
       id: 3,
-      name: "Madiha Sadaf",
-      role: "eBay Consultant",
-      income: "200,000+ PKR",
-      story: "Global College gave me the roadmap to financial independence through freelancing. I started with zero and now I'm here.",
+      studentName: "Madiha Sadaf",
+      title: "eBay Consultant",
+      achievement: "200,000+ PKR",
+      description: "Global College gave me the roadmap to financial independence through freelancing. I started with zero and now I'm here.",
       rating: 5,
     },
     {
       id: 4,
-      name: "Mubashara Liaqat",
-      role: "eBay Consultant",
-      income: "First 6-Figure",
-      story: "The ecosystem here is incredible. You don't just learn; you grow with a community of like-minded entrepreneurs.",
+      studentName: "Mubashara Liaqat",
+      title: "eBay Consultant",
+      achievement: "First 6-Figure",
+      description: "The ecosystem here is incredible. You don't just learn; you grow with a community of like-minded entrepreneurs.",
       rating: 5,
     },
     {
       id: 5,
-      name: "Muhammad Tayyab",
-      role: "eBay Store Owner",
-      income: "£ — Multi-Currency Earner",
-      story: "Mastering international markets was my goal. Global College made it a reality. I'm now earning in multiple currencies.",
+      studentName: "Muhammad Tayyab",
+      title: "eBay Store Owner",
+      achievement: "£ — Multi-Currency Earner",
+      description: "Mastering international markets was my goal. Global College made it a reality. I'm now earning in multiple currencies.",
       rating: 5,
     },
   ];
@@ -197,6 +198,13 @@ export default function Home() {
     }, 5000); // Change every 5 seconds
     return () => clearInterval(interval);
   }, [displaySuccessStories.length]);
+
+  // Ensure activeAchiever is always in bounds when data changes
+  useEffect(() => {
+    if (activeAchiever >= displaySuccessStories.length) {
+      setActiveAchiever(0);
+    }
+  }, [displaySuccessStories.length, activeAchiever]);
 
   // Force play hero video
   useEffect(() => {
@@ -321,7 +329,7 @@ export default function Home() {
   return (
     <MainLayout>
       {/* ── Hero Section ──────────────────────────────────────────────────── */}
-        <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden snap-start scroll-mt-20">
+        <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
           {/* Video Background */}
           <video 
             ref={videoRef}
@@ -395,7 +403,7 @@ export default function Home() {
       </div>
 
       {/* ── Statistics Section (Clean White Style) ───────────────────────── */}
-      <section className="pt-4 pb-8 bg-slate-50 relative overflow-hidden snap-start scroll-mt-20">
+      <section className="pt-4 pb-8 bg-slate-50 relative overflow-hidden">
         <div className="w-full px-4 md:px-10 lg:px-16 relative z-10">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-5xl font-black text-gray-900 mb-6">
@@ -462,97 +470,78 @@ export default function Home() {
       </section>
 
       {/* ── Popular Courses ───────────────────────────────────────────────── */}
-      <section className="pt-12 pb-20 bg-gray-50 relative group snap-start scroll-mt-20">
+      <section className="pt-12 pb-20 bg-gray-50 relative group">
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
-              Popular Courses
+            <h2 className="text-3xl md:text-5xl font-black text-gray-900 mb-6">
+              Explore Our Top Courses
             </h2>
-            <p className="text-gray-500 max-w-2xl mx-auto">
-              Professionally designed courses crafted to help you land a job or
-              launch your freelancing career in record time.
+            <p className="text-gray-500 text-lg max-w-2xl mx-auto leading-relaxed">
+              Professional training programs designed by industry experts to help you master high-income digital skills and launch your career globally.
             </p>
           </div>
 
-          <div className="relative group/carousel px-20 -mx-4">
-            {/* Navigation Buttons - Shshifted further away */}
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 z-40 hidden lg:block">
-              <Button 
-                variant="outline" 
-                size="icon"
-                disabled={!canScrollLeft}
-                onClick={() => scroll("left")}
-                className={`rounded-full h-14 w-14 border-gray-200 bg-white shadow-xl transition-all hover:scale-110 ${!canScrollLeft ? 'opacity-20 cursor-not-allowed' : 'hover:bg-primary hover:text-white hover:border-primary'}`}
-              >
-                <ChevronLeft className="h-7 w-7" />
-              </Button>
-            </div>
-
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 z-40 hidden lg:block">
-              <Button 
-                variant="outline" 
-                size="icon"
-                disabled={!canScrollRight}
-                onClick={() => scroll("right")}
-                className={`rounded-full h-14 w-14 border-gray-200 bg-white shadow-xl transition-all hover:scale-110 ${!canScrollRight ? 'opacity-20 cursor-not-allowed' : 'hover:bg-primary hover:text-white hover:border-primary'}`}
-              >
-                <ChevronRight className="h-7 w-7" />
-              </Button>
-            </div>
-
-            <div 
-              ref={scrollRef}
-              onScroll={checkScroll}
-              className="flex gap-8 overflow-x-auto hide-scrollbar snap-x snap-mandatory pb-8"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {displayCourses.map((course: any) => {
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {displayCourses.slice(0, 3).map((course: any) => {
                 const gradient =
                   CATEGORY_COLORS[course.category] || CATEGORY_COLORS.Default;
                 return (
-                  <div key={course.id} className="min-w-[300px] md:min-w-[calc((100%-6rem)/4)] snap-start">
+                  <div key={course.id} className="group">
                     <Card
-                      className="overflow-hidden h-full hover:shadow-xl transition-all duration-300 group/card border-0 shadow-md"
+                      className="overflow-hidden h-full rounded-[2.5rem] border border-gray-100 bg-white shadow-sm hover:shadow-2xl hover:shadow-blue-900/10 transition-all duration-500 hover:-translate-y-2 group/card"
                     >
                       <div
-                        className={`h-48 bg-gradient-to-br ${gradient} relative flex items-center justify-center`}
+                        className={`h-56 bg-gradient-to-br ${gradient} relative flex items-center justify-center overflow-hidden`}
                       >
-                        <BookOpen className="h-16 w-16 text-white/30 group-hover/card:scale-110 transition-transform" />
-                        <div className="absolute top-3 left-3 flex gap-2">
-                          <Badge className="bg-white/20 text-white border-white/30 text-xs">
+                        {/* Animated Background Element */}
+                        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/card:opacity-100 transition-opacity duration-500" />
+                        
+                        <BookOpen className="h-20 w-20 text-white/30 group-hover/card:scale-110 transition-transform duration-500" />
+                        
+                        <div className="absolute top-6 left-6 flex flex-col gap-2">
+                          <Badge className="bg-white/20 backdrop-blur-md text-white border-white/30 text-[10px] font-black uppercase tracking-widest px-3 py-1">
                             {course.category}
                           </Badge>
                           {course.isFeatured && (
-                            <Badge className="bg-orange-500 text-white border-0 text-xs">
+                            <Badge className="bg-amber-400 text-gray-900 border-0 text-[10px] font-black uppercase tracking-widest px-3 py-1 shadow-lg">
                               ⭐ Featured
                             </Badge>
                           )}
                         </div>
                       </div>
 
-                      <CardContent className="p-6">
-                        <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2 min-h-[56px]">
+                      <CardContent className="p-8">
+                        <h3 className="text-2xl font-black text-gray-900 mb-4 group-hover/card:text-blue-600 transition-colors line-clamp-2">
                           {course.title}
                         </h3>
-                        <p className="text-sm text-gray-500 line-clamp-2 mb-6 h-10">
+                        <p className="text-gray-500 font-medium line-clamp-2 mb-8 text-sm leading-relaxed">
                           {course.description}
                         </p>
-                        <div className="flex items-center justify-between text-sm mb-6">
-                          <span className="flex items-center gap-1.5 text-gray-500 font-medium">
-                            <Clock className="h-4 w-4 text-primary" />
-                            {course.duration}
-                          </span>
-                          <span className="font-bold text-lg text-primary">
-                            {course.isFree ? (
-                              <span className="text-emerald-600">Free</span>
-                            ) : (
-                              `Rs. ${course.fee?.toLocaleString()}`
-                            )}
-                          </span>
+                        
+                        <div className="flex items-center justify-between pt-6 border-t border-gray-50">
+                          <div className="flex items-center gap-2 text-gray-400">
+                            <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center">
+                              <Clock className="h-4 w-4 text-blue-500" />
+                            </div>
+                            <span className="text-sm font-bold">{course.duration}</span>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-0.5">Investment</p>
+                            <p className="font-black text-xl text-gray-900">
+                              {course.isFree ? (
+                                <span className="text-emerald-600">Free</span>
+                              ) : (
+                                `Rs. ${course.fee?.toLocaleString()}`
+                              )}
+                            </p>
+                          </div>
                         </div>
+
                         <Link href={`/courses/${course.id}`}>
-                          <Button className="w-full bg-primary hover:bg-primary/90 h-12 text-base font-semibold rounded-xl">
+                          <Button className="w-full mt-8 bg-slate-900 hover:bg-primary text-white h-14 text-base font-black rounded-2xl shadow-xl shadow-slate-200 transition-all group/btn border-0">
                             View Details
+                            <ChevronRight className="ml-2 h-5 w-5 group-hover/btn:translate-x-1 transition-transform" />
                           </Button>
                         </Link>
                       </CardContent>
@@ -562,14 +551,13 @@ export default function Home() {
               })}
             </div>
           </div>
-          <div className="text-center mt-10">
+          <div className="text-center mt-16">
             <Link href="/courses">
               <Button
                 size="lg"
-                variant="outline"
-                className="border-primary text-primary hover:bg-primary hover:text-white rounded-xl h-14 px-10"
+                className="bg-primary hover:bg-primary/90 text-white font-black rounded-2xl h-16 px-12 text-lg shadow-2xl shadow-blue-500/20 transition-all hover:scale-105"
               >
-                View All Courses <ChevronRight className="ml-1 h-4 w-4" />
+                Explore All Courses <ChevronRight className="ml-2 h-6 w-6" />
               </Button>
             </Link>
           </div>
@@ -577,7 +565,7 @@ export default function Home() {
       </section>
 
       {/* ── Why Choose Us (Career Ecosystem Redesign) ───────────────────── */}
-      <section className="py-24 bg-white relative overflow-hidden snap-start scroll-mt-20">
+      <section className="py-24 bg-white relative overflow-hidden">
         {/* Background Accents */}
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-50 rounded-full blur-3xl -z-10" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-emerald-50 rounded-full blur-3xl -z-10" />
@@ -629,7 +617,8 @@ export default function Home() {
       </section>
 
 
-      <section className="py-24 bg-white relative overflow-hidden snap-start scroll-mt-20">
+      {/* ── Physical Incubator Network (Temporarily Hidden) ────────────────
+      <section className="py-24 bg-white relative overflow-hidden">
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black text-[#1a47b8] mb-4">
@@ -644,11 +633,9 @@ export default function Home() {
             {displayBranches.map((branch: any) => (
               <Card key={branch.id} className="overflow-hidden border-gray-100 shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl group border-0 shadow-sm ring-1 ring-gray-100">
                 <CardContent className="p-8">
-                  {/* Card Header: Icon and Title */}
                   <div className="flex items-start justify-between mb-8">
                     <div className="flex items-center gap-4">
                       <div className="h-16 w-16 rounded-2xl bg-gray-50 flex items-center justify-center border border-gray-100 shadow-sm group-hover:scale-110 transition-transform">
-                        {/* Placeholder for city-specific icon/image */}
                         <Globe className="h-8 w-8 text-blue-600" />
                       </div>
                       <div>
@@ -664,12 +651,10 @@ export default function Home() {
                     </Badge>
                   </div>
 
-                  {/* Description */}
                   <p className="text-gray-500 text-sm leading-relaxed mb-8 min-h-[40px]">
                     {branch.desc || "Empowering people with world-class skills and training."}
                   </p>
 
-                  {/* Info List */}
                   <div className="space-y-4 mb-10 bg-gray-50/50 p-6 rounded-2xl border border-gray-50">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-400 flex items-center gap-2">
@@ -691,7 +676,6 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Actions */}
                   <div className="space-y-4">
                     <Link href={`/incubators/${branch.id}`}>
                       <Button className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#10b981] to-[#3b82f6] hover:from-[#059669] hover:to-[#2563eb] text-white font-black text-base shadow-lg shadow-blue-500/10 flex items-center justify-center gap-2 group/btn border-0">
@@ -711,9 +695,10 @@ export default function Home() {
           </div>
         </div>
       </section>
+      ────────────────────────────────────────────────────────────────── */}
 
       {/* ── Edu-Sphere Achievers (Success Stories Redesign) ─────────────── */}
-      <section className="py-24 bg-slate-50 relative overflow-hidden snap-start scroll-mt-20">
+      <section className="py-24 bg-slate-50 relative overflow-hidden">
         <div className="absolute top-1/4 right-0 w-64 h-64 bg-blue-100/40 rounded-full blur-3xl -z-10" />
         <div className="absolute bottom-1/4 left-0 w-96 h-96 bg-emerald-100/40 rounded-full blur-3xl -z-10" />
 
@@ -743,17 +728,17 @@ export default function Home() {
                     <div className="relative">
                       <Quote className="h-12 w-12 text-blue-100 absolute -top-6 -left-6 -z-10" />
                       <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight mb-8">
-                        "{displaySuccessStories[activeAchiever].story}"
+                        "{ (displaySuccessStories[activeAchiever] as any)?.description || (displaySuccessStories[activeAchiever] as any)?.story || "Success story coming soon..." }"
                       </h3>
                     </div>
 
                     <div className="mb-6">
-                      <p className="text-2xl font-black text-gray-900">{displaySuccessStories[activeAchiever].name}</p>
-                      <p className="text-gray-500 font-bold">{displaySuccessStories[activeAchiever].role}</p>
+                      <p className="text-2xl font-black text-gray-900">{ (displaySuccessStories[activeAchiever] as any)?.studentName || (displaySuccessStories[activeAchiever] as any)?.name || "Global Student" }</p>
+                      <p className="text-gray-500 font-bold">{ (displaySuccessStories[activeAchiever] as any)?.title || (displaySuccessStories[activeAchiever] as any)?.role || "Achiever" }</p>
                     </div>
 
                     <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 px-4 py-2 text-base font-black rounded-xl pointer-events-none">
-                      💰 {displaySuccessStories[activeAchiever].income}
+                      💰 { (displaySuccessStories[activeAchiever] as any)?.achievement || (displaySuccessStories[activeAchiever] as any)?.income || "Verified Earnings" }
                     </Badge>
                   </div>
 
@@ -819,10 +804,10 @@ export default function Home() {
                           <Users className="h-8 w-8 text-slate-400" />
                         </div>
                       </div>
-                      <h4 className="font-black text-gray-900 text-sm mb-1">{achiever.name}</h4>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">{achiever.role}</p>
+                      <h4 className="font-black text-gray-900 text-sm mb-1">{(achiever as any).studentName || (achiever as any).name}</h4>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">{(achiever as any).title || (achiever as any).role}</p>
                       <p className={`text-xs font-black transition-colors ${i === activeAchiever ? 'text-emerald-600' : 'text-gray-400'}`}>
-                        {achiever.income.split('-')[0]}
+                        {((achiever as any).achievement || (achiever as any).income || "").split('-')[0]}
                       </p>
                     </div>
                   ))}
@@ -834,7 +819,7 @@ export default function Home() {
       </section>
 
       {/* ── Recent Articles (Blog Section) ─────────────────────────────────── */}
-      <section className="py-24 bg-white snap-start scroll-mt-20">
+      <section className="py-24 bg-white">
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="flex items-center justify-between mb-12">
             <h2 className="text-3xl md:text-4xl font-black text-gray-900">
@@ -944,7 +929,7 @@ export default function Home() {
       </section>
 
       {/* ── FAQ Section ──────────────────────────────────────────────────── */}
-      <section className="py-24 bg-gray-50/50 snap-start scroll-mt-20">
+      <section className="py-24 bg-gray-50/50">
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
@@ -1012,8 +997,155 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Map Section ──────────────────────────────────────────────────── */}
+      <section className="py-24 bg-white">
+        <div className="w-full px-4 md:px-10 lg:px-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            {/* Map Info */}
+            <div className="max-w-xl">
+              <Badge className="mb-6 bg-blue-50 text-blue-700 border-blue-100 px-4 py-1.5 text-sm font-bold rounded-full">
+                Visit Our Main Campus
+              </Badge>
+              <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-8 tracking-tight">
+                Global College of Computer Science, <span className="text-primary">18 Hazari</span>
+              </h2>
+              <div className="space-y-8">
+                <div className="flex items-start gap-6 group">
+                  <div className="h-14 w-14 rounded-2xl bg-blue-50 flex items-center justify-center shrink-0 border border-blue-100 group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                    <MapPin className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-black text-gray-900 mb-1">Campus Address</h4>
+                    <p className="text-gray-500 font-medium leading-relaxed">
+                      18 Hazari, Jhang District, <br/>
+                      Punjab, Pakistan.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-6 group">
+                  <div className="h-14 w-14 rounded-2xl bg-emerald-50 flex items-center justify-center shrink-0 border border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300">
+                    <Clock className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-black text-gray-900 mb-1">Office Hours</h4>
+                    <p className="text-gray-500 font-medium leading-relaxed">
+                      Monday - Saturday: 08:00 AM - 04:00 PM <br/>
+                      Sunday: Closed
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-6 group">
+                  <div className="h-14 w-14 rounded-2xl bg-orange-50 flex items-center justify-center shrink-0 border border-orange-100 group-hover:bg-orange-600 group-hover:text-white transition-all duration-300">
+                    <Phone className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-black text-gray-900 mb-1">Direct Contact</h4>
+                    <p className="text-gray-500 font-medium leading-relaxed">
+                      Main Desk: +92 301 989 0076 <br/>
+                      Email: info@globalcollege.edu.pk
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-12">
+                <a href="https://www.google.com/maps/place/GLOBAL+COLLEGE+OF+COMPUTER+SCIENCE+18+HAZARI+JHANG/@31.1619472,72.0953338,17z" target="_blank" rel="noreferrer">
+                  <Button className="h-14 px-8 rounded-2xl bg-slate-900 hover:bg-black text-white font-black flex items-center gap-3 transition-all">
+                    Get Directions <ChevronRight className="h-5 w-5" />
+                  </Button>
+                </a>
+              </div>
+            </div>
+
+            {/* Google Map Iframe */}
+            <div className="relative group">
+              <div className="absolute -inset-4 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-[3rem] blur-2xl opacity-10 group-hover:opacity-20 transition-opacity duration-500" />
+              <div className="relative h-[600px] w-full rounded-[2.5rem] overflow-hidden border-8 border-white shadow-2xl">
+                <iframe
+                  title="Global College Main Campus Map"
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3403.220123456789!2d72.0953338!3d31.1619472!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39238334fa95cf0b%3A0x8d18e20da5992720!2sGLOBAL%20COLLEGE%20OF%20COMPUTER%20SCIENCE%2018%20HAZARI%20JHANG!5e0!3m2!1sen!2spk!4v1715830000000!5m2!1sen!2spk"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen={true}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                ></iframe>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Other Campuses Carousel ────────────────────────────────────────── */}
+      <section className="py-20 bg-slate-50 border-y border-gray-100 overflow-hidden">
+        <div className="w-full px-4 md:px-10 lg:px-16 mb-12">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h3 className="text-2xl md:text-3xl font-black text-gray-900 flex items-center gap-3">
+                <Globe className="h-8 w-8 text-primary" />
+                Explore Our Sub Campuses
+              </h3>
+              <p className="text-gray-500 font-medium mt-2">Connecting students across Pakistan with world-class facilities</p>
+            </div>
+            <Link href="/branches">
+              <Button variant="ghost" className="text-primary font-bold hover:bg-primary/5 rounded-xl gap-2">
+                See All Locations <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+        
+        <div className="relative group/marquee">
+          {/* Fading Gradients for Smooth Scroll Look */}
+          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-50 to-transparent z-10 pointer-events-none" />
+          <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-50 to-transparent z-10 pointer-events-none" />
+
+          <div className="flex gap-8 animate-marquee whitespace-nowrap px-4 hover:[animation-play-state:paused]">
+            {[...displayBranches, ...displayBranches].map((branch: any, i) => (
+              <div key={`${branch.id}-${i}`} className="inline-block min-w-[380px]">
+                <Card className="bg-white border-0 shadow-lg shadow-slate-200/50 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500 rounded-[2rem] overflow-hidden group/branch border border-transparent hover:border-primary/10">
+                  <CardContent className="p-10">
+                    <div className="flex items-center justify-between mb-8">
+                      <div className="h-16 w-16 rounded-2xl bg-blue-50 flex items-center justify-center text-primary group-hover/branch:bg-primary group-hover/branch:text-white group-hover/branch:scale-110 transition-all duration-500">
+                        <MapPin className="h-7 w-7" />
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <Badge className="bg-emerald-50 text-emerald-600 border-0 font-black uppercase text-[10px] tracking-widest px-3 py-1 mb-2">
+                          Active Campus
+                        </Badge>
+                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Status: Live</span>
+                      </div>
+                    </div>
+
+                    <h4 className="text-2xl font-black text-gray-900 mb-2 group-hover/branch:text-primary transition-colors">{branch.name}</h4>
+                    <p className="text-gray-500 text-sm font-medium mb-8 flex items-center gap-1.5">
+                      <Globe className="h-3.5 w-3.5 text-blue-300" />
+                      {branch.location || "Regional Hub, Pakistan"}
+                    </p>
+
+                    <div className="pt-8 border-t border-gray-50 flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Director</p>
+                        <p className="text-sm font-black text-gray-900">{branch.leader || "Senior Staff"}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Direct Line</p>
+                        <p className="text-sm font-black text-primary">{branch.phone}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── CTA ──────────────────────────────────────────────────────────── */}
-      <section className="py-20 bg-gradient-to-r from-[#0f2c6f] to-[#1a47b8] text-white snap-start scroll-mt-20">
+      <section className="py-20 bg-gradient-to-r from-[#0f2c6f] to-[#1a47b8] text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-extrabold mb-4">
             Ready to Start Your Journey?
@@ -1031,7 +1163,7 @@ export default function Home() {
                 Register Free
               </Button>
             </Link>
-            <a href="https://wa.me/923001234567" target="_blank" rel="noreferrer">
+            <a href="https://wa.me/923019890076" target="_blank" rel="noreferrer">
               <Button
                 size="lg"
                 variant="outline"
@@ -1047,10 +1179,10 @@ export default function Home() {
               <Mail className="h-4 w-4" /> info@globalcollege.edu.pk
             </span>
             <span className="flex items-center gap-2">
-              <Phone className="h-4 w-4" /> +92 300 1234567
+              <Phone className="h-4 w-4" /> +92 301 989 0076
             </span>
             <span className="flex items-center gap-2">
-              <MapPin className="h-4 w-4" /> Lahore, Karachi, Islamabad, Peshawar
+              <MapPin className="h-4 w-4" /> 18 Hazari, Jhang District, Punjab
             </span>
           </div>
         </div>

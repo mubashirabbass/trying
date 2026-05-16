@@ -19,6 +19,7 @@ import {
   EyeOff,
   Mail,
   Lock,
+  ArrowLeft,
 } from "lucide-react";
 import { Link } from "wouter";
 
@@ -104,6 +105,21 @@ export default function Login() {
 
       {/* Page body */}
       <div className="flex-1 flex items-center justify-center px-4 py-12 relative">
+        {/* Back to Home Button */}
+        <div className="absolute top-8 left-4 sm:left-8 z-20">
+          <Link href="/">
+            <Button
+              variant="ghost"
+              className="group gap-2 text-slate-500 hover:text-primary hover:bg-white/50 backdrop-blur-sm transition-all duration-200 rounded-xl"
+            >
+              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-white shadow-sm border border-slate-200 group-hover:border-primary/30 group-hover:bg-primary group-hover:text-white transition-all">
+                <ArrowLeft className="h-4 w-4" />
+              </div>
+              <span className="font-bold text-sm">Back to Home</span>
+            </Button>
+          </Link>
+        </div>
+
         {/* Soft radial background */}
         <div
           className="absolute inset-0 pointer-events-none"

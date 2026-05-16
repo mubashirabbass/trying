@@ -1,4 +1,4 @@
-import { db, usersTable } from "./index";
+import { db, usersTable, coursesTable } from "./index";
 import bcrypt from "bcryptjs";
 
 async function seed() {
@@ -7,22 +7,28 @@ async function seed() {
   const passwordHash = await bcrypt.hash("password123", 12);
 
   // 1. Admin
-  await db.insert(usersTable).values({
+  const [admin] = await db.insert(usersTable).values({
     name: "Admin User",
     email: "admin@globalcollege.com",
     passwordHash,
     role: "admin",
     isActive: true,
-  }).onConflictDoNothing();
+  }).onConflictDoUpdate({
+    target: [usersTable.email],
+    set: { name: "Admin User", role: "admin" }
+  }).returning();
 
   // 2. Teacher
-  await db.insert(usersTable).values({
+  const [teacher] = await db.insert(usersTable).values({
     name: "John Teacher",
     email: "teacher@globalcollege.com",
     passwordHash,
     role: "teacher",
     isActive: true,
-  }).onConflictDoNothing();
+  }).onConflictDoUpdate({
+    target: [usersTable.email],
+    set: { name: "John Teacher", role: "teacher" }
+  }).returning();
 
   // 3. Student
   await db.insert(usersTable).values({
@@ -32,6 +38,75 @@ async function seed() {
     role: "student",
     isActive: true,
   }).onConflictDoNothing();
+
+  // 4. Courses
+  const courses = [
+    {
+      title: "Full Stack Web Development",
+      slug: "full-stack-web-development",
+      description: "Master the MERN stack (MongoDB, Express, React, Node.js) and build industry-level web applications.",
+      category: "Web",
+      duration: "6 Months",
+      fee: 25000,
+      isFeatured: true,
+      teacherId: teacher.id,
+    },
+    {
+      title: "Advanced UI/UX Design Masterclass",
+      slug: "ui-ux-design-masterclass",
+      description: "Learn professional design thinking, wireframing in Figma, and creating high-fidelity prototypes.",
+      category: "Graphics",
+      duration: "4 Months",
+      fee: 15000,
+      isFeatured: true,
+      teacherId: teacher.id,
+    },
+    {
+      title: "E-commerce Business (EBC) Mastery",
+      slug: "ebc-mastery",
+      description: "Launch your international selling career on eBay and Etsy. Learn product sourcing and store optimization.",
+      category: "Freelancing",
+      duration: "3 Months",
+      fee: 12000,
+      isFeatured: true,
+      teacherId: teacher.id,
+    },
+    {
+      title: "Artificial Intelligence & Python",
+      slug: "ai-python-course",
+      description: "From basic Python to advanced AI models. Start your journey into the world of Machine Learning.",
+      category: "AI",
+      duration: "6 Months",
+      fee: 35000,
+      isFeatured: false,
+      teacherId: teacher.id,
+    },
+    {
+      title: "Digital Marketing Strategy",
+      slug: "digital-marketing-strategy",
+      description: "Master SEO, Social Media Marketing, and Google Ads to scale businesses in the digital era.",
+      category: "IT",
+      duration: "3 Months",
+      fee: 10000,
+      isFeatured: false,
+      teacherId: teacher.id,
+    },
+    {
+      title: "MS Office Professional Suite",
+      slug: "ms-office-professional",
+      description: "Complete mastery of Word, Excel, and PowerPoint for corporate and administrative roles.",
+      category: "MS Office",
+      duration: "2 Months",
+      fee: 5000,
+      isFeatured: false,
+      teacherId: teacher.id,
+    },
+  ];
+
+  console.log("📚 Seeding courses...");
+  for (const course of courses) {
+    await db.insert(coursesTable).values(course as any).onConflictDoNothing();
+  }
 
   console.log("✅ Seeding complete!");
   process.exit(0);
