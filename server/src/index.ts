@@ -4,6 +4,18 @@ import { logger } from "./lib/logger";
 
 const port = Number(process.env.PORT) || 8080;
 
+process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT EXCEPTION! 💥 Shutting down...");
+  console.error(err.name, err.message, err.stack);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (err: any) => {
+  console.error("UNHANDLED REJECTION! 💥 Shutting down...");
+  console.error(err.name, err.message);
+  process.exit(1);
+});
+
 console.log("SERVER ENTRY POINT REACHED");
 logger.info("Starting server...");
 logger.info(`Environment: ${process.env.NODE_ENV}`);

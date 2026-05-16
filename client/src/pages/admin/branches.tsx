@@ -35,6 +35,10 @@ export default function AdminBranches() {
     phone: "",
     email: "",
     mapUrl: "",
+    description: "",
+    headName: "",
+    manualStudentCount: 0,
+    image: "",
   });
 
   const { data: branches = [], isLoading } = useListBranches({
@@ -81,6 +85,10 @@ export default function AdminBranches() {
       phone: branch.phone || "",
       email: branch.email || "",
       mapUrl: branch.mapUrl || "",
+      description: branch.description || "",
+      headName: branch.headName || "",
+      manualStudentCount: branch.manualStudentCount || 0,
+      image: branch.image || "",
     });
     setOpen(true);
   };
@@ -88,7 +96,7 @@ export default function AdminBranches() {
   const handleClose = () => {
     setOpen(false);
     setEditingBranch(null);
-    setForm({ name: "", address: "", city: "", phone: "", email: "", mapUrl: "" });
+    setForm({ name: "", address: "", city: "", phone: "", email: "", mapUrl: "", description: "", headName: "", manualStudentCount: 0, image: "" });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -179,6 +187,53 @@ export default function AdminBranches() {
                     value={form.mapUrl}
                     onChange={(e) => setForm({ ...form, mapUrl: e.target.value })}
                     placeholder="https://maps.google.com/..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="image">Campus Image URL</Label>
+                  <Input
+                    id="image"
+                    value={form.image}
+                    onChange={(e) => setForm({ ...form, image: e.target.value })}
+                    placeholder="https://images.unsplash.com/..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="headName">Principal / Head of Branch</Label>
+                  <Input
+                    id="headName"
+                    value={form.headName}
+                    onChange={(e) => setForm({ ...form, headName: e.target.value })}
+                    placeholder="e.g. Prof. John Doe"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="manualStudentCount">Additional Students (Manual)</Label>
+                    <Input
+                      id="manualStudentCount"
+                      type="number"
+                      value={form.manualStudentCount}
+                      onChange={(e) => setForm({ ...form, manualStudentCount: parseInt(e.target.value) || 0 })}
+                      placeholder="e.g. 100"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Actual Students (System)</Label>
+                    <Input
+                      disabled
+                      value={editingBranch?.actualStudentCount || 0}
+                      className="bg-gray-50"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Short Description (for Home Page)</Label>
+                  <Input
+                    id="description"
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    placeholder="e.g. Empowering students with IT skills..."
                   />
                 </div>
               </div>

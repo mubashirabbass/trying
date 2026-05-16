@@ -52,6 +52,8 @@ import {
   Quote,
   MessageCircle,
   MessageSquare,
+  Building2,
+  ExternalLink,
 } from "lucide-react";
 import {
   Accordion,
@@ -234,38 +236,7 @@ export default function Home() {
     query: { queryKey: getListBranchesQueryKey() },
   });
 
-  const displayBranches = (branches && branches.length > 0) ? branches : [
-    { 
-      id: 1, 
-      name: "Multan HQ", 
-      leader: "Abuzar Razzaq", 
-      phone: "0 30 30 40 9999", 
-      students: "Growing", 
-      status: "Active",
-      location: "Active Location",
-      desc: "Empowering People of Multan with world-class Ebay & Etsy Training."
-    },
-    { 
-      id: 2, 
-      name: "Lahore", 
-      leader: "Abdul Hanan", 
-      phone: "0304 9891111", 
-      students: "Growing", 
-      status: "Active",
-      location: "Active Location",
-      desc: "Empowering People of Lahore with world-class Ebay & Etsy Training."
-    },
-    { 
-      id: 3, 
-      name: "Sialkot", 
-      leader: "Faryad Hussain", 
-      phone: "+92 301 989 0076", 
-      students: "Growing", 
-      status: "Active",
-      location: "Active Location",
-      desc: "Empowering People of Sialkot with world-class Ebay & Etsy Training."
-    },
-  ];
+  const displayBranches = branches || [];
 
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -1141,36 +1112,73 @@ export default function Home() {
 
           <div className="flex gap-8 animate-marquee whitespace-nowrap px-4 hover:[animation-play-state:paused]">
             {[...displayBranches, ...displayBranches].map((branch: any, i) => (
-              <div key={`${branch.id}-${i}`} className="inline-block min-w-[380px]">
-                <Card className="bg-white border-0 shadow-lg shadow-slate-200/50 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-500 rounded-[2rem] overflow-hidden group/branch border border-transparent hover:border-primary/10">
-                  <CardContent className="p-10">
-                    <div className="flex items-center justify-between mb-8">
-                      <div className="h-16 w-16 rounded-2xl bg-blue-50 flex items-center justify-center text-primary group-hover/branch:bg-primary group-hover/branch:text-white group-hover/branch:scale-110 transition-all duration-500">
-                        <MapPin className="h-7 w-7" />
+              <div key={`${branch.id}-${i}`} className="inline-block w-[300px] flex-shrink-0 whitespace-normal">
+                <Card className="bg-white border-0 shadow-xl shadow-slate-100 hover:shadow-2xl transition-all duration-500 rounded-2xl overflow-hidden group/branch border border-slate-50 h-full">
+                  <CardContent className="p-6">
+                    {/* Header: Image, Title, Badge */}
+                    <div className="flex items-start justify-between mb-6">
+                      <div className="flex gap-4">
+                        <div className="h-14 w-14 rounded-xl overflow-hidden bg-slate-100 shadow-sm border border-slate-100 flex-shrink-0">
+                          <img 
+                            src={branch.image || "https://images.unsplash.com/photo-1541339907198-e08756ebafe3?auto=format&fit=crop&q=80&w=200"} 
+                            alt={branch.name}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-lg font-black text-emerald-600 mb-0.5 tracking-tight truncate-multiline line-clamp-1">{branch.name}</h4>
+                          <div className="flex items-center gap-1 text-slate-400 font-bold text-[10px]">
+                            <MapPin className="h-3.5 w-3.5" />
+                            <span>Active Location</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex flex-col items-end">
-                        <Badge className="bg-emerald-50 text-emerald-600 border-0 font-black uppercase text-[10px] tracking-widest px-3 py-1 mb-2">
-                          Active Campus
-                        </Badge>
-                        <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Status: Live</span>
-                      </div>
+                      <Badge className="bg-emerald-50 text-emerald-600 border-0 flex items-center gap-1.5 px-3 py-1 font-bold text-xs">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        Active
+                      </Badge>
                     </div>
 
-                    <h4 className="text-2xl font-black text-gray-900 mb-2 group-hover/branch:text-primary transition-colors">{branch.name}</h4>
-                    <p className="text-gray-500 text-sm font-medium mb-8 flex items-center gap-1.5">
-                      <Globe className="h-3.5 w-3.5 text-blue-300" />
-                      {branch.location || "Regional Hub, Pakistan"}
+                    {/* Description */}
+                    <p className="text-slate-600 text-[13px] font-medium leading-relaxed mb-6 px-1 line-clamp-2">
+                      {branch.description || `Empowering people of ${branch.name} with world-class eCommerce training.`}
                     </p>
 
-                    <div className="pt-8 border-t border-gray-50 flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Director</p>
-                        <p className="text-sm font-black text-gray-900">{branch.leader || "Senior Staff"}</p>
+                    {/* Info Box (Grey) */}
+                    <div className="bg-slate-50/80 rounded-xl p-4 space-y-3 mb-6 border border-slate-100/50">
+                      <div className="flex items-center justify-between text-[12px]">
+                        <div className="flex items-center gap-3 text-slate-500 font-bold">
+                          <User2 className="h-4 w-4" />
+                          <span>City Leader:</span>
+                        </div>
+                        <span className="text-slate-900 font-black">{branch.headName || "Malik Haris Mustafa"}</span>
                       </div>
-                      <div className="text-right">
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Direct Line</p>
-                        <p className="text-sm font-black text-primary">{branch.phone}</p>
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-3 text-slate-500 font-bold">
+                          <TrendingUp className="h-4 w-4" />
+                          <span>Students:</span>
+                        </div>
+                        <span className="text-emerald-600 font-black">Growing</span>
                       </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-3 text-slate-500 font-bold">
+                          <Phone className="h-4 w-4" />
+                          <span>Phone:</span>
+                        </div>
+                        <span className="text-slate-900 font-black">{branch.phone || "+92 300 000 0000"}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="space-y-2">
+                      <Button className="w-full h-11 bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white font-black text-sm rounded-xl shadow-lg shadow-emerald-500/20 group/btn" asChild>
+                        <a href={branch.mapUrl || "#"} target="_blank" rel="noreferrer">
+                          View Details <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
+                        </a>
+                      </Button>
+                      <Button variant="outline" className="w-full h-11 border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-black text-sm rounded-xl">
+                        Apply Now
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

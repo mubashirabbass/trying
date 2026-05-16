@@ -17,7 +17,15 @@ export const authenticate = async (req: AuthRequest, res: Response, next: NextFu
     const token = auth.slice(7);
     const decoded = verifyToken(token);
 
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.id, decoded.sub));
+    let user;
+    try {
+      const results = await db.select().from(usersTable).where(eq(usersTable.id, decoded.sub));
+      user = results[0];
+    } catch (dbErr: any) {
+      console.error("CRITICAL AUTH DB ERROR:", dbErr);
+      throw new AppError("Internal server error during authentication", 500);
+    }
+
     if (!user) {
       throw new AppError("The user belonging to this token no longer exists.", 401);
     }

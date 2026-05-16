@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, branchesTable, usersTable } from "@workspace/db";
-import { eq, count } from "drizzle-orm";
+import { eq, count, sql } from "drizzle-orm";
 import { CreateBranchBody, UpdateBranchBody } from "@workspace/api-zod";
 import { authenticate, authorize } from "../middleware/auth";
 import { validate } from "../middleware/validate";
@@ -23,11 +23,15 @@ router.get("/branches", catchAsync(async (req, res) => {
     const studentCount = await db
       .select({ c: count() })
       .from(usersTable)
-      .where(eq(usersTable.branchId, branch.id));
+      .where(sql`${usersTable.branchId} = ${branch.id} AND ${usersTable.isActive} = true`);
     
+    const actualCount = Number(studentCount[0]?.c ?? 0);
+    const manualCount = branch.manualStudentCount || 0;
+
     return {
       ...branch,
-      studentCount: Number(studentCount[0]?.c ?? 0)
+      studentCount: actualCount + manualCount,
+      actualStudentCount: actualCount,
     };
   }));
 
@@ -65,9 +69,16 @@ router.get("/branches/:id", catchAsync(async (req: any, res) => {
   const studentCount = await db
     .select({ c: count() })
     .from(usersTable)
-    .where(eq(usersTable.branchId, branch.id));
+    .where(sql`${usersTable.branchId} = ${branch.id} AND ${usersTable.isActive} = true`);
   
-  res.json({ ...branch, studentCount: Number(studentCount[0]?.c ?? 0) });
+  const actualCount = Number(studentCount[0]?.c ?? 0);
+  const manualCount = branch.manualStudentCount || 0;
+
+  res.json({ 
+    ...branch, 
+    studentCount: actualCount + manualCount,
+    actualStudentCount: actualCount,
+  });
 }));
 
 /**

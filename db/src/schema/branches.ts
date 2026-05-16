@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -10,6 +10,10 @@ export const branchesTable = pgTable("branches", {
   phone: text("phone"),
   email: text("email"),
   mapUrl: text("map_url"),
+  description: text("description"),
+  headName: text("head_name"),
+  manualStudentCount: integer("manual_student_count").notNull().default(0),
+  image: text("image"),
   isMain: boolean("is_main").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

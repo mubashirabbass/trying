@@ -13,7 +13,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Initialize API client
-setBaseUrl(import.meta.env.VITE_API_URL);
+// If VITE_API_URL is "/api", we want to use relative paths for the Vite proxy to work correctly.
+// Prepending "/api" to "/api/courses" results in "/api/api/courses".
+if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL !== "/api") {
+  setBaseUrl(import.meta.env.VITE_API_URL);
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
