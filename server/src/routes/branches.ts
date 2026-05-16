@@ -90,7 +90,9 @@ router.put(
       .where(eq(branchesTable.id, id))
       .returning();
 
-    if (!updatedBranch) { res.status(404).json({ error: "Branch not found" }); return; }
+    if (!updatedBranch) {
+      throw new AppError("Branch not found", 404);
+    }
 
     res.json(updatedBranch);
   })

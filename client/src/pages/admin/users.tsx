@@ -20,8 +20,11 @@ import {
   Phone, 
   Shield, 
   Key, 
-  Edit 
+  Edit,
+  MapPin,
+  Trash2
 } from "lucide-react";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";

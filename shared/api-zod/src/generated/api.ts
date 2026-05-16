@@ -1453,9 +1453,9 @@ export const UpdateBranchParams = zod.object({
 })
 
 export const UpdateBranchBody = zod.object({
-  "name": zod.string(),
-  "city": zod.string(),
-  "address": zod.string(),
+  "name": zod.string().optional(),
+  "city": zod.string().optional(),
+  "address": zod.string().optional(),
   "phone": zod.string().optional(),
   "email": zod.string().optional(),
   "mapUrl": zod.string().optional(),

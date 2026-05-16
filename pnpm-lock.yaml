@@ -65,9 +65,15 @@ importers:
 
   .:
     dependencies:
+      '@types/bcryptjs':
+        specifier: ^3.0.0
+        version: 3.0.0
       '@types/nodemailer':
         specifier: ^8.0.0
         version: 8.0.0
+      bcryptjs:
+        specifier: ^3.0.3
+        version: 3.0.3
       nodemailer:
         specifier: ^8.0.7
         version: 8.0.7

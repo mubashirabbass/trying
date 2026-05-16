@@ -77,6 +77,7 @@ import AdminCourseEdit from "@/pages/admin/course-edit";
 import AdminForum from "@/pages/admin/forum";
 import AdminMessages from "@/pages/admin/messages";
 import AdminLeaderboard from "@/pages/admin/leaderboard";
+import AdminHomeCMS from "@/pages/admin/home-cms";
 
 const queryClient = new QueryClient();
 
@@ -268,6 +269,9 @@ function Router() {
         </Route>
         <Route path="/admin/leaderboard">
           <ProtectedRoute component={AdminLeaderboard} />
+        </Route>
+        <Route path="/admin/home-cms">
+          <ProtectedRoute component={AdminHomeCMS} />
         </Route>
 
         <Route component={NotFound} />

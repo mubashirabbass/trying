@@ -8,17 +8,18 @@ import { AppError } from "../lib/auth";
 export const validate = (schema: AnyZodObject) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const parsed = await schema.parseAsync({
-        body: req.body,
-        query: req.query,
-        params: req.params,
-      });
+      const isRequestSchema = schema.shape && (schema.shape.body || schema.shape.query || schema.shape.params);
+      const dataToValidate = isRequestSchema ? { body: req.body, query: req.query, params: req.params } : req.body;
+
+      const parsed = await schema.parseAsync(dataToValidate);
       
-      // Update request with validated and transformed data
-      // NOTE: req.query is getter-only in Node.js v24+ — use Object.assign to mutate in-place
-      if (parsed.body !== undefined) req.body = parsed.body;
-      if (parsed.query !== undefined) Object.assign(req.query, parsed.query);
-      if (parsed.params !== undefined) Object.assign(req.params, parsed.params);
+      if (isRequestSchema) {
+        if (parsed.body !== undefined) req.body = parsed.body;
+        if (parsed.query !== undefined) Object.assign(req.query, parsed.query);
+        if (parsed.params !== undefined) Object.assign(req.params, parsed.params);
+      } else {
+        req.body = parsed;
+      }
       
       next();
     } catch (error: any) {

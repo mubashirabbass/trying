@@ -130,6 +130,13 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
+// Fetch helper for public API
+const fetchPublic = async (path: string) => {
+  const base = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+  const r = await fetch(`${base}${path}`);
+  return r.ok ? await r.json() : [];
+};
+
 export default function Home() {
   console.log("Home component rendering");
   const { data: courses } = useListCourses(
@@ -144,6 +151,14 @@ export default function Home() {
   const { data: successStories } = useListSuccessStories({
     query: { queryKey: getListSuccessStoriesQueryKey() },
   });
+
+  const [articles, setArticles] = useState<any[]>([]);
+  const [faqs, setFaqs] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchPublic("/api/articles").then(setArticles);
+    fetchPublic("/api/faqs").then(setFaqs);
+  }, []);
 
   const displaySuccessStories = (successStories && successStories.length > 0) ? successStories : [
     {
@@ -833,43 +848,9 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-            {[
-              {
-                id: 1,
-                title: "eBay SEO Tips: How to Rank Higher in Search Results (2025 Guide)",
-                category: "eBay Tips",
-                readTime: "5 min read",
-                excerpt: "By optimizing titles, item specifics, pricing, and shipping, sellers can improve their rankings, attract more buyers, and increase sales effectively.",
-                author: "Samam Amer",
-                date: "October 13, 2025",
-                imageBg: "bg-emerald-900",
-                imageUrl: "https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&q=80&w=800"
-              },
-              {
-                id: 2,
-                title: "10 Mistakes New eBay Sellers Make (and How to Avoid Them)",
-                category: "eBay Tips",
-                readTime: "4 min read",
-                excerpt: "In 2025, many new eBay sellers fail due to simple mistakes like poor SEO, bad photos, overpricing, and slow shipping. By focusing on keywords, clear image...",
-                author: "Admin",
-                date: "October 13, 2025",
-                imageBg: "bg-emerald-800",
-                imageUrl: "https://images.unsplash.com/photo-1556740758-90de374c12ad?auto=format&fit=crop&q=80&w=800"
-              },
-              {
-                id: 3,
-                title: "Why eBay Stands Out in 2025",
-                category: "Beginner Guide",
-                readTime: "5 min read",
-                excerpt: "In 2025, eBay is more than a marketplace—it's a global platform empowering entrepreneurs, promoting sustainability, and connecting people...",
-                author: "Samam Amer",
-                date: "October 13, 2025",
-                imageBg: "bg-emerald-700",
-                imageUrl: "https://images.unsplash.com/photo-1556740734-792f46efeb05?auto=format&fit=crop&q=80&w=800"
-              }
-            ].map((article) => (
+            {articles.length > 0 ? articles.slice(0, 3).map((article) => (
               <Card key={article.id} className="overflow-hidden border-gray-100 shadow-lg hover:shadow-2xl transition-all duration-500 rounded-3xl border-0 shadow-sm ring-1 ring-gray-100 flex flex-col h-full group">
-                <div className={`h-52 ${article.imageBg} relative overflow-hidden flex items-center justify-center`}>
+                <div className={`h-52 bg-slate-900 relative overflow-hidden flex items-center justify-center`}>
                   {article.imageUrl ? (
                     <img 
                       src={article.imageUrl} 
@@ -893,7 +874,7 @@ export default function Home() {
                       {article.category}
                     </Badge>
                     <span className="text-xs text-gray-400 font-medium">
-                      {article.readTime}
+                      {article.readTime || "5 min read"}
                     </span>
                   </div>
                   
@@ -908,14 +889,16 @@ export default function Home() {
                   <div className="flex items-center justify-between mt-auto pt-6 border-t border-gray-50">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-black text-xs">
-                        {article.author.charAt(0)}
+                        {(article.author || "A").charAt(0)}
                       </div>
                       <div>
-                        <p className="text-sm font-black text-gray-900">{article.author}</p>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{article.date}</p>
+                        <p className="text-sm font-black text-gray-900">{article.author || "Admin"}</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+                          {new Date(article.createdAt).toLocaleDateString()}
+                        </p>
                       </div>
                     </div>
-                    <Link href={`/resources/${article.id}`}>
+                    <Link href={`/resources/${article.slug}`}>
                       <span className="text-emerald-600 font-black text-sm flex items-center gap-1 hover:underline cursor-pointer">
                         Read <ChevronRight className="h-4 w-4" />
                       </span>
@@ -923,7 +906,57 @@ export default function Home() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            )) : (
+              // Fallback to static articles if none in DB
+              [
+                {
+                  id: 1,
+                  title: "eBay SEO Tips: How to Rank Higher in Search Results (2025 Guide)",
+                  category: "eBay Tips",
+                  readTime: "5 min read",
+                  excerpt: "By optimizing titles, item specifics, pricing, and shipping, sellers can improve their rankings, attract more buyers, and increase sales effectively.",
+                  author: "Samam Amer",
+                  date: "October 13, 2025",
+                  imageBg: "bg-emerald-900",
+                  imageUrl: "https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&q=80&w=800"
+                },
+                {
+                  id: 2,
+                  title: "10 Mistakes New eBay Sellers Make (and How to Avoid Them)",
+                  category: "eBay Tips",
+                  readTime: "4 min read",
+                  excerpt: "In 2025, many new eBay sellers fail due to simple mistakes like poor SEO, bad photos, overpricing, and slow shipping. By focusing on keywords, clear image...",
+                  author: "Admin",
+                  date: "October 13, 2025",
+                  imageBg: "bg-emerald-800",
+                  imageUrl: "https://images.unsplash.com/photo-1556740758-90de374c12ad?auto=format&fit=crop&q=80&w=800"
+                },
+                {
+                  id: 3,
+                  title: "Why eBay Stands Out in 2025",
+                  category: "Beginner Guide",
+                  readTime: "5 min read",
+                  excerpt: "In 2025, eBay is more than a marketplace—it's a global platform empowering entrepreneurs, promoting sustainability, and connecting people...",
+                  author: "Samam Amer",
+                  date: "October 13, 2025",
+                  imageBg: "bg-emerald-700",
+                  imageUrl: "https://images.unsplash.com/photo-1556740734-792f46efeb05?auto=format&fit=crop&q=80&w=800"
+                }
+              ].map((article) => (
+                <Card key={article.id} className="overflow-hidden border-gray-100 shadow-lg hover:shadow-2xl transition-all duration-500 rounded-3xl border-0 shadow-sm ring-1 ring-gray-100 flex flex-col h-full group">
+                  <div className={`h-52 ${article.imageBg} relative overflow-hidden flex items-center justify-center`}>
+                    {article.imageUrl && <img src={article.imageUrl} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-80" />}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <h4 className="text-white font-black text-xl px-8 text-center relative z-10 line-clamp-2">{article.title}</h4>
+                  </div>
+                  <CardContent className="p-8 flex flex-col flex-1">
+                    <div className="flex items-center justify-between mb-4"><Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 font-bold">{article.category}</Badge></div>
+                    <h3 className="text-xl font-black text-gray-900 mb-4 line-clamp-2">{article.title}</h3>
+                    <p className="text-gray-500 text-sm leading-relaxed mb-8 flex-1">{article.excerpt}</p>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -942,45 +975,48 @@ export default function Home() {
 
           <div className="max-w-4xl mx-auto space-y-4">
             <Accordion type="single" collapsible className="w-full space-y-4">
-              {[
-                {
-                  q: "Is eBay available in Pakistan?",
-                  a: "Yes, you can create an eBay account from Pakistan and sell globally. While eBay doesn't have a local .pk site, Pakistani sellers are thriving on eBay.com, eBay.co.uk, and other international marketplaces."
-                },
-                {
-                  q: "Can eBay Ship to Pakistan?",
-                  a: "Yes, many international sellers on eBay ship to Pakistan. Additionally, as a seller, you can use various logistics partners to ship your products from Pakistan to customers worldwide."
-                },
-                {
-                  q: "Is there any eBay dropshipping course in Pakistan?",
-                  a: "Global College offers the most comprehensive and practical eBay dropshipping and EBC (eBay Business Course) training in Pakistan, designed to help you start earning in dollars."
-                },
-                {
-                  q: "Can we earn money on Etsy?",
-                  a: "Absolutely! Etsy is a massive marketplace for handmade, vintage, and craft items. Many Pakistani artisans and entrepreneurs are earning significant income by selling their unique products on Etsy."
-                },
-                {
-                  q: "Is Etsy officially available in Pakistan?",
-                  a: "Etsy Payments is not currently available in Pakistan, but there are legitimate ways to manage your business and get paid through alternative methods which we cover in our specialized training."
-                },
-                {
-                  q: "How to get paid on Etsy in Pakistan?",
-                  a: "Sellers in Pakistan typically use services like Payoneer or partner with entities in supported countries to manage their Etsy finances securely. Our course provides a step-by-step guide on this."
-                }
-              ].map((faq, i) => (
+              {faqs.length > 0 ? faqs.map((faq, i) => (
                 <AccordionItem 
-                  key={i} 
+                  key={faq.id} 
                   value={`item-${i}`}
                   className="bg-white border-gray-100 rounded-2xl shadow-sm border px-6 hover:shadow-md transition-all data-[state=open]:ring-2 data-[state=open]:ring-emerald-500/20 data-[state=open]:border-emerald-500"
                 >
                   <AccordionTrigger className="text-lg font-black text-gray-900 hover:no-underline py-6 text-left">
-                    {faq.q}
+                    {faq.question}
                   </AccordionTrigger>
                   <AccordionContent className="text-gray-500 text-base leading-relaxed pb-6">
-                    {faq.a}
+                    {faq.answer}
                   </AccordionContent>
                 </AccordionItem>
-              ))}
+              )) : (
+                [
+                  {
+                    q: "Is eBay available in Pakistan?",
+                    a: "Yes, you can create an eBay account from Pakistan and sell globally. While eBay doesn't have a local .pk site, Pakistani sellers are thriving on eBay.com, eBay.co.uk, and other international marketplaces."
+                  },
+                  {
+                    q: "Can eBay Ship to Pakistan?",
+                    a: "Yes, many international sellers on eBay ship to Pakistan. Additionally, as a seller, you can use various logistics partners to ship your products from Pakistan to customers worldwide."
+                  },
+                  {
+                    q: "Is there any eBay dropshipping course in Pakistan?",
+                    a: "Global College offers the most comprehensive and practical eBay dropshipping and EBC (eBay Business Course) training in Pakistan, designed to help you start earning in dollars."
+                  }
+                ].map((faq, i) => (
+                  <AccordionItem 
+                    key={i} 
+                    value={`item-${i}`}
+                    className="bg-white border-gray-100 rounded-2xl shadow-sm border px-6 hover:shadow-md transition-all"
+                  >
+                    <AccordionTrigger className="text-lg font-black text-gray-900 hover:no-underline py-6 text-left">
+                      {faq.q}
+                    </AccordionTrigger>
+                    <AccordionContent className="text-gray-500 text-base leading-relaxed pb-6">
+                      {faq.a}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))
+              )}
             </Accordion>
           </div>
 

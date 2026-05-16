@@ -17,3 +17,4 @@ export * from "./sections";
 export * from "./video-access-logs";
 export * from "./settings";
 export * from "./faqs";
+export * from "./articles";

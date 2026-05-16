@@ -28,12 +28,12 @@ export default function AdminSuccessStories() {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    name: "",
+    studentName: "",
+    title: "",
+    description: "",
+    image: "",
     course: "",
-    story: "",
-    currentJob: "",
-    income: "",
-    photoUrl: "",
+    achievement: "",
   });
 
   const { data: stories, isLoading } = useListSuccessStories({
@@ -45,7 +45,7 @@ export default function AdminSuccessStories() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListSuccessStoriesQueryKey() });
         setOpen(false);
-        setForm({ name: "", course: "", story: "", currentJob: "", income: "", photoUrl: "" });
+        setForm({ studentName: "", title: "", description: "", image: "", course: "", achievement: "" });
         toast({ title: "Success story added!" });
       },
       onError: () => toast({ title: "Failed to add story", variant: "destructive" }),
@@ -91,29 +91,39 @@ export default function AdminSuccessStories() {
                   <Label>Student Name *</Label>
                   <Input
                     required
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    value={form.studentName}
+                    onChange={(e) => setForm({ ...form, studentName: e.target.value })}
                     placeholder="Full name"
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label>Course *</Label>
+                  <Label>Headline / Title *</Label>
                   <Input
                     required
-                    value={form.course}
-                    onChange={(e) => setForm({ ...form, course: e.target.value })}
-                    placeholder="Course completed"
+                    value={form.title}
+                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    placeholder="e.g. From Student to Senior Dev"
                     className="mt-1"
                   />
                 </div>
               </div>
               <div>
-                <Label>Their Story *</Label>
+                <Label>Course *</Label>
+                <Input
+                  required
+                  value={form.course}
+                  onChange={(e) => setForm({ ...form, course: e.target.value })}
+                  placeholder="Course completed"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Their Story / Description *</Label>
                 <Textarea
                   required
-                  value={form.story}
-                  onChange={(e) => setForm({ ...form, story: e.target.value })}
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
                   placeholder="How Global College changed their life..."
                   rows={4}
                   className="mt-1"
@@ -121,32 +131,23 @@ export default function AdminSuccessStories() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Current Job</Label>
+                  <Label>Achievement</Label>
                   <Input
-                    value={form.currentJob}
-                    onChange={(e) => setForm({ ...form, currentJob: e.target.value })}
-                    placeholder="e.g. Freelance Designer"
+                    value={form.achievement}
+                    onChange={(e) => setForm({ ...form, achievement: e.target.value })}
+                    placeholder="e.g. Hired at Google"
                     className="mt-1"
                   />
                 </div>
                 <div>
-                  <Label>Monthly Income</Label>
+                  <Label>Photo URL</Label>
                   <Input
-                    value={form.income}
-                    onChange={(e) => setForm({ ...form, income: e.target.value })}
-                    placeholder="e.g. Rs. 50,000/month"
+                    value={form.image}
+                    onChange={(e) => setForm({ ...form, image: e.target.value })}
+                    placeholder="https://..."
                     className="mt-1"
                   />
                 </div>
-              </div>
-              <div>
-                <Label>Photo URL</Label>
-                <Input
-                  value={form.photoUrl}
-                  onChange={(e) => setForm({ ...form, photoUrl: e.target.value })}
-                  placeholder="https://..."
-                  className="mt-1"
-                />
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>

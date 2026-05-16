@@ -21,6 +21,7 @@ import sectionsRouter from "./sections";
 import branchesRouter from "./branches";
 import reportsRouter from "./reports";
 import faqsRouter from "./faqs";
+import articlesRouter from "./articles";
 
 import { authenticate } from "../middleware/auth";
 
@@ -33,6 +34,7 @@ router.use(testimonialsRouter); // testimonials list is public
 router.use(successStoriesRouter); // success stories are public
 router.use(branchesRouter); // branches list is public
 router.use(faqsRouter); // faqs list is public
+router.use(articlesRouter); // public article reads
 router.use(certificatesRouter);
 
 // Private routes below this line

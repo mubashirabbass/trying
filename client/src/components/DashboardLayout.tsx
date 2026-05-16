@@ -154,6 +154,7 @@ const ADMIN_NAV_GROUPS = [
     items: [
       { name: "Courses", path: "/admin/courses", icon: BookOpen },
       { name: "Success Stories", path: "/admin/success-stories", icon: Award },
+      { name: "Home CMS", path: "/admin/home-cms", icon: LayoutDashboard },
       { name: "Testimonials", path: "/admin/testimonials", icon: Star },
     ],
   },

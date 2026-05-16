@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useListCourses, useUpdateCourse, getListCoursesQueryKey } from "@workspace/api-client-react";
-import { Loader2, Plus, MoreHorizontal, CheckCircle, XCircle, Eye } from "lucide-react";
+import { Loader2, Plus, MoreHorizontal, CheckCircle, XCircle, Eye, ExternalLink } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
