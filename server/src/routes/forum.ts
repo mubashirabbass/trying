@@ -55,6 +55,19 @@ router.post("/forum/posts/:postId/replies", async (req, res): Promise<void> => {
   const { userId, body } = req.body;
   if (!userId || !body) { res.status(400).json({ error: "Missing fields" }); return; }
   const [row] = await db.insert(forumRepliesTable).values({ postId, userId: Number(userId), body }).returning();
+  
+  // Trigger notification for post author
+  try {
+    const [post] = await db.select().from(forumPostsTable).where(eq(forumPostsTable.id, postId));
+    if (post && post.userId !== Number(userId)) {
+      const { notificationTriggers } = await import("../lib/notifications");
+      notificationTriggers.forumReply(post.userId, post.title)
+        .catch(err => console.error("Failed to trigger forum notification:", err));
+    }
+  } catch (err) {
+    console.error("Error triggering forum notification:", err);
+  }
+
   res.status(201).json(row);
 });
 

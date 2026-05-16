@@ -20,6 +20,7 @@ import leaderboardRouter from "./leaderboard";
 import sectionsRouter from "./sections";
 import branchesRouter from "./branches";
 import reportsRouter from "./reports";
+import faqsRouter from "./faqs";
 
 import { authenticate } from "../middleware/auth";
 
@@ -31,6 +32,8 @@ router.use(coursesRouter); // courses/list and detail are public
 router.use(testimonialsRouter); // testimonials list is public
 router.use(successStoriesRouter); // success stories are public
 router.use(branchesRouter); // branches list is public
+router.use(faqsRouter); // faqs list is public
+router.use(certificatesRouter);
 
 // Private routes below this line
 router.use(authenticate);
@@ -39,7 +42,6 @@ router.use(enrollmentsRouter);
 router.use(assignmentsRouter);
 router.use(quizzesRouter);
 router.use(paymentsRouter);
-router.use(certificatesRouter);
 router.use(dashboardRouter);
 router.use(notificationsRouter);
 router.use(forumRouter);

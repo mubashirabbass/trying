@@ -2,9 +2,11 @@ import { Router, type IRouter } from "express";
 import { db, usersTable, enrollmentsTable, certificatesTable, lessonCompletionsTable } from "@workspace/db";
 import { eq, count, sum, desc } from "drizzle-orm";
 
+import { authenticate } from "../middleware/auth";
+
 const router: IRouter = Router();
 
-router.get("/leaderboard", async (req, res): Promise<void> => {
+router.get("/leaderboard", authenticate, async (req, res): Promise<void> => {
   const students = await db.select({
     id: usersTable.id,
     name: usersTable.name,

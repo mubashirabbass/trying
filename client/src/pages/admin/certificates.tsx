@@ -13,7 +13,8 @@ import {
   XCircle,
   User,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/AuthContext";
 
 // Mock certificate data — replace with API call
 const MOCK_CERTIFICATES = [
@@ -60,35 +61,70 @@ const MOCK_CERTIFICATES = [
 ];
 
 export default function AdminCertificates() {
+  const { token } = useAuth();
   const [search, setSearch] = useState("");
-  const [certificates, setCertificates] = useState(MOCK_CERTIFICATES);
-  const [revoking, setRevoking] = useState<string | null>(null);
-  const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
+  const [certificates, setCertificates] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [revoking, setRevoking] = useState<number | null>(null);
+  const [confirmRevoke, setConfirmRevoke] = useState<number | null>(null);
 
-  const filtered = certificates.filter(
-    (c) =>
-      c.studentName.toLowerCase().includes(search.toLowerCase()) ||
-      c.certificateId.toLowerCase().includes(search.toLowerCase()) ||
-      c.course.toLowerCase().includes(search.toLowerCase())
-  );
+  const fetchCerts = async () => {
+    setIsLoading(true);
+    try {
+      const r = await fetch(`${BASE}/api/admin/certificates`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (r.ok) setCertificates(await r.json());
+    } catch (e) {
+      console.error("Failed to fetch certs", e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const handleRevoke = (id: string) => {
+  useEffect(() => {
+    fetchCerts();
+  }, [token]);
+
+  const handleRevoke = async (id: number) => {
     setRevoking(id);
-    setTimeout(() => {
-      setCertificates((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, isRevoked: true } : c))
-      );
+    try {
+      const r = await fetch(`${BASE}/api/admin/certificates/revoke`, {
+        method: "POST",
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ id, reason: "Administrative revocation" })
+      });
+      if (r.ok) {
+        setCertificates((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, isRevoked: true } : c))
+        );
+        setConfirmRevoke(null);
+      }
+    } catch (e) {
+      console.error("Revocation failed", e);
+    } finally {
       setRevoking(null);
-      setConfirmRevoke(null);
-    }, 1200);
+    }
   };
 
   const stats = {
     total: certificates.length,
-    issued: certificates.filter((c) => c.status === "ISSUED" && !c.isRevoked).length,
+    issued: certificates.filter((c) => !c.isRevoked).length,
     revoked: certificates.filter((c) => c.isRevoked).length,
-    awaiting: certificates.filter((c) => c.status === "AWAITING_VERIFICATION").length,
+    awaiting: 0,
   };
+
+  const filtered = certificates.filter(
+    (c) =>
+      c.studentName?.toLowerCase().includes(search.toLowerCase()) ||
+      c.certificateNumber?.toLowerCase().includes(search.toLowerCase()) ||
+      c.courseName?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
   return (
     <DashboardLayout>
@@ -153,16 +189,20 @@ export default function AdminCertificates() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {filtered.length > 0 ? (
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={6} className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary opacity-20" /></td>
+                    </tr>
+                  ) : filtered.length > 0 ? (
                     filtered.map((cert) => (
                       <tr key={cert.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4">
-                          <span className="font-mono text-sm font-bold text-primary">{cert.certificateId}</span>
+                          <span className="font-mono text-sm font-bold text-primary">{cert.certificateNumber}</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center font-black text-sm text-blue-600 shrink-0">
-                              {cert.studentName.charAt(0)}
+                              {cert.studentName?.charAt(0)}
                             </div>
                             <div>
                               <p className="font-bold text-gray-900 text-sm">{cert.studentName}</p>
@@ -171,24 +211,22 @@ export default function AdminCertificates() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <p className="font-medium text-gray-700 text-sm max-w-[200px] truncate">{cert.course}</p>
+                          <p className="font-medium text-gray-700 text-sm max-w-[200px] truncate">{cert.courseName}</p>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">{cert.issuedAt}</td>
+                        <td className="px-6 py-4 text-sm text-gray-500">{new Date(cert.issuedAt).toLocaleDateString()}</td>
                         <td className="px-6 py-4">
                           {cert.isRevoked ? (
                             <Badge className="bg-rose-50 text-rose-700 border-rose-100 font-bold">Revoked</Badge>
-                          ) : cert.status === "ISSUED" ? (
-                            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 font-bold">Active</Badge>
                           ) : (
-                            <Badge className="bg-amber-50 text-amber-700 border-amber-100 font-bold">Awaiting</Badge>
+                            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 font-bold">Active</Badge>
                           )}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button size="sm" variant="ghost" className="h-8 text-xs font-bold gap-1 text-gray-500">
+                            <Button size="sm" variant="ghost" className="h-8 text-xs font-bold gap-1 text-gray-400 hover:text-primary transition-colors">
                               <Download className="h-3.5 w-3.5" /> Download
                             </Button>
-                            {!cert.isRevoked && cert.status === "ISSUED" && (
+                            {!cert.isRevoked && (
                               confirmRevoke === cert.id ? (
                                 <div className="flex gap-1">
                                   <Button

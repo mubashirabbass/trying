@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useAuth } from "@/lib/AuthContext";
 import { useListEnrollments, useListCourses } from "@workspace/api-client-react";
@@ -60,6 +61,32 @@ export default function StudentProgress() {
     "AI Tools": "bg-amber-50 text-amber-700",
   };
 
+  const [isExporting, setIsExporting] = useState(false);
+  const downloadReport = async () => {
+    if (!user?.id) return;
+    setIsExporting(true);
+    try {
+      const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+      const response = await fetch(`${BASE}/api/reports/students/${user.id}/progress`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+      });
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `progress-report-${user.id}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+    } catch (error) {
+      console.error("Export failed:", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="mb-8 flex items-start justify-between gap-4">
@@ -67,8 +94,14 @@ export default function StudentProgress() {
           <h1 className="text-3xl font-black text-gray-900 tracking-tight">Learning Progress</h1>
           <p className="text-gray-500 mt-1">Your comprehensive learning analytics and course completion status.</p>
         </div>
-        <Button variant="outline" className="rounded-xl font-bold gap-2 shrink-0">
-          <Download className="h-4 w-4" /> Download Report
+        <Button 
+          variant="outline" 
+          className="rounded-xl font-bold gap-2 shrink-0"
+          onClick={downloadReport}
+          disabled={isExporting}
+        >
+          {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {isExporting ? "Generating..." : "Download Report"}
         </Button>
       </div>
 

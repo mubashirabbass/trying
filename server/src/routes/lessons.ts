@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, lessonsTable, lessonCompletionsTable } from "@workspace/db";
+import { db, lessonsTable, lessonCompletionsTable, videoAccessLogsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import {
   ListLessonsQueryParams,
@@ -117,6 +117,26 @@ router.post("/lessons/:id/progress", async (req: AuthRequest, res): Promise<void
       })
       .returning();
   }
+  if (completion.isCompleted) {
+    const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId));
+    if (lesson) {
+      const allLessons = await db.select().from(lessonsTable).where(eq(lessonsTable.courseId, lesson.courseId));
+      const completed = await db.select().from(lessonCompletionsTable)
+        .where(and(
+          eq(lessonCompletionsTable.userId, userId),
+          eq(lessonCompletionsTable.isCompleted, true)
+        ));
+      
+      const courseLessonIds = new Set(allLessons.map(l => l.id));
+      const completedCount = completed.filter(c => courseLessonIds.has(c.lessonId)).length;
+      const progress = Math.min(100, Math.round((completedCount / allLessons.length) * 100));
+
+      await db.update(enrollmentsTable)
+        .set({ progress, updatedAt: new Date() })
+        .where(and(eq(enrollmentsTable.userId, userId), eq(enrollmentsTable.courseId, lesson.courseId)));
+    }
+  }
+
   res.json(completion);
 });
 
@@ -160,6 +180,14 @@ router.get("/lessons/:id/embed", async (req, res): Promise<void> => {
 
     const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId));
     if (!lesson) { res.status(404).json({ error: "Lesson not found" }); return; }
+
+    // 1. Log video access
+    await db.insert(videoAccessLogsTable).values({
+      userId: decoded.userId,
+      lessonId,
+      ipAddress: req.ip || "unknown",
+      userAgent: req.headers["user-agent"] || "unknown",
+    }).catch(err => console.error("Failed to log video access:", err));
 
     let videoUrl = "";
     if (lesson.encryptedYoutubeId) {

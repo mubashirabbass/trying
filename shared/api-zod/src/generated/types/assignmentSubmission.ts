@@ -19,4 +19,5 @@ export interface AssignmentSubmission {
   status: AssignmentSubmissionStatus;
   userName?: string;
   assignmentTitle?: string;
+  dueDate?: Date | null;
 }

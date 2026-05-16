@@ -88,6 +88,21 @@ router.post("/messages/threads/:threadId/messages", async (req, res): Promise<vo
   if (!senderId || !body) { res.status(400).json({ error: "Missing fields" }); return; }
   const [row] = await db.insert(messagesTable).values({ threadId, senderId: Number(senderId), body }).returning();
   await db.update(messageThreadsTable).set({ lastMessageAt: new Date() }).where(eq(messageThreadsTable.id, threadId));
+  
+  // Trigger notification for recipient
+  try {
+    const [thread] = await db.select().from(messageThreadsTable).where(eq(messageThreadsTable.id, threadId));
+    const [sender] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, Number(senderId)));
+    if (thread && sender) {
+      const recipientId = thread.studentId === Number(senderId) ? thread.teacherId : thread.studentId;
+      const { notificationTriggers } = await import("../lib/notifications");
+      notificationTriggers.newMessage(recipientId, sender.name || "A user")
+        .catch(err => console.error("Failed to trigger message notification:", err));
+    }
+  } catch (err) {
+    console.error("Error triggering message notification:", err);
+  }
+
   res.status(201).json(row);
 });
 

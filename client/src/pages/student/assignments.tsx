@@ -96,9 +96,14 @@ export default function StudentAssignments() {
                     </div>
                   </div>
                   {isSubmitted && (
-                    <Badge className={submission.status === 'graded' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-blue-500 hover:bg-blue-600'}>
-                      {submission.status === 'graded' ? 'Graded' : 'Submitted'}
-                    </Badge>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge className={submission.status === 'graded' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-blue-500 hover:bg-blue-600'}>
+                        {submission.status === 'graded' ? 'Graded' : 'Submitted'}
+                      </Badge>
+                      {assignment.dueDate && new Date(submission.submittedAt) > new Date(assignment.dueDate) && (
+                        <Badge variant="destructive" className="text-[10px] py-0 h-4 font-black uppercase tracking-tighter">Late</Badge>
+                      )}
+                    </div>
                   )}
                 </div>
               </CardHeader>
@@ -135,9 +140,16 @@ export default function StudentAssignments() {
                         )}
                       </div>
                     ) : (
-                      <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg flex items-center gap-3 text-blue-700">
-                        <AlertCircle className="h-4 w-4 shrink-0" />
-                        <span className="text-xs font-semibold">Waiting for instructor review</span>
+                      <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg flex flex-col gap-2">
+                        <div className="flex items-center gap-3 text-blue-700">
+                          <AlertCircle className="h-4 w-4 shrink-0" />
+                          <span className="text-xs font-semibold">Waiting for instructor review</span>
+                        </div>
+                        {assignment.dueDate && new Date(submission.submittedAt) > new Date(assignment.dueDate) && (
+                          <div className="text-[10px] font-bold text-rose-600 flex items-center gap-1 mt-1">
+                            <Clock className="h-3 w-3" /> Submitted late on {new Date(submission.submittedAt).toLocaleString()}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

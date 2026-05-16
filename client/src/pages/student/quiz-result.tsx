@@ -1,7 +1,7 @@
 import { useParams, useLocation } from "wouter";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useAuth } from "@/lib/AuthContext";
-import { useState, useEffect } from "react";
+import { useGetQuizResult } from "@workspace/api-client-react";
 import { 
   Loader2, 
   CheckCircle2, 
@@ -21,26 +21,7 @@ export default function QuizResultPage() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const { token } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [result, setResult] = useState<any>(null);
-
-  useEffect(() => {
-    const fetchResult = async () => {
-      try {
-        const r = await fetch(`${BASE}/api/quizzes/results/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (r.ok) {
-          setResult(await r.json());
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (id && token) fetchResult();
-  }, [id, token]);
+  const { data: result, isLoading: loading } = useGetQuizResult(Number(id));
 
   if (loading) {
     return (

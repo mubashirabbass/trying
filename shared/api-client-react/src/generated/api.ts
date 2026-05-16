@@ -2974,6 +2974,160 @@ export const useSubmitQuiz = <TError = ErrorType<unknown>,
       return useMutation(getSubmitQuizMutationOptions(options));
     }
 
+export const getListQuizResultsUrl = () => {
+
+
+
+
+  return `/api/quizzes/results`
+}
+
+/**
+ * @summary List quiz results for current user
+ */
+export const listQuizResults = async ( options?: RequestInit): Promise<QuizResult[]> => {
+
+  return customFetch<QuizResult[]>(getListQuizResultsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListQuizResultsQueryKey = () => {
+    return [
+    `/api/quizzes/results`
+    ] as const;
+    }
+
+
+export const getListQuizResultsQueryOptions = <TData = Awaited<ReturnType<typeof listQuizResults>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQuizResults>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListQuizResultsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listQuizResults>>> = ({ signal }) => listQuizResults({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listQuizResults>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListQuizResultsQueryResult = NonNullable<Awaited<ReturnType<typeof listQuizResults>>>
+export type ListQuizResultsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List quiz results for current user
+ */
+
+export function useListQuizResults<TData = Awaited<ReturnType<typeof listQuizResults>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listQuizResults>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListQuizResultsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetQuizResultUrl = (id: number,) => {
+
+
+
+
+  return `/api/quizzes/results/${id}`
+}
+
+/**
+ * @summary Get detailed quiz result
+ */
+export const getQuizResult = async (id: number, options?: RequestInit): Promise<QuizResult> => {
+
+  return customFetch<QuizResult>(getGetQuizResultUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetQuizResultQueryKey = (id: number,) => {
+    return [
+    `/api/quizzes/results/${id}`
+    ] as const;
+    }
+
+
+export const getGetQuizResultQueryOptions = <TData = Awaited<ReturnType<typeof getQuizResult>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQuizResult>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetQuizResultQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getQuizResult>>> = ({ signal }) => getQuizResult(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getQuizResult>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetQuizResultQueryResult = NonNullable<Awaited<ReturnType<typeof getQuizResult>>>
+export type GetQuizResultQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get detailed quiz result
+ */
+
+export function useGetQuizResult<TData = Awaited<ReturnType<typeof getQuizResult>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getQuizResult>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetQuizResultQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getListSettingsUrl = () => {
 
 

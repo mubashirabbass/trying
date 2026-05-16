@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, coursesTable, usersTable, enrollmentsTable, lessonsTable } from "@workspace/db";
-import { eq, sql, count, desc } from "drizzle-orm";
+import { eq, sql, count, desc, or, and, ilike } from "drizzle-orm";
 import {
   ListCoursesQueryParams,
   CreateCourseBody,
@@ -42,6 +42,21 @@ router.get("/courses/stats", async (req, res): Promise<void> => {
 
 router.get("/courses", async (req, res): Promise<void> => {
   const params = ListCoursesQueryParams.safeParse(req.query);
+  const limit = Number(req.query.limit) || 24;
+  const offset = Number(req.query.offset) || 0;
+
+  let conditions = [];
+  if (params.success) {
+    if (params.data.category) conditions.push(eq(coursesTable.category, params.data.category));
+    if (params.data.featured !== undefined) conditions.push(eq(coursesTable.isFeatured, params.data.featured));
+    if (params.data.search) {
+      conditions.push(or(
+        ilike(coursesTable.title, `%${params.data.search}%`),
+        ilike(coursesTable.description, `%${params.data.search}%`)
+      ));
+    }
+  }
+
   const courses = await db
     .select({
       id: coursesTable.id,
@@ -61,7 +76,11 @@ router.get("/courses", async (req, res): Promise<void> => {
       teacherName: usersTable.name,
     })
     .from(coursesTable)
-    .leftJoin(usersTable, eq(coursesTable.teacherId, usersTable.id));
+    .leftJoin(usersTable, eq(coursesTable.teacherId, usersTable.id))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .limit(limit)
+    .offset(offset)
+    .orderBy(desc(coursesTable.createdAt));
 
   const enriched = await Promise.all(courses.map(async (course) => {
     const enrollCount = await db.select({ c: count() }).from(enrollmentsTable).where(eq(enrollmentsTable.courseId, course.id));
@@ -73,16 +92,7 @@ router.get("/courses", async (req, res): Promise<void> => {
     };
   }));
 
-  let filtered = enriched;
-  if (params.success) {
-    if (params.data.category) filtered = filtered.filter(c => c.category === params.data.category);
-    if (params.data.featured !== undefined) filtered = filtered.filter(c => c.isFeatured === params.data.featured);
-    if (params.data.search) {
-      const q = params.data.search.toLowerCase();
-      filtered = filtered.filter(c => c.title.toLowerCase().includes(q) || c.description.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q));
-    }
-  }
-  res.json(filtered);
+  res.json(enriched);
 });
 
 router.post("/courses", async (req, res): Promise<void> => {
@@ -91,8 +101,10 @@ router.post("/courses", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const slug = parsed.data.title.toLowerCase().replace(/ /g, "-").replace(/[^\w-]+/g, "");
   const [course] = await db.insert(coursesTable).values({
     ...parsed.data,
+    slug,
     status: parsed.data.status ?? "draft"
   }).returning();
   res.status(201).json({ ...course, enrollmentCount: 0, lessonCount: 0, teacherName: null });

@@ -238,6 +238,7 @@ export interface AssignmentSubmission {
   status: AssignmentSubmissionStatus;
   userName?: string;
   assignmentTitle?: string;
+  dueDate?: string | null;
 }
 
 export interface SubmitAssignmentBody {

@@ -123,28 +123,39 @@ export default function AdminPayments() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
             <div className="space-y-4">
-              <div className="aspect-[3/4] bg-muted rounded-lg overflow-hidden border relative group">
+              <div className="aspect-[3/4] bg-slate-900 rounded-3xl overflow-hidden border-8 border-slate-900 relative group shadow-2xl">
                 {reviewPayment?.receiptUrl ? (
                   <>
-                    <img 
-                      src={reviewPayment.receiptUrl} 
-                      alt="Payment Receipt" 
-                      className="w-full h-full object-contain"
-                    />
+                    <div className="w-full h-full overflow-hidden cursor-zoom-in relative">
+                      <img 
+                        src={reviewPayment.receiptUrl} 
+                        alt="Payment Receipt" 
+                        className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-150 origin-center"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                        <p className="text-white text-xs font-black uppercase tracking-widest bg-black/60 px-4 py-2 rounded-full backdrop-blur-md border border-white/10">
+                          Hover to Zoom
+                        </p>
+                      </div>
+                    </div>
                     <a 
                       href={reviewPayment.receiptUrl} 
                       target="_blank" 
-                      className="absolute bottom-2 right-2 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-4 right-4 h-10 w-10 bg-white/20 hover:bg-white/40 backdrop-blur-md text-white rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-xl border border-white/20"
                     >
-                      <ExternalLink className="h-4 w-4" />
+                      <ExternalLink className="h-5 w-5" />
                     </a>
                   </>
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground italic text-sm">
+                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 italic text-sm gap-3">
+                    <XCircle className="h-10 w-10 opacity-20" />
                     No receipt image provided
                   </div>
                 )}
               </div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-center">
+                Review receipt details before verification
+              </p>
             </div>
 
             <div className="space-y-6">

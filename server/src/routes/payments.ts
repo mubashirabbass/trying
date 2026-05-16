@@ -84,6 +84,18 @@ router.post("/payments/:id/verify", async (req, res): Promise<void> => {
         .set({ status: "active" })
         .where(eq(enrollmentsTable.id, existing.id));
     }
+
+    // Trigger notification
+    try {
+      const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, payment.courseId));
+      if (course) {
+        const { notificationTriggers } = await import("../lib/notifications");
+        notificationTriggers.paymentVerified(payment.userId, course.title)
+          .catch(err => console.error("Failed to trigger payment notification:", err));
+      }
+    } catch (err) {
+      console.error("Error fetching course for notification:", err);
+    }
   }
 
   res.json({ ...payment, userName: null, courseName: null });

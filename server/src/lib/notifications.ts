@@ -76,12 +76,32 @@ export const notificationTriggers = {
   identityVerified: (userId: number, approved: boolean, reason?: string) => {
     return createNotification({
       userId,
-      type: approved ? "info" : "info",
+      type: "info",
       title: approved ? "Identity Verified ✅" : "Identity Verification Update",
       message: approved 
         ? "Your identity document has been verified. You can now access all student features."
         : `Your identity verification was not approved. ${reason || "Please check your document and try again."}`,
       link: approved ? undefined : "/dashboard/verify-identity"
+    });
+  },
+
+  forumReply: (userId: number, postTitle: string) => {
+    return createNotification({
+      userId,
+      type: "info",
+      title: "New Forum Reply 💬",
+      message: `Someone replied to your post "${postTitle}".`,
+      link: "/dashboard/forum"
+    });
+  },
+
+  newMessage: (userId: number, senderName: string) => {
+    return createNotification({
+      userId,
+      type: "info",
+      title: "New Message 📧",
+      message: `You have a new message from ${senderName}.`,
+      link: "/dashboard/messages"
     });
   }
 };

@@ -59,10 +59,24 @@ app.use((req, res, next) => {
   next();
 });
 
+import path from "path";
+
 // 4. API Routes (Versioned)
 app.use("/api", router);
 
-// 5. Global Error Handling
+// 5. Serve Frontend in Production
+if (process.env.NODE_ENV === "production") {
+  const clientPath = path.join(__dirname, "../../client/dist");
+  app.use(express.static(clientPath));
+  
+  app.get("*", (req, res) => {
+    if (!req.url.startsWith("/api")) {
+      res.sendFile(path.join(clientPath, "index.html"));
+    }
+  });
+}
+
+// 6. Global Error Handling
 app.use(errorHandler);
 
 export default app;

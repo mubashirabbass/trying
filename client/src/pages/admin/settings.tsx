@@ -18,6 +18,8 @@ const CATEGORY_META: Record<string, { icon: any; label: string; color: string }>
   payment: { icon: CreditCard, label: "Payment Accounts", color: "text-orange-600 bg-orange-50" },
   certificate: { icon: Award, label: "Certificate", color: "text-purple-600 bg-purple-50" },
   learning: { icon: Play, label: "Learning", color: "text-indigo-600 bg-indigo-50" },
+  homepage: { icon: Settings, label: "Homepage CMS", color: "text-rose-600 bg-rose-50" },
+  social: { icon: Settings, label: "Social Media", color: "text-sky-600 bg-sky-50" },
 };
 
 export default function AdminSettings() {

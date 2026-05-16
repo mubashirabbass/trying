@@ -12,6 +12,7 @@ export const certificatesTable = pgTable("certificates", {
   pdfUrl: text("pdf_url"),
   status: text("status").notNull().default("issued"), // issued, revoked
   isRevoked: boolean("is_revoked").notNull().default(false),
+  revocationReason: text("revocation_reason"),
   issuedAt: timestamp("issued_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

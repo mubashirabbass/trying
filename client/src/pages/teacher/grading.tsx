@@ -14,7 +14,8 @@ import {
   ExternalLink, 
   Search, 
   Filter,
-  GraduationCap
+  GraduationCap,
+  Download
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,31 @@ export default function TeacherGrading() {
       toast({ title: "Grading failed", variant: "destructive" });
     }
   };
+  
+  const handleExportCSV = () => {
+    if (!submissions || submissions.length === 0) return;
+    
+    const headers = ["Student", "Assignment", "Submitted At", "Status", "Marks", "Feedback"];
+    const rows = submissions.map(sub => [
+      sub.userName,
+      sub.assignmentTitle,
+      new Date(sub.submittedAt).toLocaleString(),
+      sub.status,
+      sub.marks || "0",
+      `"${sub.feedback || ""}"`
+    ]);
+    
+    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `submissions_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   if (isLoading) {
     return (
@@ -95,6 +121,9 @@ export default function TeacherGrading() {
               ))}
             </SelectContent>
           </Select>
+          <Button variant="outline" className="flex items-center gap-2 font-bold" onClick={handleExportCSV}>
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
         </div>
       </div>
 
@@ -119,7 +148,14 @@ export default function TeacherGrading() {
                   </TableCell>
                   <TableCell className="py-4 text-slate-600 font-medium">{sub.assignmentTitle}</TableCell>
                   <TableCell className="py-4 text-sm text-slate-500">
-                    {new Date(sub.submittedAt).toLocaleDateString()}
+                    <div className="flex flex-col">
+                      <span>{new Date(sub.submittedAt).toLocaleDateString()}</span>
+                      {sub.dueDate && new Date(sub.submittedAt) > new Date(sub.dueDate) && (
+                        <span className="text-[10px] font-bold text-rose-500 flex items-center gap-0.5 mt-0.5">
+                          <Clock className="h-2.5 w-2.5" /> LATE
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="py-4">
                     <Badge variant={sub.status === 'graded' ? 'secondary' : 'default'} className={sub.status === 'graded' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-blue-50 text-blue-700 border-blue-100'}>

@@ -1,6 +1,6 @@
 import { Request, Response, Router, type IRouter } from "express";
 import { db, usersTable, branchesTable } from "@workspace/db";
-import { eq, and, ilike, or } from "drizzle-orm";
+import { eq, and, ilike, or, desc } from "drizzle-orm";
 import {
   ListUsersQueryParams,
   CreateUserBody,
@@ -9,7 +9,7 @@ import {
 } from "@workspace/api-zod";
 import { hashPassword, AppError } from "../lib/auth";
 import { catchAsync } from "../middleware/error";
-import { authenticate, authorize } from "../middleware/auth";
+import { authenticate, authorize, AuthRequest } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { sendSuccess } from "../utils/response";
 
@@ -24,7 +24,7 @@ router.get(
   authenticate,
   authorize("admin"),
   validate(zod.object({ query: ListUsersQueryParams })),
-  catchAsync(async (req: Request, res: Response) => {
+  catchAsync(async (req: AuthRequest, res: Response) => {
     const { role, branchId, search } = req.query as any;
 
     let conditions = [];
@@ -39,6 +39,9 @@ router.get(
         )
       );
     }
+
+    const limit = Number(req.query.limit) || 50;
+    const offset = Number(req.query.offset) || 0;
 
     const users = await db
       .select({
@@ -56,7 +59,10 @@ router.get(
       })
       .from(usersTable)
       .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
-      .where(conditions.length > 0 ? and(...conditions) : undefined);
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .limit(limit)
+      .offset(offset)
+      .orderBy(desc(usersTable.createdAt));
 
     return sendSuccess(res, users, "Users retrieved successfully");
   })
@@ -69,7 +75,7 @@ router.get(
 router.get(
   "/users/:id",
   authenticate,
-  catchAsync(async (req: Request, res: Response) => {
+  catchAsync(async (req: AuthRequest, res: Response) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) throw new AppError("Invalid user ID", 400);
 
@@ -110,7 +116,7 @@ router.put(
   "/users/:id",
   authenticate,
   validate(zod.object({ body: UpdateUserBody })),
-  catchAsync(async (req: Request, res: Response) => {
+  catchAsync(async (req: AuthRequest, res: Response) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) throw new AppError("Invalid user ID", 400);
 
@@ -141,7 +147,7 @@ router.post(
   authenticate,
   authorize("admin"),
   validate(zod.object({ body: ResetPasswordBody })),
-  catchAsync(async (req: Request, res: Response) => {
+  catchAsync(async (req: AuthRequest, res: Response) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) throw new AppError("Invalid user ID", 400);
 
@@ -166,7 +172,7 @@ router.delete(
   "/users/:id",
   authenticate,
   authorize("admin"),
-  catchAsync(async (req: Request, res: Response) => {
+  catchAsync(async (req: AuthRequest, res: Response) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) throw new AppError("Invalid user ID", 400);
 

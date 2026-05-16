@@ -761,6 +761,40 @@ paths:
               schema:
                 $ref: "#/components/schemas/QuizResult"
 
+  /quizzes/results:
+    get:
+      operationId: listQuizResults
+      tags: [quizzes]
+      summary: List quiz results for current user
+      responses:
+        "200":
+          description: List of results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QuizResult"
+
+  /quizzes/results/{id}:
+    get:
+      operationId: getQuizResult
+      tags: [quizzes]
+      summary: Get detailed quiz result
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Detailed result with questions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QuizResult"
+
   /settings:
     get:
       operationId: listSettings
@@ -1710,6 +1744,26 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Certificate"
+ 
+  /certificates/{id}/download:
+    get:
+      operationId: downloadCertificate
+      tags: [certificates]
+      summary: Download certificate PDF
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: PDF file
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
 
   /certificates/verify:
     get:
@@ -2149,6 +2203,10 @@ components:
           type: string
         assignmentTitle:
           type: string
+        dueDate:
+          type: string
+          format: date-time
+          nullable: true
       required: [id, assignmentId, userId, status]
 
     SubmitAssignmentBody:
@@ -2761,6 +2819,32 @@ components:
         userEmail:
           type: string
       required: [id, userId, documentType, documentUrl, status, submittedAt]
+
+    Certificate:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        courseId:
+          type: integer
+        certificateNumber:
+          type: string
+        pdfUrl:
+          type: string
+        status:
+          type: string
+          enum: [issued, revoked]
+        isRevoked:
+          type: boolean
+        issuedAt:
+          type: string
+        userName:
+          type: string
+        courseTitle:
+          type: string
+      required: [id, userId, courseId, certificateNumber, status, isRevoked, issuedAt]
 
     CreateMessageThreadBody:
       type: object

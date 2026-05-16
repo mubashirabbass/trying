@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, settingsTable, announcementLogsTable, notificationsTable, usersTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -10,6 +10,14 @@ const DEFAULT_SETTINGS = [
   { key: "site_email", value: "info@globalcollege.edu.pk", label: "Contact Email", category: "contact" },
   { key: "site_whatsapp", value: "923001234567", label: "WhatsApp Number", category: "contact" },
   { key: "site_address", value: "123 Education Street, Lahore", label: "Main Address", category: "contact" },
+  { key: "site_facebook", value: "https://facebook.com/globalcollege", label: "Facebook URL", category: "social" },
+  { key: "site_instagram", value: "https://instagram.com/globalcollege", label: "Instagram URL", category: "social" },
+  { key: "site_youtube", value: "https://youtube.com/globalcollege", label: "YouTube URL", category: "social" },
+  { key: "hero_title", value: "Learn from the Best Industry Experts", label: "Hero Title", category: "homepage" },
+  { key: "hero_subtitle", value: "Start your journey today with our world-class courses designed to help you excel in the digital age.", label: "Hero Subtitle", category: "homepage" },
+  { key: "hero_cta_text", value: "Browse Courses", label: "Hero CTA Text", category: "homepage" },
+  { key: "about_section_title", value: "Empowering Next Generation of Professionals", label: "About Section Title", category: "homepage" },
+  { key: "about_section_content", value: "Global College is dedicated to providing high-quality technical and professional education to students across Pakistan.", label: "About Section Content", category: "homepage" },
   { key: "easypaisa_account", value: "0300-1234567", label: "EasyPaisa Account", category: "payment" },
   { key: "jazzcash_account", value: "0300-1234567", label: "JazzCash Account", category: "payment" },
   { key: "bank_account", value: "MCB - IBAN: PK12MCB0000001234567890", label: "Bank Account", category: "payment" },
@@ -67,13 +75,21 @@ router.post("/announcements", async (req, res): Promise<void> => {
   if (!sentBy || !title || !message) { res.status(400).json({ error: "Missing fields" }); return; }
   const [row] = await db.insert(announcementLogsTable).values({ sentBy, targetType: targetType || "ALL", targetId, title, message }).returning();
   
+  // Trigger notifications
+  let targetUsers = [];
   if (targetType === "ALL" || !targetType) {
-    const allUsers = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.isActive, true));
-    if (allUsers.length > 0 && allUsers.length < 1000) {
-      await db.insert(notificationsTable).values(
-        allUsers.map(u => ({ userId: u.id, type: "announcement", title, message }))
-      );
-    }
+    targetUsers = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.isActive, true));
+  } else if (targetType === "STUDENTS") {
+    targetUsers = await db.select({ id: usersTable.id }).from(usersTable).where(and(eq(usersTable.role, "student"), eq(usersTable.isActive, true)));
+  } else if (targetType === "TEACHERS") {
+    targetUsers = await db.select({ id: usersTable.id }).from(usersTable).where(and(eq(usersTable.role, "teacher"), eq(usersTable.isActive, true)));
+  }
+
+  if (targetUsers.length > 0 && targetUsers.length < 5000) {
+    // Insert in chunks if needed, but 5000 is safe for a single insert in many DBs
+    await db.insert(notificationsTable).values(
+      targetUsers.map(u => ({ userId: u.id, type: "announcement", title, message }))
+    );
   }
   res.status(201).json(row);
 });

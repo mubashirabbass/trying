@@ -495,7 +495,8 @@ export const ListMySubmissionsResponseItem = zod.object({
   "feedback": zod.string().optional(),
   "status": zod.enum(['submitted', 'graded', 'late']),
   "userName": zod.string().optional(),
-  "assignmentTitle": zod.string().optional()
+  "assignmentTitle": zod.string().optional(),
+  "dueDate": zod.coerce.date().nullish()
 })
 export const ListMySubmissionsResponse = zod.array(ListMySubmissionsResponseItem)
 
@@ -519,7 +520,8 @@ export const ListSubmissionsResponseItem = zod.object({
   "feedback": zod.string().optional(),
   "status": zod.enum(['submitted', 'graded', 'late']),
   "userName": zod.string().optional(),
-  "assignmentTitle": zod.string().optional()
+  "assignmentTitle": zod.string().optional(),
+  "dueDate": zod.coerce.date().nullish()
 })
 export const ListSubmissionsResponse = zod.array(ListSubmissionsResponseItem)
 
@@ -612,7 +614,8 @@ export const SubmitAssignmentResponse = zod.object({
   "feedback": zod.string().optional(),
   "status": zod.enum(['submitted', 'graded', 'late']),
   "userName": zod.string().optional(),
-  "assignmentTitle": zod.string().optional()
+  "assignmentTitle": zod.string().optional(),
+  "dueDate": zod.coerce.date().nullish()
 })
 
 
@@ -640,7 +643,8 @@ export const GradeAssignmentResponse = zod.object({
   "feedback": zod.string().optional(),
   "status": zod.enum(['submitted', 'graded', 'late']),
   "userName": zod.string().optional(),
-  "assignmentTitle": zod.string().optional()
+  "assignmentTitle": zod.string().optional(),
+  "dueDate": zod.coerce.date().nullish()
 })
 
 
@@ -701,6 +705,49 @@ export const SubmitQuizBody = zod.object({
 })
 
 export const SubmitQuizResponse = zod.object({
+  "quizId": zod.number(),
+  "userId": zod.number(),
+  "score": zod.number(),
+  "totalMarks": zod.number(),
+  "percentage": zod.number(),
+  "passed": zod.boolean(),
+  "answers": zod.array(zod.object({
+  "questionId": zod.number(),
+  "correct": zod.boolean(),
+  "selectedOption": zod.number(),
+  "correctOption": zod.number()
+})).optional()
+})
+
+
+/**
+ * @summary List quiz results for current user
+ */
+export const ListQuizResultsResponseItem = zod.object({
+  "quizId": zod.number(),
+  "userId": zod.number(),
+  "score": zod.number(),
+  "totalMarks": zod.number(),
+  "percentage": zod.number(),
+  "passed": zod.boolean(),
+  "answers": zod.array(zod.object({
+  "questionId": zod.number(),
+  "correct": zod.boolean(),
+  "selectedOption": zod.number(),
+  "correctOption": zod.number()
+})).optional()
+})
+export const ListQuizResultsResponse = zod.array(ListQuizResultsResponseItem)
+
+
+/**
+ * @summary Get detailed quiz result
+ */
+export const GetQuizResultParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetQuizResultResponse = zod.object({
   "quizId": zod.number(),
   "userId": zod.number(),
   "score": zod.number(),
@@ -1561,7 +1608,8 @@ export const GetTeacherDashboardResponse = zod.object({
   "feedback": zod.string().optional(),
   "status": zod.enum(['submitted', 'graded', 'late']),
   "userName": zod.string().optional(),
-  "assignmentTitle": zod.string().optional()
+  "assignmentTitle": zod.string().optional(),
+  "dueDate": zod.coerce.date().nullish()
 }))
 })
 

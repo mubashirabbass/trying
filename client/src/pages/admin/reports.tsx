@@ -145,6 +145,52 @@ export default function AdminReports() {
     }
   };
 
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      const headers = getHeaders(activeReport);
+      const rows = data.map(row => {
+        switch (activeReport) {
+          case "branch": return [row.name, row.city, row.students, row.active, row.courses];
+          case "students": return [row.name, row.branch, row.courses, row.completion, row.quizAvg, row.assignAvg];
+          case "enrollments": return [row.course, row.enrolled, row.completed, row.active, row.free ? "Free" : "Paid"];
+          case "revenue": return [row.method, row.transactions, row.totalPKR, row.approved, row.pending];
+          case "full-list": return [row.name, row.email, row.branch, row.enrolled, row.status, row.joined];
+        }
+      });
+
+      const r = await fetch(`${BASE}/api/reports/export-excel`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify({
+          title: REPORT_TYPES.find(t => t.id === activeReport)?.label,
+          headers,
+          rows
+        })
+      });
+
+      if (r.ok) {
+        const blob = await r.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${activeReport}-report.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } else {
+        throw new Error("Export failed");
+      }
+    } catch (err) {
+      toast({ title: "Excel Export failed", variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="flex flex-col gap-8">
@@ -190,8 +236,9 @@ export default function AdminReports() {
               <div className="flex gap-3">
                 <Button
                   variant="outline"
+                  disabled={exporting || loading}
                   className="font-black gap-2 rounded-2xl border-gray-200 h-12 px-6 text-sm hover:bg-slate-50"
-                  onClick={() => toast({ title: "Coming soon: Excel export" })}
+                  onClick={handleExportExcel}
                 >
                   <Table className="h-4 w-4 text-emerald-600" />
                   Excel

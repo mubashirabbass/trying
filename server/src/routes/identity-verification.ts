@@ -3,11 +3,20 @@ import { db, identityVerificationsTable, usersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { notificationTriggers } from "../lib/notifications";
 
+import { authenticate, authorize } from "../middleware/auth";
+
 const router: IRouter = Router();
 
-router.get("/identity-verification", async (req, res): Promise<void> => {
+router.get("/identity-verification", authenticate, async (req: any, res): Promise<void> => {
   const userId = Number(req.query.userId);
   if (!userId) { res.status(400).json({ error: "userId required" }); return; }
+
+  // Only owner or admin
+  if (req.user?.role !== "admin" && req.user?.id !== userId) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
   const [row] = await db.select().from(identityVerificationsTable)
     .where(eq(identityVerificationsTable.userId, userId))
     .orderBy(desc(identityVerificationsTable.submittedAt))
@@ -15,16 +24,23 @@ router.get("/identity-verification", async (req, res): Promise<void> => {
   res.json(row ?? null);
 });
 
-router.post("/identity-verification", async (req, res): Promise<void> => {
+router.post("/identity-verification", authenticate, async (req: any, res): Promise<void> => {
   const { userId, documentType, cnicNumber, documentUrl } = req.body;
   if (!userId || !documentUrl) { res.status(400).json({ error: "Missing fields" }); return; }
+
+  // Only owner
+  if (req.user?.id !== Number(userId)) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
   const [row] = await db.insert(identityVerificationsTable)
     .values({ userId: Number(userId), documentType: documentType || "CNIC", cnicNumber, documentUrl })
     .returning();
   res.status(201).json(row);
 });
 
-router.get("/admin/identity-verifications", async (req, res): Promise<void> => {
+router.get("/admin/identity-verifications", authenticate, authorize("admin"), async (req, res): Promise<void> => {
   const verifications = await db.select({
     id: identityVerificationsTable.id,
     userId: identityVerificationsTable.userId,
@@ -43,7 +59,7 @@ router.get("/admin/identity-verifications", async (req, res): Promise<void> => {
   res.json(verifications);
 });
 
-router.patch("/admin/identity-verifications/:id/approve", async (req, res): Promise<void> => {
+router.patch("/admin/identity-verifications/:id/approve", authenticate, authorize("admin"), async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   const [row] = await db.update(identityVerificationsTable)
     .set({ status: "approved", reviewedAt: new Date() })
@@ -58,7 +74,7 @@ router.patch("/admin/identity-verifications/:id/approve", async (req, res): Prom
   res.json(row);
 });
 
-router.patch("/admin/identity-verifications/:id/reject", async (req, res): Promise<void> => {
+router.patch("/admin/identity-verifications/:id/reject", authenticate, authorize("admin"), async (req, res): Promise<void> => {
   const id = Number(req.params.id);
   const { rejectionReason } = req.body;
   const [row] = await db.update(identityVerificationsTable)

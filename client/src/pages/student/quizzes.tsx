@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { useListQuizzes } from "@workspace/api-client-react";
+import { useListQuizzes, useListQuizResults } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/AuthContext";
 import { 
   Loader2, 
@@ -25,26 +25,7 @@ export default function StudentQuizzes() {
   const [, setLocation] = useLocation();
   const { token } = useAuth();
   const { data: quizzes, isLoading: quizzesLoading } = useListQuizzes();
-  const [results, setResults] = useState<any[]>([]);
-  const [resultsLoading, setResultsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchResults = async () => {
-      try {
-        const r = await fetch(`${BASE}/api/quizzes/results`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (r.ok) {
-          setResults(await r.json());
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setResultsLoading(false);
-      }
-    };
-    if (token) fetchResults();
-  }, [token]);
+  const { data: results = [], isLoading: resultsLoading } = useListQuizResults();
 
   const isLoading = quizzesLoading || resultsLoading;
 

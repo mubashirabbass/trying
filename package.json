@@ -13,7 +13,9 @@
     "db:push": "cd db && pnpm drizzle-kit push",
     "db:generate": "cd db && pnpm drizzle-kit generate",
     "db:migrate": "cd db && pnpm drizzle-kit migrate",
-    "db:studio": "cd db && pnpm drizzle-kit studio"
+    "db:studio": "cd db && pnpm drizzle-kit studio",
+    "db:seed": "npx tsx --env-file=.env db/src/seed.ts",
+    "test:smoke": "ts-node server/scripts/smoke-test.ts"
   },
   "devDependencies": {
     "@types/node": "catalog:",
@@ -21,6 +23,7 @@
     "@types/react-dom": "catalog:",
     "dotenv": "^17.4.2",
     "prettier": "^3.8.1",
+    "tsx": "catalog:",
     "typescript": "~5.9.2",
     "vite": "catalog:"
   },

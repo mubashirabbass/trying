@@ -34,6 +34,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 export default function AdminStudentDetail() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { id } = useParams();
   const studentId = id ? Number(id) : 0;
 
   const { data: student, isLoading: userLoading } = useGetUser({ id: studentId });

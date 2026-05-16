@@ -222,6 +222,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         return [
           { name: "Overview", path: "/teacher", icon: LayoutDashboard },
           { name: "My Courses", path: "/teacher/courses", icon: BookOpen },
+          { name: "Students", path: "/teacher/students", icon: Users },
           { name: "Assignments", path: "/teacher/assignments", icon: FileText },
           { name: "Quizzes", path: "/teacher/quizzes", icon: CheckSquare },
           { name: "Grading", path: "/teacher/grading", icon: GraduationCap },

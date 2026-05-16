@@ -22,7 +22,7 @@ export function WhatsAppButton() {
         const r = await fetch(`${BASE}/api/settings`);
         if (r.ok) {
           const settings: { key: string; value: string }[] = await r.json();
-          const wa = settings.find(s => s.key === "whatsappNumber");
+          const wa = settings.find(s => s.key === "site_whatsapp");
           if (wa?.value) {
             // Normalize: remove spaces, dashes, +
             setWaNumber(wa.value.replace(/[\s\-+]/g, ""));

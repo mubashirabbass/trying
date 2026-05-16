@@ -23,6 +23,7 @@ import Incubators from "@/pages/incubators";
 import Feedback from "@/pages/feedback";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
+import PrivacyPolicy from "@/pages/privacy.tsx";
 
 // Student Pages
 import StudentDashboard from "@/pages/student/dashboard";
@@ -51,6 +52,7 @@ import TeacherAssignments from "@/pages/teacher/assignments";
 import TeacherQuizzes from "@/pages/teacher/quizzes";
 import TeacherMessages from "@/pages/teacher/messages";
 import TeacherProfile from "@/pages/teacher/profile";
+import TeacherStudents from "@/pages/teacher/students";
 import Branches from "@/pages/branches";
 
 // Admin Pages
@@ -71,8 +73,10 @@ import AdminReports from "@/pages/admin/reports";
 import AdminStudentDetail from "@/pages/admin/student-detail";
 import AdminTeacherDetail from "@/pages/admin/teacher-detail";
 import AdminCourseReview from "@/pages/admin/course-review";
+import AdminCourseEdit from "@/pages/admin/course-edit";
 import AdminForum from "@/pages/admin/forum";
 import AdminMessages from "@/pages/admin/messages";
+import AdminLeaderboard from "@/pages/admin/leaderboard";
 
 const queryClient = new QueryClient();
 
@@ -114,6 +118,7 @@ function Router() {
         <Route path="/branches" component={Branches} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password/:token" component={ResetPassword} />
+        <Route path="/privacy" component={PrivacyPolicy} />
 
         {/* Student Protected Routes */}
         <Route path="/dashboard">
@@ -178,6 +183,9 @@ function Router() {
         <Route path="/teacher/profile">
           <ProtectedRoute component={TeacherProfile} />
         </Route>
+        <Route path="/teacher/students">
+          <ProtectedRoute component={TeacherStudents} />
+        </Route>
         <Route path="/teacher/courses">
           <ProtectedRoute component={TeacherCourses} />
         </Route>
@@ -212,6 +220,9 @@ function Router() {
         </Route>
         <Route path="/admin/courses/:id/review">
           <ProtectedRoute component={AdminCourseReview} />
+        </Route>
+        <Route path="/admin/courses/:id/edit">
+          <ProtectedRoute component={AdminCourseEdit} />
         </Route>
         <Route path="/admin/payments">
           <ProtectedRoute component={AdminPayments} />
@@ -254,6 +265,9 @@ function Router() {
         </Route>
         <Route path="/admin/reports">
           <ProtectedRoute component={AdminReports} />
+        </Route>
+        <Route path="/admin/leaderboard">
+          <ProtectedRoute component={AdminLeaderboard} />
         </Route>
 
         <Route component={NotFound} />

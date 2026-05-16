@@ -67,6 +67,7 @@ router.get("/assignments/submissions/me", async (req: AuthRequest, res): Promise
       status: assignmentSubmissionsTable.status,
       submittedAt: assignmentSubmissionsTable.submittedAt,
       assignmentTitle: assignmentsTable.title,
+      dueDate: assignmentsTable.dueDate,
     })
     .from(assignmentSubmissionsTable)
     .innerJoin(assignmentsTable, eq(assignmentSubmissionsTable.assignmentId, assignmentsTable.id))
@@ -91,6 +92,7 @@ router.get("/assignments/submissions", async (req, res): Promise<void> => {
       submittedAt: assignmentSubmissionsTable.submittedAt,
       userName: usersTable.name,
       assignmentTitle: assignmentsTable.title,
+      dueDate: assignmentsTable.dueDate,
     })
     .from(assignmentSubmissionsTable)
     .innerJoin(usersTable, eq(assignmentSubmissionsTable.userId, usersTable.id))

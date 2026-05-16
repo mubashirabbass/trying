@@ -135,13 +135,13 @@ router.get("/quizzes/results", async (req: AuthRequest, res): Promise<void> => {
     totalMarks: quizResultsTable.totalMarks,
     percentage: quizResultsTable.percentage,
     passed: quizResultsTable.passed,
-    createdAt: quizResultsTable.createdAt,
+    submittedAt: quizResultsTable.submittedAt,
     quizTitle: quizzesTable.title,
   })
   .from(quizResultsTable)
   .leftJoin(quizzesTable, eq(quizResultsTable.quizId, quizzesTable.id))
   .where(eq(quizResultsTable.userId, userId))
-  .orderBy(quizResultsTable.createdAt);
+  .orderBy(quizResultsTable.submittedAt);
 
   res.json(results);
 });
