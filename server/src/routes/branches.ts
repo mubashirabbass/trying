@@ -1,14 +1,34 @@
 import { Router, type IRouter } from "express";
-import { db, branchesTable, usersTable } from "@workspace/db";
+import { db, branchesTable, usersTable, pool } from "@workspace/db";
 import { eq, count, sql } from "drizzle-orm";
 import { CreateBranchBody, UpdateBranchBody } from "@workspace/api-zod";
 import { authenticate, authorize } from "../middleware/auth";
 import { validate } from "../middleware/validate";
 import { catchAsync } from "../middleware/error";
-import { sendSuccess, sendError } from "../utils/response";
-import { AppError } from "../lib/auth";
+import { AppError, verifyToken } from "../lib/auth";
+import { upload } from "../middleware/upload";
+import { uploadToCloudinary } from "../lib/cloudinary";
 
 const router: IRouter = Router();
+
+const ensureBranchColumns = (() => {
+  let checked = false;
+
+  return async () => {
+    if (checked) return;
+
+    await pool.query(`
+      ALTER TABLE branches
+        ADD COLUMN IF NOT EXISTS description text,
+        ADD COLUMN IF NOT EXISTS head_name text,
+        ADD COLUMN IF NOT EXISTS manual_student_count integer NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS image text,
+        ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true
+    `);
+
+    checked = true;
+  };
+})();
 
 /**
  * @route GET /api/v1/branches
@@ -16,7 +36,21 @@ const router: IRouter = Router();
  * @access Public
  */
 router.get("/branches", catchAsync(async (req, res) => {
-  const branches = await db.select().from(branchesTable);
+  await ensureBranchColumns();
+
+  let includeInactive = false;
+  if (req.headers["x-include-inactive"] === "true" && req.headers.authorization?.startsWith("Bearer ")) {
+    try {
+      const decoded = verifyToken(req.headers.authorization.slice(7));
+      includeInactive = decoded.role === "admin";
+    } catch {
+      includeInactive = false;
+    }
+  }
+
+  const branches = includeInactive
+    ? await db.select().from(branchesTable)
+    : await db.select().from(branchesTable).where(eq(branchesTable.isActive, true));
   
   // Enrich with student count
   const enrichedBranches = await Promise.all(branches.map(async (branch) => {
@@ -49,8 +83,37 @@ router.post(
   authorize("admin"),
   validate(CreateBranchBody),
   catchAsync(async (req, res) => {
+    await ensureBranchColumns();
+
     const [branch] = await db.insert(branchesTable).values(req.body).returning();
     res.status(201).json(branch);
+  })
+);
+
+/**
+ * @route POST /api/v1/branches/upload-image
+ * @desc Upload a campus image from admin portal
+ * @access Private (Admin Only)
+ */
+router.post(
+  "/branches/upload-image",
+  authenticate,
+  authorize("admin"),
+  upload.single("image"),
+  catchAsync(async (req: any, res) => {
+    if (!req.file) {
+      throw new AppError("Campus image is required", 400);
+    }
+
+    if (!req.file.mimetype.startsWith("image/")) {
+      throw new AppError("Only image files are allowed for campus photos", 400);
+    }
+
+    const result = await uploadToCloudinary(req.file.buffer, "campuses", "image");
+    res.status(201).json({
+      url: result.secure_url,
+      publicId: result.public_id,
+    });
   })
 );
 
@@ -60,11 +123,13 @@ router.post(
  * @access Public
  */
 router.get("/branches/:id", catchAsync(async (req: any, res) => {
+  await ensureBranchColumns();
+
   const id = parseInt(req.params.id as string);
   if (isNaN(id)) throw new AppError("Invalid branch ID", 400);
 
   const [branch] = await db.select().from(branchesTable).where(eq(branchesTable.id, id));
-  if (!branch) throw new AppError("Branch not found", 404);
+  if (!branch || !branch.isActive) throw new AppError("Branch not found", 404);
 
   const studentCount = await db
     .select({ c: count() })
@@ -92,6 +157,8 @@ router.put(
   authorize("admin"),
   validate(UpdateBranchBody),
   catchAsync(async (req: any, res) => {
+    await ensureBranchColumns();
+
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) throw new AppError("Invalid branch ID", 400);
 
@@ -119,10 +186,21 @@ router.delete(
   authenticate,
   authorize("admin"),
   catchAsync(async (req: any, res) => {
+    await ensureBranchColumns();
+
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) throw new AppError("Invalid branch ID", 400);
 
-    const [deletedBranch] = await db.delete(branchesTable).where(eq(branchesTable.id, id)).returning();
+    await db
+      .update(usersTable)
+      .set({ branchId: null })
+      .where(eq(usersTable.branchId, id));
+
+    const [deletedBranch] = await db
+      .delete(branchesTable)
+      .where(eq(branchesTable.id, id))
+      .returning();
+
     if (!deletedBranch) { res.status(404).json({ error: "Branch not found" }); return; }
 
     res.sendStatus(204);

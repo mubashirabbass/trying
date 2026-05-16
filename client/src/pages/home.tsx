@@ -26,7 +26,6 @@ import {
   getListCoursesQueryKey,
   getListTestimonialsQueryKey,
   getListSuccessStoriesQueryKey,
-  getListBranchesQueryKey,
 } from "@workspace/api-client-react";
 import {
   Clock,
@@ -233,10 +232,10 @@ export default function Home() {
   }, []);
 
   const { data: branches } = useListBranches({
-    query: { queryKey: getListBranchesQueryKey() },
+    query: { queryKey: ["home-branches"] },
   });
 
-  const displayBranches = branches || [];
+  const displayBranches = (branches || []).filter((branch: any) => branch.isActive !== false);
 
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -603,7 +602,7 @@ export default function Home() {
       </section>
 
 
-      {/* ── Physical Incubator Network (Temporarily Hidden) ────────────────
+      {/* ── Physical Incubator Network ────────────────────────────────────── */}
       <section className="py-24 bg-white relative overflow-hidden">
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="text-center mb-16">
@@ -615,63 +614,82 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {displayBranches.map((branch: any) => (
-              <Card key={branch.id} className="overflow-hidden border-gray-100 shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl group border-0 shadow-sm ring-1 ring-gray-100">
-                <CardContent className="p-8">
-                  <div className="flex items-start justify-between mb-8">
-                    <div className="flex items-center gap-4">
-                      <div className="h-16 w-16 rounded-2xl bg-gray-50 flex items-center justify-center border border-gray-100 shadow-sm group-hover:scale-110 transition-transform">
-                        <Globe className="h-8 w-8 text-blue-600" />
-                      </div>
-                      <div>
-                        <h3 className="text-2xl font-black text-gray-900">{branch.name}</h3>
-                        <p className="text-xs text-gray-400 font-bold flex items-center gap-1 uppercase tracking-wider mt-1">
-                          <MapPin className="h-3 w-3" /> {branch.location || "Active Location"}
-                        </p>
-                      </div>
+              <Card key={branch.id} className="overflow-hidden border-gray-100 shadow-sm hover:shadow-xl transition-all duration-500 rounded-3xl group border-0 ring-1 ring-gray-100 bg-white flex flex-col h-full">
+                {/* Compact Image/Header Area */}
+                <div className="relative h-32 bg-slate-100 overflow-hidden">
+                  {branch.image ? (
+                    <img src={branch.image} alt={branch.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-50 to-emerald-50 flex items-center justify-center">
+                      <Globe className="h-10 w-10 text-blue-200" />
                     </div>
-                    <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 px-3 py-1 flex items-center gap-1.5 font-bold shadow-none pointer-events-none">
-                      <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                      {branch.status || "Active"}
-                    </Badge>
-                  </div>
+                  )}
+                  <Badge className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-emerald-600 border-none px-2 py-0.5 text-[10px] font-black uppercase shadow-sm pointer-events-none">
+                    {branch.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
 
-                  <p className="text-gray-500 text-sm leading-relaxed mb-8 min-h-[40px]">
-                    {branch.desc || "Empowering people with world-class skills and training."}
-                  </p>
-
-                  <div className="space-y-4 mb-10 bg-gray-50/50 p-6 rounded-2xl border border-gray-50">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-400 flex items-center gap-2">
-                        <User2 className="h-4 w-4" /> City Leader:
-                      </span>
-                      <span className="font-bold text-gray-900">{branch.leader || "TBA"}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-400 flex items-center gap-2">
-                        <BarChart3 className="h-4 w-4" /> Students:
-                      </span>
-                      <span className="font-bold text-emerald-600">{branch.students || "Growing"}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-400 flex items-center gap-2">
-                        <Phone className="h-4 w-4" /> Phone:
-                      </span>
-                      <span className="font-bold text-gray-900">{branch.phone}</span>
+                <CardContent className="p-4 flex-1 flex flex-col">
+                  <div className="mb-3">
+                    <h3 className="text-base font-black text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">{branch.name}</h3>
+                    <div className="flex items-center gap-1.5 text-gray-400 mt-1">
+                      <MapPin className="h-3 w-3 text-primary" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">{branch.city || "Pakistan"}</span>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <Link href={`/incubators/${branch.id}`}>
-                      <Button className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#10b981] to-[#3b82f6] hover:from-[#059669] hover:to-[#2563eb] text-white font-black text-base shadow-lg shadow-blue-500/10 flex items-center justify-center gap-2 group/btn border-0">
-                        View Details 
-                        <ChevronRight className="h-5 w-5 group-hover/btn:translate-x-1 transition-transform" />
-                      </Button>
-                    </Link>
+                  <div className="space-y-2 mb-4 flex-1">
+                    {/* Key Metrics */}
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <div className="bg-slate-50 p-2 rounded-xl border border-gray-50">
+                        <p className="text-[9px] text-gray-400 font-bold uppercase">Students</p>
+                        <p className="text-xs font-black text-emerald-600">{branch.studentCount || 0}</p>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded-xl border border-gray-50">
+                        <p className="text-[9px] text-gray-400 font-bold uppercase">Leader</p>
+                        <p className="text-xs font-black text-gray-900 truncate">{branch.headName?.split(' ')[0] || "TBA"}</p>
+                      </div>
+                    </div>
+
+                    {/* Detailed Info */}
+                    <div className="space-y-1.5 text-[10px] text-gray-500 font-medium">
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-3 w-3 shrink-0 text-slate-300" />
+                        <span className="line-clamp-1 italic">{branch.address}</span>
+                      </div>
+                      {branch.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-3 w-3 shrink-0 text-slate-300" />
+                          <span>{branch.phone}</span>
+                        </div>
+                      )}
+                      {branch.email && (
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-3 w-3 shrink-0 text-slate-300" />
+                          <span className="truncate">{branch.email}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-auto pt-3 border-t border-gray-50 flex items-center justify-between">
+                    <div className="flex gap-1.5">
+                      <Link href={`/incubators/${branch.id}`}>
+                        <Button className="h-8 px-4 rounded-lg bg-slate-900 hover:bg-primary text-white font-black text-[10px] shadow-sm transition-all border-0">
+                          Details
+                        </Button>
+                      </Link>
+                      {branch.mapUrl && (
+                        <a href={branch.mapUrl} target="_blank" rel="noreferrer" className="h-8 w-8 rounded-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                    </div>
                     <Link href="/register">
-                      <Button variant="outline" className="w-full h-14 rounded-2xl border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-black text-base transition-colors">
-                        Apply Now
+                      <Button variant="outline" className="h-8 px-4 rounded-lg border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-black text-[10px] transition-colors">
+                        Apply
                       </Button>
                     </Link>
                   </div>
@@ -681,7 +699,7 @@ export default function Home() {
           </div>
         </div>
       </section>
-      ────────────────────────────────────────────────────────────────── */}
+      {/* ────────────────────────────────────────────────────────────────── */}
 
       {/* ── Edu-Sphere Achievers (Success Stories Redesign) ─────────────── */}
       <section className="py-24 bg-slate-50 relative overflow-hidden">
@@ -1105,14 +1123,19 @@ export default function Home() {
           </div>
         </div>
         
-        <div className="relative group/marquee">
-          {/* Fading Gradients for Smooth Scroll Look */}
-          <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-slate-50 to-transparent z-10 pointer-events-none" />
-          <div className="absolute inset-y-0 right-0 w-32 bg-gradient-to-l from-slate-50 to-transparent z-10 pointer-events-none" />
-
-          <div className="flex gap-8 animate-marquee whitespace-nowrap px-4 hover:[animation-play-state:paused]">
-            {[...displayBranches, ...displayBranches].map((branch: any, i) => (
-              <div key={`${branch.id}-${i}`} className="inline-block w-[300px] flex-shrink-0 whitespace-normal">
+        <div className="w-full px-4 md:px-10 lg:px-16">
+          {displayBranches.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center">
+              <Globe className="h-10 w-10 text-slate-300 mx-auto mb-4" />
+              <h4 className="text-lg font-black text-slate-900">No campuses listed yet</h4>
+              <p className="text-sm text-slate-500 mt-2">
+                Add active campuses from the admin portal to show them here.
+              </p>
+            </div>
+          ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+            {displayBranches.map((branch: any) => (
+              <div key={branch.id}>
                 <Card className="bg-white border-0 shadow-xl shadow-slate-100 hover:shadow-2xl transition-all duration-500 rounded-2xl overflow-hidden group/branch border border-slate-50 h-full">
                   <CardContent className="p-6">
                     {/* Header: Image, Title, Badge */}
@@ -1129,7 +1152,7 @@ export default function Home() {
                           <h4 className="text-lg font-black text-emerald-600 mb-0.5 tracking-tight truncate-multiline line-clamp-1">{branch.name}</h4>
                           <div className="flex items-center gap-1 text-slate-400 font-bold text-[10px]">
                             <MapPin className="h-3.5 w-3.5" />
-                            <span>Active Location</span>
+                            <span>{branch.city || "Active Location"}</span>
                           </div>
                         </div>
                       </div>
@@ -1146,27 +1169,33 @@ export default function Home() {
 
                     {/* Info Box (Grey) */}
                     <div className="bg-slate-50/80 rounded-xl p-4 space-y-3 mb-6 border border-slate-100/50">
-                      <div className="flex items-center justify-between text-[12px]">
-                        <div className="flex items-center gap-3 text-slate-500 font-bold">
-                          <User2 className="h-4 w-4" />
-                          <span>City Leader:</span>
+                      {branch.headName && (
+                        <div className="flex items-center justify-between text-[12px]">
+                          <div className="flex items-center gap-3 text-slate-500 font-bold">
+                            <User2 className="h-4 w-4" />
+                            <span>City Leader:</span>
+                          </div>
+                          <span className="text-slate-900 font-black">{branch.headName}</span>
                         </div>
-                        <span className="text-slate-900 font-black">{branch.headName || "Malik Haris Mustafa"}</span>
-                      </div>
+                      )}
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-3 text-slate-500 font-bold">
                           <TrendingUp className="h-4 w-4" />
                           <span>Students:</span>
                         </div>
-                        <span className="text-emerald-600 font-black">Growing</span>
+                        <span className="text-emerald-600 font-black">
+                          {Number(branch.studentCount ?? branch.manualStudentCount ?? 0).toLocaleString()}
+                        </span>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-3 text-slate-500 font-bold">
-                          <Phone className="h-4 w-4" />
-                          <span>Phone:</span>
+                      {branch.phone && (
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-3 text-slate-500 font-bold">
+                            <Phone className="h-4 w-4" />
+                            <span>Phone:</span>
+                          </div>
+                          <span className="text-slate-900 font-black">{branch.phone}</span>
                         </div>
-                        <span className="text-slate-900 font-black">{branch.phone || "+92 300 000 0000"}</span>
-                      </div>
+                      )}
                     </div>
                     
                     {/* Action Buttons */}
@@ -1176,8 +1205,8 @@ export default function Home() {
                           View Details <ArrowRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
                         </a>
                       </Button>
-                      <Button variant="outline" className="w-full h-11 border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-black text-sm rounded-xl">
-                        Apply Now
+                      <Button variant="outline" className="w-full h-11 border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-black text-sm rounded-xl" asChild>
+                        <Link href="/register">Apply Now</Link>
                       </Button>
                     </div>
                   </CardContent>
@@ -1185,6 +1214,7 @@ export default function Home() {
               </div>
             ))}
           </div>
+          )}
         </div>
       </section>
 

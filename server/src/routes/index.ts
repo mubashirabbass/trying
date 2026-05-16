@@ -22,6 +22,7 @@ import branchesRouter from "./branches";
 import reportsRouter from "./reports";
 import faqsRouter from "./faqs";
 import articlesRouter from "./articles";
+import usersRouter from "./users";
 
 import { authenticate } from "../middleware/auth";
 
@@ -53,5 +54,6 @@ router.use(settingsRouter);
 router.use(leaderboardRouter);
 router.use(sectionsRouter);
 router.use(reportsRouter);
+router.use(usersRouter);
 
 export default router;

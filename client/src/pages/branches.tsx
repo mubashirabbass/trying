@@ -34,6 +34,9 @@ export default function BranchesPage() {
   const { data: branches = [], isLoading } = useListBranches();
 
   const activeBranches = branches.filter((b: any) => b.isActive !== false);
+  const totalStudents = activeBranches.reduce((sum: number, branch: any) => {
+    return sum + Number(branch.studentCount ?? branch.manualStudentCount ?? 0);
+  }, 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -65,7 +68,7 @@ export default function BranchesPage() {
             {[
               { label: "Active Campuses", value: activeBranches.length, icon: Building2 },
               { label: "Cities Covered", value: new Set(activeBranches.map((b: any) => b.city)).size, icon: MapPin },
-              { label: "Total Students", value: "5,000+", icon: Users },
+              { label: "Total Students", value: totalStudents.toLocaleString(), icon: Users },
               { label: "Courses Available", value: "20+", icon: CheckCircle2 },
             ].map((stat) => (
               <div key={stat.label} className="flex flex-col items-center gap-2">
@@ -101,6 +104,23 @@ export default function BranchesPage() {
               >
                 {/* Color bar */}
                 <div className={`h-2 ${idx % 3 === 0 ? "bg-primary" : idx % 3 === 1 ? "bg-indigo-500" : "bg-emerald-500"}`} />
+                <div className="h-44 bg-slate-100 overflow-hidden">
+                  {branch.image ? (
+                    <img
+                      src={branch.image}
+                      alt={branch.name}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className={`h-full w-full flex items-center justify-center ${
+                      idx % 3 === 0 ? "bg-primary/10 text-primary" :
+                      idx % 3 === 1 ? "bg-indigo-50 text-indigo-500" :
+                      "bg-emerald-50 text-emerald-500"
+                    }`}>
+                      <Building2 className="h-16 w-16 opacity-50" />
+                    </div>
+                  )}
+                </div>
 
                 <CardContent className="p-7">
                   {/* Header */}
@@ -120,7 +140,12 @@ export default function BranchesPage() {
                   <h2 className="text-xl font-black text-gray-900 mb-1 group-hover:text-primary transition-colors">
                     {branch.name}
                   </h2>
-                  <p className="text-sm font-bold text-gray-400 mb-5 uppercase tracking-widest">{branch.city}</p>
+                    <p className="text-sm font-bold text-gray-400 mb-5 uppercase tracking-widest">{branch.city}</p>
+                    {branch.description && (
+                      <p className="text-sm text-gray-600 font-medium leading-relaxed mb-5 line-clamp-3">
+                        {branch.description}
+                      </p>
+                    )}
 
                   <div className="space-y-3">
                     {branch.address && (
@@ -141,6 +166,16 @@ export default function BranchesPage() {
                         </a>
                       </div>
                     )}
+                    {branch.headName && (
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
+                          <Users className="h-4 w-4 text-gray-400" />
+                        </div>
+                        <p className="text-sm text-gray-600 font-bold">
+                          City Leader: {branch.headName}
+                        </p>
+                      </div>
+                    )}
                     {branch.studentCount !== undefined && (
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-xl bg-gray-50 flex items-center justify-center shrink-0">
@@ -154,7 +189,7 @@ export default function BranchesPage() {
                   </div>
 
                   <div className="mt-6 pt-5 border-t border-gray-50">
-                    <a href="/contact" className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-colors ${
+                    <a href={branch.mapUrl || "/contact"} target={branch.mapUrl ? "_blank" : undefined} rel={branch.mapUrl ? "noreferrer" : undefined} className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm transition-colors ${
                       idx % 3 === 0 ? "bg-primary/10 text-primary hover:bg-primary hover:text-white" :
                       idx % 3 === 1 ? "bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white" :
                       "bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white"

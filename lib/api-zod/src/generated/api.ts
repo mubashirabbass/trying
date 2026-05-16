@@ -778,6 +778,11 @@ export const ListBranchesResponseItem = zod.object({
   "email": zod.string().optional(),
   "mapUrl": zod.string().optional(),
   "isMain": zod.boolean().optional(),
+  "description": zod.string().optional(),
+  "headName": zod.string().optional(),
+  "manualStudentCount": zod.number().optional(),
+  "image": zod.string().optional(),
+  "isActive": zod.boolean().optional(),
   "createdAt": zod.string()
 })
 export const ListBranchesResponse = zod.array(ListBranchesResponseItem)
@@ -793,7 +798,12 @@ export const CreateBranchBody = zod.object({
   "phone": zod.string().optional(),
   "email": zod.string().optional(),
   "mapUrl": zod.string().optional(),
-  "isMain": zod.boolean().optional()
+  "isMain": zod.boolean().optional(),
+  "description": zod.string().optional(),
+  "headName": zod.string().optional(),
+  "manualStudentCount": zod.number().optional(),
+  "image": zod.string().optional(),
+  "isActive": zod.boolean().optional()
 })
 
 
@@ -805,13 +815,18 @@ export const UpdateBranchParams = zod.object({
 })
 
 export const UpdateBranchBody = zod.object({
-  "name": zod.string(),
-  "city": zod.string(),
-  "address": zod.string(),
+  "name": zod.string().optional(),
+  "city": zod.string().optional(),
+  "address": zod.string().optional(),
   "phone": zod.string().optional(),
   "email": zod.string().optional(),
   "mapUrl": zod.string().optional(),
-  "isMain": zod.boolean().optional()
+  "isMain": zod.boolean().optional(),
+  "description": zod.string().optional(),
+  "headName": zod.string().optional(),
+  "manualStudentCount": zod.number().optional(),
+  "image": zod.string().optional(),
+  "isActive": zod.boolean().optional()
 })
 
 export const UpdateBranchResponse = zod.object({
@@ -823,6 +838,11 @@ export const UpdateBranchResponse = zod.object({
   "email": zod.string().optional(),
   "mapUrl": zod.string().optional(),
   "isMain": zod.boolean().optional(),
+  "description": zod.string().optional(),
+  "headName": zod.string().optional(),
+  "manualStudentCount": zod.number().optional(),
+  "image": zod.string().optional(),
+  "isActive": zod.boolean().optional(),
   "createdAt": zod.string()
 })
 
@@ -960,5 +980,4 @@ export const GetTeacherDashboardResponse = zod.object({
   "status": zod.enum(['submitted', 'graded', 'late'])
 }))
 })
-
 

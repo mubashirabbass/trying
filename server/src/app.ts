@@ -5,9 +5,14 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { errorHandler } from "./middleware/error";
 
+// Fields that must NEVER be XSS-sanitized (would corrupt bcrypt comparison)
+const AUTH_FIELDS = new Set(["password", "currentPassword", "newPassword", "passwordHash"]);
+
 // Simple XSS sanitization middleware compatible with Node.js v24
 const xssClean = () => {
-  const clean = (data: any): any => {
+  const clean = (data: any, key?: string): any => {
+    // Never sanitize password fields — would mutate the string before bcrypt sees it
+    if (key && AUTH_FIELDS.has(key)) return data;
     if (typeof data === "string") {
       return data
         .replace(/&/g, "&amp;")
@@ -17,12 +22,12 @@ const xssClean = () => {
         .replace(/'/g, "&#x27;");
     }
     if (Array.isArray(data)) {
-      return data.map(clean);
+      return data.map((item) => clean(item));
     }
     if (data !== null && typeof data === "object") {
       const cleaned: any = {};
-      for (const key in data) {
-        cleaned[key] = clean(data[key]);
+      for (const k in data) {
+        cleaned[k] = clean(data[k], k);
       }
       return cleaned;
     }

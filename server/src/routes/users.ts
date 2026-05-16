@@ -1,3 +1,4 @@
+import * as zod from "zod";
 import { Request, Response, Router, type IRouter } from "express";
 import { db, usersTable, branchesTable } from "@workspace/db";
 import { eq, and, ilike, or, desc } from "drizzle-orm";
@@ -184,5 +185,3 @@ router.delete(
 );
 
 export default router;
-
-import * as zod from "zod";

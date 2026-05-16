@@ -15,5 +15,10 @@ export interface Branch {
   email?: string;
   mapUrl?: string;
   isMain?: boolean;
+  description?: string;
+  headName?: string;
+  manualStudentCount?: number;
+  image?: string;
+  isActive?: boolean;
   createdAt: string;
 }

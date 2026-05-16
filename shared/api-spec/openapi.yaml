@@ -2512,6 +2512,16 @@ components:
           type: string
         isMain:
           type: boolean
+        description:
+          type: string
+        headName:
+          type: string
+        manualStudentCount:
+          type: integer
+        image:
+          type: string
+        isActive:
+          type: boolean
         createdAt:
           type: string
       required: [id, name, city, address, createdAt]
@@ -2532,6 +2542,16 @@ components:
         mapUrl:
           type: string
         isMain:
+          type: boolean
+        description:
+          type: string
+        headName:
+          type: string
+        manualStudentCount:
+          type: integer
+        image:
+          type: string
+        isActive:
           type: boolean
       required: [name, city, address]
 

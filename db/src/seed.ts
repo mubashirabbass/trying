@@ -15,7 +15,7 @@ async function seed() {
     isActive: true,
   }).onConflictDoUpdate({
     target: [usersTable.email],
-    set: { name: "Admin User", role: "admin" }
+    set: { name: "Admin User", role: "admin", passwordHash, isActive: true }
   }).returning();
 
   // 2. Teacher
@@ -27,7 +27,7 @@ async function seed() {
     isActive: true,
   }).onConflictDoUpdate({
     target: [usersTable.email],
-    set: { name: "John Teacher", role: "teacher" }
+    set: { name: "John Teacher", role: "teacher", passwordHash, isActive: true }
   }).returning();
 
   // 3. Student
