@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { useEffect } from "react";
+import { ThemeProvider } from "next-themes";
 
 // Page Imports
 import NotFound from "@/pages/not-found";
@@ -292,12 +293,14 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <WouterRouter base={base}>
-            <Router />
-          </WouterRouter>
-          <Toaster />
-        </TooltipProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <TooltipProvider>
+            <WouterRouter base={base}>
+              <Router />
+            </WouterRouter>
+            <Toaster />
+          </TooltipProvider>
+        </ThemeProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

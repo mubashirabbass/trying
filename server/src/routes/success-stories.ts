@@ -44,6 +44,7 @@ async function ensureSuccessStoriesColumns() {
       ADD COLUMN IF NOT EXISTS category_id integer,
       ADD COLUMN IF NOT EXISTS external_link text,
       ADD COLUMN IF NOT EXISTS story_content text,
+      ADD COLUMN IF NOT EXISTS story_type text DEFAULT 'standard',
       ADD COLUMN IF NOT EXISTS is_hidden boolean NOT NULL DEFAULT false
     `);
   } catch (e) {
