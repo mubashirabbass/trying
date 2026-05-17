@@ -28,6 +28,7 @@ import {
   getListTestimonialsQueryKey,
   getListSuccessStoriesQueryKey,
   getListSuccessStoryCategoriesQueryKey,
+  getListBranchesQueryKey,
 } from "@workspace/api-client-react";
 import {
   Clock,
@@ -256,7 +257,7 @@ export default function Home() {
   }, []);
 
   const { data: branches } = useListBranches({
-    query: { queryKey: ["home-branches"] },
+    query: { queryKey: getListBranchesQueryKey() },
   });
 
   const displayBranches = (branches || []).filter((branch: any) => branch.isActive !== false && !branch.isMain);
