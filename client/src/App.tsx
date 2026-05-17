@@ -18,6 +18,7 @@ import VerifyCertificate from "@/pages/verify-certificate";
 import Trainings from "@/pages/trainings";
 import Services from "@/pages/services";
 import SuccessStories from "@/pages/success-stories";
+import SuccessStoryDetail from "@/pages/success-story-detail";
 import Resources from "@/pages/resources";
 import Incubators from "@/pages/incubators";
 import Feedback from "@/pages/feedback";
@@ -112,6 +113,7 @@ function Router() {
         <Route path="/trainings" component={Trainings} />
         <Route path="/services" component={Services} />
         <Route path="/success-stories" component={SuccessStories} />
+        <Route path="/success-stories/:id" component={SuccessStoryDetail} />
         <Route path="/resources" component={Resources} />
         <Route path="/incubators" component={Incubators} />
         <Route path="/courses/:id" component={CourseDetail} />

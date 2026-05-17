@@ -1412,7 +1412,9 @@ export const CreateSuccessStoryBody = zod.object({
   "metric3Value": zod.string().optional(),
   "metric3Label": zod.string().optional(),
   "categoryId": zod.number().optional(),
-  "externalLink": zod.string().optional()
+  "externalLink": zod.string().optional(),
+  "storyContent": zod.string().optional(),
+  "storyType": zod.string().optional()
 })
 
 /**

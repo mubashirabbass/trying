@@ -410,6 +410,8 @@ export interface SuccessStory {
   metric2Label?: string;
   metric3Value?: string;
   metric3Label?: string;
+  storyContent?: string;
+  storyType?: string;
   createdAt: string;
 }
 
@@ -429,6 +431,8 @@ export interface CreateSuccessStoryBody {
   metric2Label?: string;
   metric3Value?: string;
   metric3Label?: string;
+  storyContent?: string;
+  storyType?: string;
 }
 
 export interface SuccessStoryCategory {

@@ -20,6 +20,8 @@ export const successStoriesTable = pgTable("success_stories", {
   metric3Value: text("metric3_value"),
   metric3Label: text("metric3_label"),
   externalLink: text("external_link"),
+  storyContent: text("story_content"),
+  storyType: text("story_type").default("standard"),
   isHidden: boolean("is_hidden").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

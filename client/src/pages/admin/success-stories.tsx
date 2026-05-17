@@ -24,7 +24,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Loader2, Plus, Trash2, Trophy, FolderOpen, LayoutGrid, Tag, Pencil, Eye, EyeOff, Upload, X, Image as ImageIcon } from "lucide-react";
+import { 
+  Loader2, Plus, Trash2, Trophy, FolderOpen, LayoutGrid, Tag, Pencil, Eye, EyeOff, 
+  Upload, X, Image as ImageIcon, Star, Check, FileText, Coins, Sparkles, Award, User
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -61,6 +64,8 @@ export default function AdminSuccessStories() {
     metric3Value: "",
     metric3Label: "",
     externalLink: "",
+    storyContent: "",
+    storyType: "standard",
   });
 
   const [isEditingStory, setIsEditingStory] = useState(false);
@@ -172,7 +177,8 @@ export default function AdminSuccessStories() {
           studentName: "", title: "", description: "", image: "", course: "", achievement: "", 
           categoryId: undefined,
           rating: "5", category: "", metric1Value: "", metric1Label: "", metric2Value: "", 
-          metric2Label: "", metric3Value: "", metric3Label: "" 
+          metric2Label: "", metric3Value: "", metric3Label: "", externalLink: "", storyContent: "",
+          storyType: "standard" 
         });
         toast({ title: "Success story added!" });
       },
@@ -270,6 +276,8 @@ export default function AdminSuccessStories() {
       metric3Value: story.metric3Value || "",
       metric3Label: story.metric3Label || "",
       externalLink: story.externalLink || "",
+      storyContent: story.storyContent || "",
+      storyType: story.storyType || "standard",
     });
     setOpen(true);
   };
@@ -295,7 +303,8 @@ export default function AdminSuccessStories() {
           setForm({ 
             studentName: "", title: "", description: "", image: "", course: "", achievement: "", 
             categoryId: undefined, rating: "5", category: "", metric1Value: "", metric1Label: "", 
-            metric2Value: "", metric2Label: "", metric3Value: "", metric3Label: "", externalLink: "" 
+            metric2Value: "", metric2Label: "", metric3Value: "", metric3Label: "", externalLink: "",
+            storyContent: "", storyType: "standard"
           });
           queryClient.invalidateQueries({ queryKey: getListSuccessStoriesQueryKey() });
         } else {
@@ -343,224 +352,347 @@ export default function AdminSuccessStories() {
               metric3Value: "",
               metric3Label: "",
               externalLink: "",
+              storyContent: "",
+              storyType: "standard",
             });
           }
         }}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" /> Add Story
+            <Button className="bg-[#0f2c6f] hover:bg-[#1a47b8] text-white font-extrabold px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2">
+              <Plus className="h-4.5 w-4.5" /> Add Success Story
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto p-0 border-none shadow-2xl rounded-3xl">
-            <div className="sticky top-0 bg-white z-10 px-6 py-4 border-b">
-              <DialogHeader>
-                <DialogTitle className="text-xl font-bold">
-                  {isEditingStory ? "Edit Success Story" : "Add Success Story"}
-                </DialogTitle>
-              </DialogHeader>
+          <DialogContent className="sm:max-w-[720px] p-0 border-none shadow-2xl rounded-3xl bg-white overflow-hidden">
+            {/* Unified Corporate Sticky Header */}
+            <div className="bg-[#0f2c6f] text-white px-8 py-5 flex items-center justify-between">
+              <div>
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                    <Trophy className="h-5.5 w-5.5 text-blue-200 fill-blue-500/20" />
+                    {isEditingStory ? "Configure Success Story" : "Publish Student Success"}
+                  </DialogTitle>
+                </DialogHeader>
+                <p className="text-[10px] text-blue-200/80 font-bold mt-1 uppercase tracking-wider">LMS Graduate Showcase Engine</p>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-white/75 hover:text-white hover:bg-white/10 rounded-full" 
+                onClick={() => setOpen(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 pt-4 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Student Name *</Label>
-                  <Input
-                    required
-                    value={form.studentName}
-                    onChange={(e) => setForm({ ...form, studentName: e.target.value })}
-                    placeholder="Full name"
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>Headline / Title *</Label>
-                  <Input
-                    required
-                    value={form.title}
-                    onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    placeholder="e.g. From Student to Senior Dev"
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Course *</Label>
-                  <Input
-                    required
-                    value={form.course}
-                    onChange={(e) => setForm({ ...form, course: e.target.value })}
-                    placeholder="Course completed"
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label>Rating (1-5)</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="5"
-                    value={form.rating}
-                    onChange={(e) => setForm({ ...form, rating: e.target.value })}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label>Category *</Label>
-                <Select 
-                  required
-                  value={form.categoryId?.toString() || ""} 
-                  onValueChange={(val) => setForm({ ...form, categoryId: val ? parseInt(val) : undefined })}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories?.map((cat: any) => (
-                      <SelectItem key={cat.id} value={cat.id.toString()}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Their Story / Description *</Label>
-                <Textarea
-                  required
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="How Global College changed their life..."
-                  rows={4}
-                  className="mt-1"
-                />
-              </div>
 
-              {/* Local Image Uploader Section */}
-              <div className="space-y-2">
-                <Label>Student Photo</Label>
-                <div className="border border-dashed border-gray-200 rounded-2xl p-6 bg-gray-50/50">
-                  {form.image ? (
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={form.image}
-                        alt="Student preview"
-                        className="h-16 w-16 rounded-full object-cover border border-gray-200 bg-white"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-gray-900">Photo Uploaded</p>
-                        <p className="text-xs text-gray-500 truncate">{form.image}</p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                        onClick={() => setForm({ ...form, image: "" })}
+            <form onSubmit={handleSubmit} className="p-6">
+              <Tabs defaultValue="general" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 mb-6 bg-slate-100 p-1 rounded-xl">
+                  <TabsTrigger value="general" className="rounded-lg font-bold text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm text-slate-600 data-[state=active]:text-[#0f2c6f]">
+                    <User className="h-3.5 w-3.5 mr-1.5" /> 1. Profile Info
+                  </TabsTrigger>
+                  <TabsTrigger value="metrics" className="rounded-lg font-bold text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm text-slate-600 data-[state=active]:text-[#0f2c6f]">
+                    <Coins className="h-3.5 w-3.5 mr-1.5" /> 2. Media & Stats
+                  </TabsTrigger>
+                  <TabsTrigger value="narrative" className="rounded-lg font-bold text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm text-slate-600 data-[state=active]:text-[#0f2c6f]">
+                    <FileText className="h-3.5 w-3.5 mr-1.5" /> 3. Story Text
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* TAB 1: GENERAL INFORMATION */}
+                <TabsContent value="general" className="space-y-4 focus:outline-none mt-0">
+                  {/* DISPLAY PARADIGM */}
+                  <div className="space-y-1.5 text-left">
+                    <Label className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Card Design Paradigm *</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div 
+                        onClick={() => setForm({ ...form, storyType: "standard" })}
+                        className={`cursor-pointer rounded-xl p-3 border-2 transition-all flex gap-3 items-center ${
+                          form.storyType === "standard" 
+                            ? "border-[#0f2c6f] bg-blue-50/30 shadow-sm" 
+                            : "border-slate-100 bg-slate-50/50 hover:border-slate-200"
+                        }`}
                       >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-full bg-white border border-gray-100 flex items-center justify-center text-gray-400">
-                        <ImageIcon className="h-5 w-5" />
+                        <div className={`p-1.5 rounded-lg ${form.storyType === "standard" ? "bg-[#0f2c6f] text-white" : "bg-slate-200 text-slate-500"}`}>
+                          <Award className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-extrabold text-xs text-slate-800 truncate">Achiever Card</h4>
+                          <p className="text-[10px] text-slate-400 truncate mt-0.5">Earnings & metrics highlight</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">Upload student photo</p>
-                        <p className="text-xs text-gray-500">JPG, PNG, or WEBP up to 10MB</p>
-                      </div>
-                    </div>
-                  )}
 
-                  <div className="mt-4 flex items-center gap-3">
-                    <Label className="flex items-center gap-2 cursor-pointer border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 rounded-md w-fit">
-                      {isUploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                      <span className="text-sm font-medium">{isUploadingImage ? "Uploading..." : form.image ? "Replace Photo" : "Choose Photo"}</span>
+                      <div 
+                        onClick={() => setForm({ ...form, storyType: "blog" })}
+                        className={`cursor-pointer rounded-xl p-3 border-2 transition-all flex gap-3 items-center ${
+                          form.storyType === "blog" 
+                            ? "border-[#0f2c6f] bg-blue-50/30 shadow-sm" 
+                            : "border-slate-100 bg-slate-50/50 hover:border-slate-200"
+                        }`}
+                      >
+                        <div className={`p-1.5 rounded-lg ${form.storyType === "blog" ? "bg-[#0f2c6f] text-white" : "bg-slate-200 text-slate-500"}`}>
+                          <FileText className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-extrabold text-xs text-slate-800 truncate">Blogger Article</h4>
+                          <p className="text-[10px] text-slate-400 truncate mt-0.5">Editorial article format</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-left">
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-600">Student Name *</Label>
                       <Input
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        className="hidden"
-                        disabled={isUploadingImage}
-                        onChange={(e) => {
-                          handleImageUpload(e.target.files?.[0] || null);
-                          e.target.value = "";
-                        }}
+                        required
+                        value={form.studentName}
+                        onChange={(e) => setForm({ ...form, studentName: e.target.value })}
+                        placeholder="e.g. Devon Reynolds"
+                        className="rounded-xl h-10 border-slate-200 focus-visible:ring-[#0f2c6f]/50 bg-slate-50/30"
                       />
-                    </Label>
-                    <Input
-                      value={form.image}
-                      onChange={(e) => setForm({ ...form, image: e.target.value })}
-                      placeholder="Or paste direct image URL"
-                      className="flex-1 bg-white"
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-600">Headline / Title *</Label>
+                      <Input
+                        required
+                        value={form.title}
+                        onChange={(e) => setForm({ ...form, title: e.target.value })}
+                        placeholder="e.g. Generated $240k Sales in 45 Days"
+                        className="rounded-xl h-10 border-slate-200 focus-visible:ring-[#0f2c6f]/50 bg-slate-50/30"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-left">
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-600">Course Studied *</Label>
+                      <Input
+                        required
+                        value={form.course}
+                        onChange={(e) => setForm({ ...form, course: e.target.value })}
+                        placeholder="e.g. Shopify Mastery"
+                        className="rounded-xl h-10 border-slate-200 focus-visible:ring-[#0f2c6f]/50 bg-slate-50/30"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-600">Category *</Label>
+                      <Select 
+                        required
+                        value={form.categoryId?.toString() || ""} 
+                        onValueChange={(val) => setForm({ ...form, categoryId: val ? parseInt(val) : undefined })}
+                      >
+                        <SelectTrigger className="rounded-xl h-10 border-slate-200 focus:ring-[#0f2c6f]/50 bg-slate-50/30">
+                          <SelectValue placeholder="Select Niche Category" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl shadow-xl border-slate-100">
+                          {categories?.map((cat: any) => (
+                            <SelectItem key={cat.id} value={cat.id.toString()} className="font-semibold text-slate-700">
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* STARS RATING */}
+                  <div className="flex items-center justify-between gap-4 py-2 px-4 rounded-xl border border-slate-100 bg-slate-50/50 text-left">
+                    <div>
+                      <Label className="text-[11px] font-bold text-slate-700">Graduate Rating</Label>
+                      <p className="text-[9px] text-slate-400 mt-0.5">Verification stars</p>
+                    </div>
+                    <div className="flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-slate-100 shadow-sm">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          type="button"
+                          key={star}
+                          onClick={() => setForm({ ...form, rating: star.toString() })}
+                          className="text-amber-400 hover:scale-110 transition-transform focus:outline-none"
+                        >
+                          <Star 
+                            className={`h-4.5 w-4.5 ${
+                              star <= parseInt(form.rating || "5") 
+                                ? "fill-amber-400 text-amber-400" 
+                                : "text-slate-200 fill-none"
+                            }`} 
+                          />
+                        </button>
+                      ))}
+                      <span className="text-[11px] font-black text-slate-700 ml-1.5">{form.rating || "5"}.0</span>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* TAB 2: MEDIA & SUCCESS METRICS */}
+                <TabsContent value="metrics" className="space-y-4 focus:outline-none mt-0">
+                  {/* UPLOADER */}
+                  <div className="border border-dashed border-slate-200 rounded-xl p-4 bg-slate-50/30 text-left relative group">
+                    {form.image ? (
+                      <div className="flex items-center gap-3">
+                        <div className="h-12 w-12 rounded-lg overflow-hidden border border-slate-200 bg-white shadow-inner flex-shrink-0">
+                          <img src={form.image} alt="Preview" className="h-full w-full object-cover" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-black text-slate-800">Photo Uploaded Successfully</p>
+                          <p className="text-[10px] text-slate-400 truncate max-w-sm font-mono">{form.image}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-400 hover:text-red-600 rounded-full"
+                          onClick={() => setForm({ ...form, image: "" })}
+                        >
+                          <X className="h-4.5 w-4.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 py-1">
+                        <div className="h-9 w-9 rounded-full bg-white border border-slate-100 flex items-center justify-center text-[#0f2c6f] shadow-sm flex-shrink-0">
+                          <ImageIcon className="h-4.5 w-4.5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800">Upload profile image or article cover</p>
+                          <p className="text-[10px] text-slate-400">Supports PNG, JPG, or WEBP up to 10MB</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mt-3 flex items-center gap-2">
+                      <Label className="flex items-center justify-center gap-1.5 cursor-pointer border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 h-8.5 px-3 rounded-lg font-bold text-xs transition-all shadow-sm flex-shrink-0">
+                        {isUploadingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5 text-[#0f2c6f]" />}
+                        <span>{isUploadingImage ? "Uploading..." : form.image ? "Change" : "Browse"}</span>
+                        <Input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          disabled={isUploadingImage}
+                          onChange={(e) => {
+                            handleImageUpload(e.target.files?.[0] || null);
+                            e.target.value = "";
+                          }}
+                        />
+                      </Label>
+                      <Input
+                        value={form.image}
+                        onChange={(e) => setForm({ ...form, image: e.target.value })}
+                        placeholder="Or paste direct student image link URL..."
+                        className="rounded-lg h-8.5 border-slate-200 focus-visible:ring-[#0f2c6f]/50 bg-white shadow-sm text-xs flex-1"
+                      />
+                    </div>
+                  </div>
+
+                  {/* SUCCESS METRICS STATS */}
+                  <div className="space-y-2 text-left">
+                    <Label className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Achievement Statistics (Optional)</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Input 
+                          placeholder="Value 1 (e.g. $5k)" 
+                          value={form.metric1Value}
+                          onChange={(e) => setForm({ ...form, metric1Value: e.target.value })}
+                          className="rounded-lg h-9 border-slate-200 bg-slate-50/50 focus-visible:ring-[#0f2c6f]/50 text-xs"
+                        />
+                        <Input 
+                          placeholder="Label 1 (e.g. Monthly)" 
+                          value={form.metric1Label}
+                          onChange={(e) => setForm({ ...form, metric1Label: e.target.value })}
+                          className="rounded-lg h-9 border-slate-200 bg-slate-50/50 focus-visible:ring-[#0f2c6f]/50 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Input 
+                          placeholder="Value 2 (e.g. 95%)" 
+                          value={form.metric2Value}
+                          onChange={(e) => setForm({ ...form, metric2Value: e.target.value })}
+                          className="rounded-lg h-9 border-slate-200 bg-slate-50/50 focus-visible:ring-[#0f2c6f]/50 text-xs"
+                        />
+                        <Input 
+                          placeholder="Label 2 (e.g. Success)" 
+                          value={form.metric2Label}
+                          onChange={(e) => setForm({ ...form, metric2Label: e.target.value })}
+                          className="rounded-lg h-9 border-slate-200 bg-slate-50/50 focus-visible:ring-[#0f2c6f]/50 text-xs"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Input 
+                          placeholder="Value 3 (e.g. 45 Days)" 
+                          value={form.metric3Value}
+                          onChange={(e) => setForm({ ...form, metric3Value: e.target.value })}
+                          className="rounded-lg h-9 border-slate-200 bg-slate-50/50 focus-visible:ring-[#0f2c6f]/50 text-xs"
+                        />
+                        <Input 
+                          placeholder="Label 3 (e.g. Setup)" 
+                          value={form.metric3Label}
+                          onChange={(e) => setForm({ ...form, metric3Label: e.target.value })}
+                          className="rounded-lg h-9 border-slate-200 bg-slate-50/50 focus-visible:ring-[#0f2c6f]/50 text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* TAB 3: NARRATIVE & CASE STUDY */}
+                <TabsContent value="narrative" className="space-y-3 focus:outline-none mt-0 text-left">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-600">Student Short Bio / Card Quote *</Label>
+                    <Textarea
+                      required
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      placeholder="Provide a stunning short summary of what the student accomplished. This is shown on card quote sections..."
+                      rows={2}
+                      className="rounded-xl border-slate-200 focus-visible:ring-[#0f2c6f]/50 bg-slate-50/30 text-xs leading-relaxed"
                     />
                   </div>
-                </div>
-              </div>
 
-              <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-gray-100">
-                <Label className="text-xs font-bold uppercase text-gray-400 tracking-wider">Achievement Metrics</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <Input 
-                    placeholder="Value (e.g. $5k)" 
-                    value={form.metric1Value}
-                    onChange={(e) => setForm({ ...form, metric1Value: e.target.value })}
-                    className="bg-white"
-                  />
-                  <Input 
-                    placeholder="Label (e.g. Monthly)" 
-                    value={form.metric1Label}
-                    onChange={(e) => setForm({ ...form, metric1Label: e.target.value })}
-                    className="bg-white"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Input 
-                    placeholder="Value (e.g. 500+)" 
-                    value={form.metric2Value}
-                    onChange={(e) => setForm({ ...form, metric2Value: e.target.value })}
-                    className="bg-white"
-                  />
-                  <Input 
-                    placeholder="Label (e.g. Orders)" 
-                    value={form.metric2Label}
-                    onChange={(e) => setForm({ ...form, metric2Label: e.target.value })}
-                    className="bg-white"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Input 
-                    placeholder="Value (e.g. 95%)" 
-                    value={form.metric3Value}
-                    onChange={(e) => setForm({ ...form, metric3Value: e.target.value })}
-                    className="bg-white"
-                  />
-                  <Input 
-                    placeholder="Label (e.g. Success)" 
-                    value={form.metric3Label}
-                    onChange={(e) => setForm({ ...form, metric3Label: e.target.value })}
-                    className="bg-white"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label>External Link (e.g. Facebook post or blog link)</Label>
-                <Input
-                  value={form.externalLink}
-                  onChange={(e) => setForm({ ...form, externalLink: e.target.value })}
-                  placeholder="https://facebook.com/... or blog link (optional)"
-                  className="mt-1"
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-4 border-t mt-6">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)} className="rounded-xl h-12 px-6">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between mb-0.5">
+                      <Label className="text-[11px] font-bold text-slate-600">Full Post Narrative / Long Story Markdown Editor</Label>
+                      <Badge variant="outline" className="bg-blue-50 text-[#0f2c6f] border-none font-bold text-[8px] px-1.5 py-0.5 rounded">
+                        Markdown Supported
+                      </Badge>
+                    </div>
+                    <Textarea
+                      value={form.storyContent}
+                      onChange={(e) => setForm({ ...form, storyContent: e.target.value })}
+                      placeholder={`Write or paste the full case study narrative here...\nUse '#' for H2, '##' for H3, '>' for blockquotes, and '-' for lists.`}
+                      rows={5}
+                      className="rounded-xl border-slate-200 focus-visible:ring-[#0f2c6f]/50 bg-slate-50/30 font-mono text-xs leading-relaxed"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-600">External Reference Web Link (Optional)</Label>
+                    <Input
+                      value={form.externalLink}
+                      onChange={(e) => setForm({ ...form, externalLink: e.target.value })}
+                      placeholder="https://facebook.com/... or verified blog references..."
+                      className="rounded-xl h-9 border-slate-200 focus-visible:ring-[#0f2c6f]/50 bg-slate-50/30 text-xs"
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              {/* Form Buttons */}
+              <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100 mt-5">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setOpen(false)} 
+                  className="rounded-xl h-10 px-4 border-slate-200 text-slate-500 font-bold hover:bg-slate-50 transition-all text-xs"
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createMutation.isPending || isUpdatingStory || isUploadingImage} className="rounded-xl h-12 px-6 bg-primary hover:bg-primary/95 text-white">
+                <Button 
+                  type="submit" 
+                  disabled={createMutation.isPending || isUpdatingStory || isUploadingImage} 
+                  className="rounded-xl h-10 px-6 bg-[#0f2c6f] hover:bg-[#1a47b8] text-white font-extrabold shadow-md shadow-blue-900/10 transition-all text-xs"
+                >
                   {(createMutation.isPending || isUpdatingStory) && (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
                   )}
-                  {isEditingStory ? "Update Story" : "Add Story"}
+                  {isEditingStory ? "Save Story Settings" : "Launch Success Narrative"}
                 </Button>
               </div>
             </form>
@@ -657,9 +789,16 @@ export default function AdminSuccessStories() {
                   </CardHeader>
                   <CardContent className="p-5">
                     <div className="flex items-center justify-between mb-3">
-                      <Badge variant="outline" className="text-[10px] uppercase font-bold border-gray-200 text-gray-500">
-                        {categories?.find((c: any) => c.id === story.categoryId)?.name || "Uncategorized"}
-                      </Badge>
+                      <div className="flex gap-1.5 items-center">
+                        <Badge variant="outline" className="text-[10px] uppercase font-bold border-gray-200 text-gray-500">
+                          {categories?.find((c: any) => c.id === story.categoryId)?.name || "Uncategorized"}
+                        </Badge>
+                        <Badge className={`text-[10px] uppercase font-black border-none ${
+                          story.storyType === "blog" ? "bg-indigo-50 text-indigo-600 hover:bg-indigo-50" : "bg-emerald-50 text-emerald-600 hover:bg-emerald-50"
+                        }`}>
+                          {story.storyType === "blog" ? "✍️ Blog Post" : "🎓 Achiever"}
+                        </Badge>
+                      </div>
                       <div className="flex">
                         {[...Array(parseInt(story.rating || "5"))].map((_, i) => (
                           <Trophy key={i} className="h-2 w-2 text-amber-500 fill-amber-500" />

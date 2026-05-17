@@ -23,4 +23,6 @@ export interface CreateSuccessStoryBody {
   metric3Label?: string;
   categoryId?: number;
   externalLink?: string;
+  storyContent?: string;
+  storyType?: string;
 }

@@ -56,6 +56,7 @@ import {
   MessageSquare,
   Building2,
   ExternalLink,
+  DollarSign,
 } from "lucide-react";
 import {
   Accordion,
@@ -64,6 +65,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useState, useRef, useEffect } from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 const CATEGORY_COLORS: Record<string, string> = {
   IT: "from-blue-600 to-blue-400",
@@ -158,6 +160,8 @@ export default function Home() {
 
   const [articles, setArticles] = useState<any[]>([]);
   const [faqs, setFaqs] = useState<any[]>([]);
+  const [selectedStory, setSelectedStory] = useState<any | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const { data: categories } = useListSuccessStoryCategories({
     query: { queryKey: getListSuccessStoryCategoriesQueryKey() },
@@ -795,7 +799,13 @@ export default function Home() {
             <div className="max-w-6xl mx-auto">
               <div className="relative group/achievers">
                 {/* Featured Achiever Card */}
-                <div className="bg-white/80 backdrop-blur-md rounded-[2.5rem] p-8 md:p-16 shadow-2xl shadow-blue-900/5 border border-white relative overflow-hidden min-h-[500px] flex items-center">
+                <div 
+                  className="bg-white/80 backdrop-blur-md rounded-[2.5rem] p-8 md:p-16 shadow-2xl shadow-blue-900/5 border border-white relative overflow-hidden min-h-[500px] flex items-center cursor-pointer transition-all duration-300 hover:shadow-3xl hover:border-emerald-100 hover:bg-white group"
+                  onClick={() => {
+                    setSelectedStory(displaySuccessStories[activeAchiever]);
+                    setDetailOpen(true);
+                  }}
+                >
                   <div className="flex flex-col lg:flex-row items-center gap-12 w-full transition-all duration-700">
                     {/* Left Side: Content */}
                     <div className="flex-1 text-left animate-in fade-in slide-in-from-left duration-700" key={activeAchiever}>
@@ -812,13 +822,18 @@ export default function Home() {
                         </h3>
                       </div>
 
-                      <div className="mb-6">
-                        <p className="text-2xl font-black text-gray-900">
-                          {displaySuccessStories[activeAchiever]?.studentName || displaySuccessStories[activeAchiever]?.name || "Anonymous Achiever"}
-                        </p>
-                        <p className="text-gray-500 font-bold">
-                          {displaySuccessStories[activeAchiever]?.title || displaySuccessStories[activeAchiever]?.role || "Graduate"}
-                        </p>
+                      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                          <p className="text-2xl font-black text-gray-900">
+                            {displaySuccessStories[activeAchiever]?.studentName || displaySuccessStories[activeAchiever]?.name || "Anonymous Achiever"}
+                          </p>
+                          <p className="text-gray-500 font-bold">
+                            {displaySuccessStories[activeAchiever]?.title || displaySuccessStories[activeAchiever]?.role || "Graduate"}
+                          </p>
+                        </div>
+                        <span className="text-emerald-600 font-extrabold text-sm flex items-center gap-1 mt-2 md:mt-0 transition-colors group-hover:text-emerald-700">
+                          Read Full Success Story <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                        </span>
                       </div>
 
                       <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 px-4 py-2 text-base font-black rounded-xl pointer-events-none">
@@ -828,7 +843,7 @@ export default function Home() {
 
                     {/* Right Side: Visual */}
                     <div className="w-full lg:w-[400px] relative animate-in fade-in zoom-in duration-700" key={`img-${activeAchiever}`}>
-                      <div className="aspect-[1/1] rounded-full bg-gray-200 overflow-hidden shadow-2xl border-[12px] border-white relative flex items-center justify-center">
+                      <div className="aspect-[1/1] rounded-full bg-gray-200 overflow-hidden shadow-2xl border-[12px] border-white relative flex items-center justify-center transition-transform duration-500 group-hover:scale-105">
                         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10" />
                         {displaySuccessStories[activeAchiever]?.image ? (
                           <img 
@@ -1373,6 +1388,147 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 rounded-3xl border-none shadow-2xl">
+          {selectedStory && (() => {
+            const renderBlogContent = (content: string) => {
+              if (!content) return null;
+              const lines = content.split("\n");
+              return lines.map((line, idx) => {
+                const trimmed = line.trim();
+                if (trimmed.startsWith("###")) {
+                  return (
+                    <h4 key={idx} className="text-base font-extrabold text-slate-800 mt-5 mb-2 text-left">
+                      {trimmed.replace(/^###\s*/, "")}
+                    </h4>
+                  );
+                }
+                if (trimmed.startsWith("##")) {
+                  return (
+                    <h3 key={idx} className="text-lg md:text-xl font-black text-slate-900 mt-6 mb-3 text-left border-b pb-1 border-slate-100">
+                      {trimmed.replace(/^##\s*/, "")}
+                    </h3>
+                  );
+                }
+                if (trimmed.startsWith("#")) {
+                  return (
+                    <h2 key={idx} className="text-xl md:text-2xl font-black text-slate-900 mt-8 mb-4 text-left border-b pb-2 border-slate-100">
+                      {trimmed.replace(/^#\s*/, "")}
+                    </h2>
+                  );
+                }
+                if (trimmed.startsWith("-") || trimmed.startsWith("*")) {
+                  return (
+                    <li key={idx} className="text-slate-600 text-sm leading-relaxed text-left ml-6 list-disc mb-1">
+                      {trimmed.replace(/^[-*]\s*/, "")}
+                    </li>
+                  );
+                }
+                if (!trimmed) {
+                  return <div key={idx} className="h-3" />;
+                }
+                return (
+                  <p key={idx} className="text-slate-600 text-sm leading-relaxed text-left mb-3">
+                    {trimmed}
+                  </p>
+                );
+              });
+            };
+
+            return (
+              <div className="flex flex-col">
+                {/* Header */}
+                <div className="bg-[#0b965c] p-8 text-white relative">
+                  <div className="flex items-center gap-5">
+                    <div className="h-20 w-20 rounded-full border-4 border-white/20 overflow-hidden shadow-lg bg-white/10 flex-shrink-0 flex items-center justify-center">
+                      {selectedStory.image ? (
+                        <img src={selectedStory.image} alt={selectedStory.studentName || selectedStory.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <Users className="h-10 w-10 text-white/60" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-white font-extrabold text-2xl leading-tight">{selectedStory.studentName || selectedStory.name}</h3>
+                      <p className="text-emerald-100 text-base font-semibold mt-1">{selectedStory.title || selectedStory.role}</p>
+                      <div className="flex items-center gap-0.5 mt-2">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-8 space-y-6 bg-slate-50/50">
+                  {selectedStory.achievement && (
+                    <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
+                      <p className="text-slate-800 font-extrabold text-base leading-relaxed italic text-center">
+                        "{selectedStory.achievement}"
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Metrics */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-sm">
+                      <div className="flex items-center justify-center text-emerald-600 font-semibold mb-2">
+                        <DollarSign className="h-6 w-6" />
+                      </div>
+                      <span className="text-base font-black text-slate-800 block">{selectedStory.metric1Value || selectedStory.income || "100%"}</span>
+                      <span className="text-xs text-slate-400 font-bold uppercase mt-1 block">{selectedStory.metric1Label || "Earned"}</span>
+                    </div>
+                    <div className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-sm">
+                      <div className="flex items-center justify-center text-blue-600 font-semibold mb-2">
+                        <TrendingUp className="h-6 w-6" />
+                      </div>
+                      <span className="text-base font-black text-slate-800 block">{selectedStory.metric2Value || "Active"}</span>
+                      <span className="text-xs text-slate-400 font-bold uppercase mt-1 block">{selectedStory.metric2Label || "Timeline"}</span>
+                    </div>
+                    <div className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-sm">
+                      <div className="flex items-center justify-center text-purple-600 font-semibold mb-2">
+                        <Award className="h-6 w-6" />
+                      </div>
+                      <span className="text-base font-black text-slate-800 block">{selectedStory.metric3Value || "Elite"}</span>
+                      <span className="text-xs text-slate-400 font-bold uppercase mt-1 block">{selectedStory.metric3Label || "Results"}</span>
+                    </div>
+                  </div>
+
+                  {/* Detailed Narrative */}
+                  <div className="bg-white border border-slate-100 rounded-2xl p-6 md:p-8 shadow-sm space-y-4">
+                    <h4 className="font-extrabold text-emerald-600 text-xs uppercase tracking-widest text-left">
+                      {selectedStory.storyContent ? "The Success Story / Blog Post" : "The Journey"}
+                    </h4>
+                    <div className="prose prose-slate max-w-none">
+                      {selectedStory.storyContent ? (
+                        renderBlogContent(selectedStory.storyContent)
+                      ) : (
+                        <p className="text-slate-600 text-sm leading-relaxed text-left whitespace-pre-line">
+                          {selectedStory.description || selectedStory.story}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-2">
+                    <div className="flex gap-2">
+                      {selectedStory.course && (
+                        <Badge variant="secondary" className="bg-blue-50 text-blue-700 text-xs px-3 py-1 rounded-full border border-blue-100">
+                          {selectedStory.course}
+                        </Badge>
+                      )}
+                    </div>
+                    <Badge className="bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 px-4 py-2 rounded-full text-xs">
+                      {categories?.find((c: any) => c.id === selectedStory.categoryId)?.name || selectedStory.category || "Achiever"}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useLocation } from "wouter";
 import { MainLayout } from "@/components/MainLayout";
 import { 
   useListSuccessStories, 
@@ -6,11 +7,12 @@ import {
 } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Star, TrendingUp, DollarSign, ShoppingCart, ArrowRight, User, Award } from "lucide-react";
+import { Star, TrendingUp, DollarSign, ShoppingCart, ArrowRight, User, Award, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 export default function SuccessStories() {
+  const [, setLocation] = useLocation();
   const { data: successStories, isLoading: storiesLoading } = useListSuccessStories();
   const { data: categories, isLoading: catsLoading } = useListSuccessStoryCategories();
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | "all">("all");
@@ -97,98 +99,176 @@ export default function SuccessStories() {
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.4 }}
                 >
-                  <Card 
-                    className="group relative overflow-hidden bg-white border-none shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl h-full flex flex-col cursor-pointer transform hover:-translate-y-2"
-                    onClick={() => {
-                      if (story.externalLink && (story.externalLink.startsWith("http://") || story.externalLink.startsWith("https://"))) {
-                        window.open(story.externalLink, "_blank");
-                      } else {
-                        setSelectedStory(story);
-                        setDetailOpen(true);
-                      }
-                    }}
-                  >
-                    {/* Top Green Profile Header */}
-                    <div className="bg-[#0b965c] p-6 text-white flex flex-col justify-between relative overflow-hidden">
-                      {/* Subtle micro-animation background radial highlight */}
-                      <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/10 opacity-60 group-hover:scale-110 transition-transform duration-700 pointer-events-none" />
-                      
-                      <div className="flex items-center gap-4 relative z-10">
-                        <div className="h-16 w-16 rounded-full border-2 border-white overflow-hidden shadow-lg bg-white/10 flex-shrink-0 flex items-center justify-center">
-                          {story.image ? (
-                            <img 
-                              src={story.image} 
-                              alt={story.studentName} 
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <User className="h-8 w-8 text-white/60" />
+                  {story.storyType === "blog" ? (
+                    /* Blogger Article Card Style */
+                    <Card 
+                      className="group relative overflow-hidden bg-white border border-slate-100 shadow-xl hover:shadow-2xl hover:border-emerald-100 transition-all duration-500 rounded-3xl h-full flex flex-col cursor-pointer transform hover:-translate-y-2"
+                      onClick={() => {
+                        setLocation(`/success-stories/${story.id}`);
+                      }}
+                    >
+                      <div className="aspect-[16/10] overflow-hidden relative bg-slate-100">
+                        {story.image ? (
+                          <img 
+                            src={story.image} 
+                            alt={story.studentName} 
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-108"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-[#0b965c]/10 flex items-center justify-center">
+                            <BookOpen className="h-10 w-10 text-[#0b965c]/40" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-90" />
+                        <div className="absolute bottom-4 left-4 flex gap-2">
+                          <Badge className="bg-[#0b965c] text-white border-none text-[9px] font-black uppercase px-2.5 py-1 rounded-lg">
+                            ✍️ Article
+                          </Badge>
+                          {story.course && (
+                            <Badge className="bg-white/90 text-[#0b965c] border-none text-[9px] font-black uppercase px-2.5 py-1 rounded-lg backdrop-blur-md">
+                              {story.course}
+                            </Badge>
                           )}
                         </div>
-                        <div>
-                          <h4 className="text-white font-extrabold text-lg leading-tight tracking-wide">{story.studentName}</h4>
-                          <p className="text-emerald-100 text-xs font-semibold mt-0.5">{story.title}</p>
+                      </div>
+
+                      <CardContent className="p-6 flex-1 flex flex-col justify-between">
+                        <div className="text-left">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
+                              Published Post • 3 min read
+                            </span>
+                            <div className="flex">
+                              {[...Array(5)].map((_, i) => (
+                                <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                              ))}
+                            </div>
+                          </div>
+                          
+                          <h3 className="text-lg font-black text-slate-900 leading-tight mb-3 group-hover:text-[#0b965c] transition-colors">
+                            {story.title}
+                          </h3>
+                          
+                          <p className="text-slate-600 text-sm leading-relaxed line-clamp-3 mb-6">
+                            {story.description}
+                          </p>
+                        </div>
+
+                        {/* Author Bio Footer */}
+                        <div className="flex justify-between items-center pt-4 border-t border-slate-50 mt-auto">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full border border-slate-100 overflow-hidden shadow-sm flex-shrink-0 flex items-center justify-center bg-slate-100">
+                              {story.image ? (
+                                <img src={story.image} className="h-full w-full object-cover" />
+                              ) : (
+                                <User className="h-4 w-4 text-slate-400" />
+                              )}
+                            </div>
+                            <div className="text-left">
+                              <p className="text-xs font-black text-slate-800 leading-none">{story.studentName}</p>
+                              <p className="text-[10px] text-slate-400 font-bold leading-none mt-1">{story.achievement || "eBay Store Owner"}</p>
+                            </div>
+                          </div>
+                          <span className="text-xs font-black text-[#0b965c] flex items-center gap-1 group-hover:text-emerald-700 transition-colors">
+                            Read Post <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    /* Standard Student Achiever Card Style */
+                    <Card 
+                      className="group relative overflow-hidden bg-white border-none shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl h-full flex flex-col cursor-pointer transform hover:-translate-y-2"
+                      onClick={() => {
+                        if (story.externalLink && (story.externalLink.startsWith("http://") || story.externalLink.startsWith("https://"))) {
+                          window.open(story.externalLink, "_blank");
+                        } else {
+                          setLocation(`/success-stories/${story.id}`);
+                        }
+                      }}
+                    >
+                      {/* Top Green Profile Header */}
+                      <div className="bg-[#0b965c] p-6 text-white flex flex-col justify-between relative overflow-hidden">
+                        {/* Subtle micro-animation background radial highlight */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/10 opacity-60 group-hover:scale-110 transition-transform duration-700 pointer-events-none" />
+                        
+                        <div className="flex items-center gap-4 relative z-10">
+                          <div className="h-16 w-16 rounded-full border-2 border-white overflow-hidden shadow-lg bg-white/10 flex-shrink-0 flex items-center justify-center">
+                            {story.image ? (
+                              <img 
+                                src={story.image} 
+                                alt={story.studentName} 
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <User className="h-8 w-8 text-white/60" />
+                            )}
+                          </div>
+                          <div className="text-left">
+                            <h4 className="text-white font-extrabold text-lg leading-tight tracking-wide">{story.studentName}</h4>
+                            <p className="text-emerald-100 text-xs font-semibold mt-0.5">{story.title}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-0.5 mt-4 relative z-10">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          ))}
                         </div>
                       </div>
-                      <div className="flex items-center gap-0.5 mt-4 relative z-10">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        ))}
-                      </div>
-                    </div>
 
-                    <CardContent className="p-6 flex-1 flex flex-col justify-between">
-                      {/* Italic Achievement Bold Quote */}
-                      <div className="mb-4">
-                        <p className="text-slate-800 font-bold text-base leading-relaxed text-left italic">
-                          "{story.achievement || "Remarkable Career Growth"}"
+                      <CardContent className="p-6 flex-1 flex flex-col justify-between">
+                        {/* Italic Achievement Bold Quote */}
+                        <div className="mb-4">
+                          <p className="text-slate-800 font-bold text-base leading-relaxed text-left italic">
+                            "{story.achievement || "Remarkable Career Growth"}"
+                          </p>
+                        </div>
+
+                        {/* Three Stat Cards Grid */}
+                        <div className="grid grid-cols-3 gap-2.5 my-4">
+                          {/* Stat Card 1 */}
+                          <div className="bg-slate-50 border border-slate-100 rounded-2xl p-2.5 text-center flex flex-col justify-between min-h-[90px] hover:bg-white hover:border-emerald-100 hover:shadow-sm transition-all">
+                            <div className="flex items-center justify-center text-emerald-600 font-bold mb-1">
+                              <DollarSign className="h-5 w-5" />
+                            </div>
+                            <span className="text-xs font-black text-slate-800 leading-tight block truncate">{story.metric1Value || "100%"}</span>
+                            <span className="text-[9px] text-slate-400 font-bold uppercase mt-1 leading-normal block truncate">{story.metric1Label || "Earned"}</span>
+                          </div>
+                          {/* Stat Card 2 */}
+                          <div className="bg-slate-50 border border-slate-100 rounded-2xl p-2.5 text-center flex flex-col justify-between min-h-[90px] hover:bg-white hover:border-emerald-100 hover:shadow-sm transition-all">
+                            <div className="flex items-center justify-center text-blue-600 font-bold mb-1">
+                              <TrendingUp className="h-5 w-5" />
+                            </div>
+                            <span className="text-xs font-black text-slate-800 leading-tight block truncate">{story.metric2Value || "Active"}</span>
+                            <span className="text-[9px] text-slate-400 font-bold uppercase mt-1 leading-normal block truncate">{story.metric2Label || "Timeline"}</span>
+                          </div>
+                          {/* Stat Card 3 */}
+                          <div className="bg-slate-50 border border-slate-100 rounded-2xl p-2.5 text-center flex flex-col justify-between min-h-[90px] hover:bg-white hover:border-emerald-100 hover:shadow-sm transition-all">
+                            <div className="flex items-center justify-center text-purple-600 font-bold mb-1">
+                              <Award className="h-5 w-5 fill-purple-100" />
+                            </div>
+                            <span className="text-xs font-black text-slate-800 leading-tight block truncate">{story.metric3Value || "Elite"}</span>
+                            <span className="text-[9px] text-slate-400 font-bold uppercase mt-1 leading-normal block truncate">{story.metric3Label || "Results"}</span>
+                          </div>
+                        </div>
+
+                        {/* Description Paragraph */}
+                        <p className="text-slate-600 text-sm leading-relaxed text-left line-clamp-3 mb-6">
+                          {story.description}
                         </p>
-                      </div>
 
-                      {/* Three Stat Cards Grid */}
-                      <div className="grid grid-cols-3 gap-2.5 my-4">
-                        {/* Stat Card 1 */}
-                        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-2.5 text-center flex flex-col justify-between min-h-[90px] hover:bg-white hover:border-emerald-100 hover:shadow-sm transition-all">
-                          <div className="flex items-center justify-center text-emerald-600 font-bold mb-1">
-                            <DollarSign className="h-5 w-5" />
-                          </div>
-                          <span className="text-xs font-black text-slate-800 leading-tight block truncate">{story.metric1Value || "100%"}</span>
-                          <span className="text-[9px] text-slate-400 font-bold uppercase mt-1 leading-normal block truncate">{story.metric1Label || "Earned"}</span>
+                        {/* Footer Badge and Link Indicators */}
+                        <div className="flex justify-between items-center pt-4 border-t border-slate-50 mt-auto">
+                          <span className="text-xs font-extrabold text-emerald-600 flex items-center gap-1 group-hover:text-emerald-700 transition-colors">
+                            {story.externalLink ? "Open Post" : "Read Further"} <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                          </span>
+                          <Badge className="bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 hover:bg-emerald-100/50 transition-colors px-3 py-1 rounded-full text-[10px]">
+                            {categories?.find((c: any) => c.id === story.categoryId)?.name || story.category || "eBay Success"}
+                          </Badge>
                         </div>
-                        {/* Stat Card 2 */}
-                        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-2.5 text-center flex flex-col justify-between min-h-[90px] hover:bg-white hover:border-emerald-100 hover:shadow-sm transition-all">
-                          <div className="flex items-center justify-center text-blue-600 font-bold mb-1">
-                            <TrendingUp className="h-5 w-5" />
-                          </div>
-                          <span className="text-xs font-black text-slate-800 leading-tight block truncate">{story.metric2Value || "Active"}</span>
-                          <span className="text-[9px] text-slate-400 font-bold uppercase mt-1 leading-normal block truncate">{story.metric2Label || "Timeline"}</span>
-                        </div>
-                        {/* Stat Card 3 */}
-                        <div className="bg-slate-50 border border-slate-100 rounded-2xl p-2.5 text-center flex flex-col justify-between min-h-[90px] hover:bg-white hover:border-emerald-100 hover:shadow-sm transition-all">
-                          <div className="flex items-center justify-center text-purple-600 font-bold mb-1">
-                            <Award className="h-5 w-5 fill-purple-100" />
-                          </div>
-                          <span className="text-xs font-black text-slate-800 leading-tight block truncate">{story.metric3Value || "Elite"}</span>
-                          <span className="text-[9px] text-slate-400 font-bold uppercase mt-1 leading-normal block truncate">{story.metric3Label || "Results"}</span>
-                        </div>
-                      </div>
-
-                      {/* Description Paragraph */}
-                      <p className="text-slate-600 text-sm leading-relaxed text-left line-clamp-3 mb-6">
-                        {story.description}
-                      </p>
-
-                      {/* Footer Badge and Link Indicators */}
-                      <div className="flex justify-between items-center pt-4 border-t border-slate-50 mt-auto">
-                        <span className="text-xs font-extrabold text-emerald-600 flex items-center gap-1 group-hover:text-emerald-700 transition-colors">
-                          {story.externalLink ? "Open Post" : "Read Further"} <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
-                        </span>
-                        <Badge className="bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 hover:bg-emerald-100/50 transition-colors px-3 py-1 rounded-full text-[10px]">
-                          {categories?.find((c: any) => c.id === story.categoryId)?.name || story.category || "eBay Success"}
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  )}
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -230,92 +310,6 @@ export default function SuccessStories() {
         </div>
       </section>
 
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-2xl overflow-hidden p-0 rounded-3xl border-none shadow-2xl">
-          {selectedStory && (
-            <div className="flex flex-col">
-              {/* Header */}
-              <div className="bg-[#0b965c] p-8 text-white relative">
-                <div className="flex items-center gap-5">
-                  <div className="h-20 w-20 rounded-full border-4 border-white/20 overflow-hidden shadow-lg bg-white/10 flex-shrink-0 flex items-center justify-center">
-                    {selectedStory.image ? (
-                      <img src={selectedStory.image} alt={selectedStory.studentName} className="h-full w-full object-cover" />
-                    ) : (
-                      <User className="h-10 w-10 text-white/60" />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-white font-extrabold text-2xl leading-tight">{selectedStory.studentName}</h3>
-                    <p className="text-emerald-100 text-base font-semibold mt-1">{selectedStory.title}</p>
-                    <div className="flex items-center gap-0.5 mt-2">
-                      {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Body */}
-              <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto bg-slate-50/50">
-                {selectedStory.achievement && (
-                  <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm">
-                    <p className="text-slate-800 font-extrabold text-lg leading-relaxed italic text-center">
-                      "{selectedStory.achievement}"
-                    </p>
-                  </div>
-                )}
-
-                {/* Metrics */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-sm">
-                    <div className="flex items-center justify-center text-emerald-600 font-semibold mb-2">
-                      <DollarSign className="h-6 w-6" />
-                    </div>
-                    <span className="text-base font-black text-slate-800 block">{selectedStory.metric1Value || "100%"}</span>
-                    <span className="text-xs text-slate-400 font-bold uppercase mt-1 block">{selectedStory.metric1Label || "Earned"}</span>
-                  </div>
-                  <div className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-sm">
-                    <div className="flex items-center justify-center text-blue-600 font-semibold mb-2">
-                      <TrendingUp className="h-6 w-6" />
-                    </div>
-                    <span className="text-base font-black text-slate-800 block">{selectedStory.metric2Value || "Active"}</span>
-                    <span className="text-xs text-slate-400 font-bold uppercase mt-1 block">{selectedStory.metric2Label || "Timeline"}</span>
-                  </div>
-                  <div className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-sm">
-                    <div className="flex items-center justify-center text-purple-600 font-semibold mb-2">
-                      <Award className="h-6 w-6" />
-                    </div>
-                    <span className="text-base font-black text-slate-800 block">{selectedStory.metric3Value || "Elite"}</span>
-                    <span className="text-xs text-slate-400 font-bold uppercase mt-1 block">{selectedStory.metric3Label || "Results"}</span>
-                  </div>
-                </div>
-
-                {/* Detailed Narrative */}
-                <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-3">
-                  <h4 className="font-bold text-slate-900 text-sm uppercase tracking-wider">The Journey</h4>
-                  <p className="text-slate-600 text-base leading-relaxed whitespace-pre-line">
-                    {selectedStory.description}
-                  </p>
-                </div>
-
-                <div className="flex justify-between items-center pt-2">
-                  <div className="flex gap-2">
-                    {selectedStory.course && (
-                      <Badge variant="secondary" className="bg-blue-50 text-blue-700 text-xs px-3 py-1 rounded-full border border-blue-100">
-                        {selectedStory.course}
-                      </Badge>
-                    )}
-                  </div>
-                  <Badge className="bg-emerald-50 text-emerald-700 font-bold border border-emerald-100 px-4 py-1 rounded-full text-xs">
-                    {categories?.find((c: any) => c.id === selectedStory.categoryId)?.name || selectedStory.category || "Achiever"}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </MainLayout>
   );
 }
