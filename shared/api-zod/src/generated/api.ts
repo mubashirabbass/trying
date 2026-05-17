@@ -1411,7 +1411,8 @@ export const CreateSuccessStoryBody = zod.object({
   "metric2Label": zod.string().optional(),
   "metric3Value": zod.string().optional(),
   "metric3Label": zod.string().optional(),
-  "categoryId": zod.number().optional()
+  "categoryId": zod.number().optional(),
+  "externalLink": zod.string().optional()
 })
 
 /**

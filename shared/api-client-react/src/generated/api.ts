@@ -94,6 +94,8 @@ import type {
   SubmitIdentityVerificationBody,
   SubmitQuizBody,
   SuccessStory,
+  SuccessStoryCategory,
+  CreateSuccessStoryCategoryBody,
   TeacherDashboard,
   Testimonial,
   UpdateForumPostBody,

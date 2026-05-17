@@ -24,6 +24,10 @@ export const uploadToCloudinary = async (
       {
         folder: `edu-sphere/${folder}`,
         resource_type: resourceType,
+        transformation: [
+          { width: 800, crop: "limit" },
+          { quality: "auto", fetch_format: "auto" }
+        ]
       },
       (error: any, result: any) => {
         if (error) {

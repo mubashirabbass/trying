@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -19,6 +19,8 @@ export const successStoriesTable = pgTable("success_stories", {
   metric2Label: text("metric2_label"),
   metric3Value: text("metric3_value"),
   metric3Label: text("metric3_label"),
+  externalLink: text("external_link"),
+  isHidden: boolean("is_hidden").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

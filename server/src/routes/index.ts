@@ -1,23 +1,57 @@
 import { Router, type IRouter } from "express";
 import { db, successStoryCategoriesTable, pool } from "@workspace/db";
 import { CreateSuccessStoryCategoryBody } from "@workspace/api-zod";
+import { eq } from "drizzle-orm";
+import { authenticate, authorize } from "../middleware/auth";
 
 const router: IRouter = Router();
 
 // --- CRITICAL: CATEGORY ROUTES MOVED TO TOP ---
 router.get("/success-story-categories", async (req, res) => {
-  console.log("TOP LEVEL GET HIT");
   const categories = await db.select().from(successStoryCategoriesTable);
   res.json(categories);
 });
 
-router.post("/success-story-categories", async (req, res) => {
-  console.log("TOP LEVEL POST HIT:", req.body);
+router.post("/success-story-categories", authenticate, authorize("admin"), async (req, res) => {
   const parsed = CreateSuccessStoryCategoryBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
   try {
     const [category] = await db.insert(successStoryCategoriesTable).values(parsed.data).returning();
     res.status(201).json(category);
+  } catch (err) {
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+router.put("/success-story-categories/:id", authenticate, authorize("admin"), async (req, res) => {
+  const id = Number(req.params.id);
+  const parsed = CreateSuccessStoryCategoryBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
+  
+  try {
+    const [category] = await db
+      .update(successStoryCategoriesTable)
+      .set(parsed.data)
+      .where(eq(successStoryCategoriesTable.id, id))
+      .returning();
+      
+    if (!category) return res.status(404).json({ error: "Category not found" });
+    res.json(category);
+  } catch (err) {
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+router.delete("/success-story-categories/:id", authenticate, authorize("admin"), async (req, res) => {
+  const id = Number(req.params.id);
+  try {
+    const [deleted] = await db
+      .delete(successStoryCategoriesTable)
+      .where(eq(successStoryCategoriesTable.id, id))
+      .returning();
+      
+    if (!deleted) return res.status(404).json({ error: "Category not found" });
+    res.sendStatus(204);
   } catch (err) {
     res.status(500).json({ error: "Database error" });
   }
@@ -49,13 +83,11 @@ import faqsRouter from "./faqs";
 import articlesRouter from "./articles";
 import usersRouter from "./users";
 
-import { authenticate, authorize } from "../middleware/auth";
-
 router.use(healthRouter);
 router.use(authRouter);
 router.use(coursesRouter);
 router.use(testimonialsRouter);
-router.use("/success-stories", successStoriesRouter);
+router.use(successStoriesRouter);
 router.use(branchesRouter);
 router.use(faqsRouter);
 router.use(articlesRouter);

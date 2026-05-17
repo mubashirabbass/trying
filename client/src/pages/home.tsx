@@ -170,64 +170,75 @@ export default function Home() {
     fetchPublic("/api/faqs").then(setFaqs);
   }, []);
 
-  const displaySuccessStories = (successStories && successStories.length > 0) ? successStories : [
-    {
-      id: 1,
-      studentName: "M. Samam Amir",
-      title: "eBay Store Owner",
-      description: "I made my first $1,000 in just 6 weeks after completing the EBC program. The support and training quality is unmatched.",
-      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=2000",
-      course: "EBC Mastery",
-      achievement: "$5,000+ Earnings",
-      rating: "5",
-      category: "eBay",
-      metric1Value: "$1,000",
-      metric1Label: "First Month",
-      metric2Value: "50+",
-      metric2Label: "Orders",
-      metric3Value: "100%",
-      metric3Label: "Growth"
-    },
-    {
-      id: 2,
-      studentName: "Ayesha Waseem",
-      title: "eCommerce Consultant",
-      description: "The practical training here is what made the difference. I now manage multiple international client stores with confidence.",
-      image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=2000",
-      course: "Amazon FBA",
-      achievement: "Managed $50k Account",
-      rating: "5",
-      category: "Amazon",
-      metric1Value: "$50k",
-      metric1Label: "Managed",
-      metric2Value: "12",
-      metric2Label: "Clients",
-      metric3Value: "4.9",
-      metric3Label: "Rating"
-    },
-    {
-      id: 3,
-      studentName: "Madiha Sadaf",
-      title: "Freelance Specialist",
-      description: "Global College gave me the roadmap to financial independence through freelancing. I started with zero and now I'm here.",
-      image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=2000",
-      course: "Freelance Mastery",
-      achievement: "Top Rated Seller",
-      rating: "5",
-      category: "Freelancing",
-      metric1Value: "200k",
-      metric1Label: "PKR/mo",
-      metric2Value: "5.0",
-      metric2Label: "Feedback",
-      metric3Value: "80+",
-      metric3Label: "Projects"
-    }
-  ];
-
-  const filteredStories = displaySuccessStories.filter((story: any) => {
-    if (selectedCategoryId === "all") return true;
-    return story.categoryId === selectedCategoryId;
-  });
+  const displaySuccessStories = (successStories && successStories.filter((s: any) => !s.isHidden).length > 0)
+    ? successStories.filter((story: any) => !story.isHidden)
+    : [
+        {
+          id: 1,
+          name: "M. Samam Amir",
+          studentName: "M. Samam Amir",
+          role: "eBay Store Owner",
+          title: "eBay Store Owner",
+          income: "$5,000+",
+          metric1Value: "$5,000+",
+          story: "I made my first $1,000 in just 6 weeks after completing the EBC program. The support and training quality is unmatched.",
+          description: "I made my first $1,000 in just 6 weeks after completing the EBC program. The support and training quality is unmatched.",
+          rating: 5,
+          isHidden: false
+        },
+        {
+          id: 2,
+          name: "Ayesha Waseem",
+          studentName: "Ayesha Waseem",
+          role: "eBay Consultant",
+          title: "eBay Consultant",
+          income: "$500",
+          metric1Value: "$500",
+          story: "The practical training here is what made the difference. I now manage multiple international client stores with confidence.",
+          description: "The practical training here is what made the difference. I now manage multiple international client stores with confidence.",
+          rating: 5,
+          isHidden: false
+        },
+        {
+          id: 3,
+          name: "Madiha Sadaf",
+          studentName: "Madiha Sadaf",
+          role: "eBay Consultant",
+          title: "eBay Consultant",
+          income: "200,000+ PKR",
+          metric1Value: "200,000+ PKR",
+          story: "Global College gave me the roadmap to financial independence through freelancing. I started with zero and now I'm here.",
+          description: "Global College gave me the roadmap to financial independence through freelancing. I started with zero and now I'm here.",
+          rating: 5,
+          isHidden: false
+        },
+        {
+          id: 4,
+          name: "Mubashara Liaqat",
+          studentName: "Mubashara Liaqat",
+          role: "eBay Consultant",
+          title: "eBay Consultant",
+          income: "First 6-Figure",
+          metric1Value: "First 6-Figure",
+          story: "The ecosystem here is incredible. You don't just learn; you grow with a community of like-minded entrepreneurs.",
+          description: "The ecosystem here is incredible. You don't just learn; you grow with a community of like-minded entrepreneurs.",
+          rating: 5,
+          isHidden: false
+        },
+        {
+          id: 5,
+          name: "Muhammad Tayyab",
+          studentName: "Muhammad Tayyab",
+          role: "eBay Store Owner",
+          title: "eBay Store Owner",
+          income: "Multi-Currency Earner",
+          metric1Value: "Multi-Currency Earner",
+          story: "Mastering international markets was my goal. Global College made it a reality. I'm now earning in multiple currencies.",
+          description: "Mastering international markets was my goal. Global College made it a reality. I'm now earning in multiple currencies.",
+          rating: 5,
+          isHidden: false
+        }
+      ];
 
   const [activeAchiever, setActiveAchiever] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -765,133 +776,158 @@ export default function Home() {
       </section>
       {/* ────────────────────────────────────────────────────────────────── */}
 
-      {/* ── Success Stories Section (Empowerers Style) ─────────────────── */}
+      {/* ── Edu-Sphere Achievers (Success Stories Carousel) ───────────────── */}
       <section className="py-24 bg-slate-50 relative overflow-hidden">
         <div className="absolute top-1/4 right-0 w-64 h-64 bg-blue-100/40 rounded-full blur-3xl -z-10" />
         <div className="absolute bottom-1/4 left-0 w-96 h-96 bg-emerald-100/40 rounded-full blur-3xl -z-10" />
 
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="text-center mb-16">
-            <Badge className="mb-4 bg-emerald-50 text-emerald-700 border-emerald-100 px-4 py-1.5 text-sm font-bold rounded-full">
-              Real Results, Real Stories
-            </Badge>
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight">
-              Our Students <span className="text-emerald-600">Success Stories</span>
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
+              Global College Achievers
             </h2>
-            <p className="text-gray-500 text-lg max-w-2xl mx-auto leading-relaxed font-medium">
-              See how our practical training programs are changing lives across Pakistan and beyond.
+            <p className="text-gray-500 text-lg font-medium">
+              Our 6 Figures & 7 Figures Club Students
             </p>
           </div>
 
-          {/* Category Filters */}
-          <div className="flex flex-wrap justify-center gap-3 mb-16">
-            <Button
-              variant={selectedCategoryId === "all" ? "default" : "outline"}
-              onClick={() => setSelectedCategoryId("all")}
-              className={`rounded-2xl px-8 h-12 font-black transition-all ${
-                selectedCategoryId === "all" 
-                  ? "bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200" 
-                  : "border-gray-200 text-gray-500 hover:border-emerald-600 hover:text-emerald-600"
-              }`}
-            >
-              All Stories
-            </Button>
-            {categories?.map((cat: any) => (
-              <Button
-                key={cat.id}
-                variant={selectedCategoryId === cat.id ? "default" : "outline"}
-                onClick={() => setSelectedCategoryId(cat.id)}
-                className={`rounded-2xl px-8 h-12 font-black transition-all ${
-                  selectedCategoryId === cat.id 
-                    ? "bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200" 
-                    : "border-gray-200 text-gray-500 hover:border-emerald-600 hover:text-emerald-600"
-                }`}
-              >
-                {cat.name}
-              </Button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-            {filteredStories.map((story: any) => (
-              <div key={story.id} className="group">
-                <Card className="overflow-hidden rounded-[2.5rem] border border-gray-100 bg-white shadow-sm hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 flex flex-col h-full">
-                  {/* Image Header with Badge */}
-                  <div className="relative h-64 overflow-hidden">
-                    {story.image ? (
-                      <img 
-                        src={story.image} 
-                        alt={story.studentName} 
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-300">
-                        <Users className="h-20 w-20" />
+          {displaySuccessStories.length > 0 ? (
+            <div className="max-w-6xl mx-auto">
+              <div className="relative group/achievers">
+                {/* Featured Achiever Card */}
+                <div className="bg-white/80 backdrop-blur-md rounded-[2.5rem] p-8 md:p-16 shadow-2xl shadow-blue-900/5 border border-white relative overflow-hidden min-h-[500px] flex items-center">
+                  <div className="flex flex-col lg:flex-row items-center gap-12 w-full transition-all duration-700">
+                    {/* Left Side: Content */}
+                    <div className="flex-1 text-left animate-in fade-in slide-in-from-left duration-700" key={activeAchiever}>
+                      <div className="flex gap-1 mb-6">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                        ))}
                       </div>
-                    )}
-                    <div className="absolute top-6 left-6">
-                      <Badge className="bg-emerald-600 text-white border-0 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest shadow-lg">
-                        {categories?.find((c: any) => c.id === story.categoryId)?.name || story.category || "Success Story"}
+                      
+                      <div className="relative">
+                        <Quote className="h-12 w-12 text-blue-100 absolute -top-6 -left-6 -z-10" />
+                        <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight mb-8">
+                          "{displaySuccessStories[activeAchiever]?.description || displaySuccessStories[activeAchiever]?.story || "I had an amazing learning experience at Global College!"}"
+                        </h3>
+                      </div>
+
+                      <div className="mb-6">
+                        <p className="text-2xl font-black text-gray-900">
+                          {displaySuccessStories[activeAchiever]?.studentName || displaySuccessStories[activeAchiever]?.name || "Anonymous Achiever"}
+                        </p>
+                        <p className="text-gray-500 font-bold">
+                          {displaySuccessStories[activeAchiever]?.title || displaySuccessStories[activeAchiever]?.role || "Graduate"}
+                        </p>
+                      </div>
+
+                      <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 px-4 py-2 text-base font-black rounded-xl pointer-events-none">
+                        💰 {displaySuccessStories[activeAchiever]?.metric1Value ? `${displaySuccessStories[activeAchiever]?.metric1Value} ${displaySuccessStories[activeAchiever]?.metric1Label || ''}` : (displaySuccessStories[activeAchiever]?.income || "$5,000+")}
                       </Badge>
                     </div>
+
+                    {/* Right Side: Visual */}
+                    <div className="w-full lg:w-[400px] relative animate-in fade-in zoom-in duration-700" key={`img-${activeAchiever}`}>
+                      <div className="aspect-[1/1] rounded-full bg-gray-200 overflow-hidden shadow-2xl border-[12px] border-white relative flex items-center justify-center">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10" />
+                        {displaySuccessStories[activeAchiever]?.image ? (
+                          <img 
+                            src={displaySuccessStories[activeAchiever].image} 
+                            alt={displaySuccessStories[activeAchiever].studentName || displaySuccessStories[activeAchiever].name} 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-slate-300 flex items-center justify-center">
+                            <Users className="h-24 w-24 text-white/50" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-blue-400/20 rounded-full blur-2xl -z-10" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Navigation Controls */}
+                <div className="flex items-center justify-center gap-6 mt-12 mb-16">
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => setActiveAchiever((prev) => (prev - 1 + displaySuccessStories.length) % displaySuccessStories.length)}
+                    className="rounded-full h-12 w-12 border-gray-200 bg-white shadow-lg hover:bg-primary hover:text-white transition-all flex items-center justify-center"
+                  >
+                    <ChevronLeft className="h-6 w-6" />
+                  </Button>
+                  
+                  <div className="flex gap-3">
+                    {displaySuccessStories.map((_, i) => (
+                      <div 
+                        key={i} 
+                        onClick={() => setActiveAchiever(i)}
+                        className={`h-3 w-3 rounded-full transition-all duration-500 cursor-pointer ${i === activeAchiever ? 'bg-emerald-500 w-10' : 'bg-gray-200 hover:bg-gray-300'}`} 
+                      />
+                    ))}
                   </div>
 
-                  <CardContent className="p-8 flex-1 flex flex-col">
-                    <div className="flex items-center gap-1 mb-4">
-                      {[...Array(parseInt(story.rating || "5"))].map((_, i) => (
-                        <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    onClick={() => setActiveAchiever((prev) => (prev + 1) % displaySuccessStories.length)}
+                    className="rounded-full h-12 w-12 border-gray-200 bg-white shadow-lg hover:bg-primary hover:text-white transition-all flex items-center justify-center"
+                  >
+                    <ChevronRight className="h-6 w-6" />
+                  </Button>
+                </div>
 
-                    <h3 className="text-2xl font-black text-gray-900 mb-2 group-hover:text-emerald-600 transition-colors">
-                      {story.studentName}
-                    </h3>
-                    <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px] mb-6">
-                      {story.title}
-                    </p>
-
-                    <p className="text-gray-500 font-medium leading-relaxed mb-8 line-clamp-3 text-sm italic">
-                      "{story.description}"
-                    </p>
-
-                    {/* Performance Metrics Grid */}
-                    <div className="grid grid-cols-3 gap-3 pt-6 border-t border-gray-50 mt-auto">
-                      <div className="text-center">
-                        <p className="text-lg font-black text-gray-900 leading-tight">
-                          {story.metric1Value || "-"}
+                {/* Thumbnail Gallery */}
+                <div className="w-full overflow-x-auto hide-scrollbar pb-4 pt-2">
+                  <div className="flex items-center justify-center gap-6 min-w-max px-4 mx-auto">
+                    {displaySuccessStories.map((achiever, i) => (
+                      <div 
+                        key={achiever.id}
+                        onClick={() => setActiveAchiever(i)}
+                        className={`group cursor-pointer transition-all duration-500 w-52 p-6 rounded-2xl border-2 flex flex-col items-center text-center ${
+                          i === activeAchiever 
+                          ? 'border-emerald-500 bg-emerald-50/30 shadow-lg scale-105' 
+                          : 'border-transparent bg-white shadow-sm hover:shadow-md grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:scale-105'
+                        }`}
+                      >
+                        <div className={`h-20 w-20 rounded-full mb-4 overflow-hidden border-4 transition-colors flex items-center justify-center ${i === activeAchiever ? 'border-emerald-500' : 'border-gray-100'}`}>
+                          {achiever.image ? (
+                            <img 
+                              src={achiever.image} 
+                              alt={achiever.studentName || achiever.name} 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-slate-200 flex items-center justify-center">
+                              <Users className="h-8 w-8 text-slate-400" />
+                            </div>
+                          )}
+                        </div>
+                        <h4 className="font-black text-gray-900 text-sm mb-1 line-clamp-1">
+                          {achiever.studentName || achiever.name}
+                        </h4>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 line-clamp-1">
+                          {achiever.title || achiever.role}
                         </p>
-                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">
-                          {story.metric1Label || "Metric"}
+                        <p className={`text-xs font-black transition-colors ${i === activeAchiever ? 'text-emerald-600' : 'text-gray-400'}`}>
+                          {achiever.metric1Value ? `${achiever.metric1Value}` : (achiever.income?.split('-')[0] || "$5,000+")}
                         </p>
                       </div>
-                      <div className="text-center border-x border-gray-50">
-                        <p className="text-lg font-black text-emerald-600 leading-tight">
-                          {story.metric2Value || "-"}
-                        </p>
-                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">
-                          {story.metric2Label || "Metric"}
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-lg font-black text-gray-900 leading-tight">
-                          {story.metric3Value || "-"}
-                        </p>
-                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tighter">
-                          {story.metric3Label || "Metric"}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    ))}
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-400">No stories active.</div>
+          )}
 
           <div className="text-center mt-16">
             <Link href="/success-stories">
               <Button
                 variant="outline"
-                className="border-2 border-emerald-600 text-emerald-600 font-black rounded-2xl h-14 px-10 text-base hover:bg-emerald-50 transition-all"
+                className="border-2 border-emerald-600 text-emerald-600 font-black rounded-2xl h-14 px-10 text-base hover:bg-emerald-50 transition-all flex items-center gap-2 mx-auto"
               >
                 View More Success Stories <ChevronRight className="ml-2 h-5 w-5" />
               </Button>

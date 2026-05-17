@@ -280,30 +280,25 @@ export default function AdminBranches() {
                     )}
 
                     <div className="mt-3 flex items-center gap-3">
-                      <Input
-                        id="campus-image-file"
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        className="hidden"
-                        onChange={(e) => {
-                          handleImageUpload(e.target.files?.[0] || null);
-                          e.target.value = "";
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="gap-2"
-                        disabled={isUploadingImage}
-                        onClick={() => document.getElementById("campus-image-file")?.click()}
-                      >
+                      <Label className="flex items-center gap-2 cursor-pointer border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 rounded-md w-fit">
                         {isUploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                        {form.image ? "Replace Photo" : "Choose Photo"}
-                      </Button>
+                        <span className="text-sm font-medium">{isUploadingImage ? "Uploading..." : form.image ? "Replace Photo" : "Choose Photo"}</span>
+                        <Input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          disabled={isUploadingImage}
+                          onChange={(e) => {
+                            handleImageUpload(e.target.files?.[0] || null);
+                            e.target.value = "";
+                          }}
+                        />
+                      </Label>
                       <Input
                         value={form.image}
                         onChange={(e) => setForm({ ...form, image: e.target.value })}
                         placeholder="Or paste image URL"
+                        className="flex-1"
                       />
                     </div>
                   </div>

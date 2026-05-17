@@ -78,7 +78,7 @@ export default function AdminFAQs() {
         toast({ title: isEditingFaq ? "FAQ updated" : "FAQ created" });
         setIsEditingFaq(false);
         setIsFormOpen(false);
-        setFaqForm({ id: null, question: "", answer: "", category: "General", orderIndex: 0 });
+        setFaqForm({ id: null, question: "", answer: "", category: "General", orderIndex: faqs.length + 1 });
         fetchData();
       } else {
         const error = await res.json();
@@ -132,7 +132,7 @@ export default function AdminFAQs() {
           <Button 
             onClick={() => {
               setIsEditingFaq(false);
-              setFaqForm({ id: null, question: "", answer: "", category: "General", orderIndex: 0 });
+              setFaqForm({ id: null, question: "", answer: "", category: "General", orderIndex: faqs.length + 1 });
               setIsFormOpen(!isFormOpen);
             }} 
             className="rounded-2xl h-12 px-6 bg-primary hover:bg-primary/90 shadow-xl shadow-primary/20 transition-all active:scale-95"
