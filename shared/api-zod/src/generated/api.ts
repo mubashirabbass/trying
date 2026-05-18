@@ -1244,6 +1244,7 @@ export const UpdateUserParams = zod.object({
 export const UpdateUserBody = zod.object({
   "name": zod.string().optional(),
   "phone": zod.string().optional(),
+  "cnic": zod.string().optional(),
   "avatar": zod.string().optional(),
   "isActive": zod.boolean().optional(),
   "branchId": zod.number().optional()

@@ -12,7 +12,7 @@ import { hashPassword, AppError } from "../lib/auth";
 import { catchAsync } from "../middleware/error";
 import { authenticate, authorize, AuthRequest } from "../middleware/auth";
 import { validate } from "../middleware/validate";
-import { sendSuccess } from "../utils/response";
+
 
 const router: IRouter = Router();
 
@@ -65,7 +65,51 @@ router.get(
       .offset(offset)
       .orderBy(desc(usersTable.createdAt));
 
-    return sendSuccess(res, users, "Users retrieved successfully");
+    return res.json(users);
+  })
+);
+
+/**
+ * @route POST /api/v1/users
+ * @desc Create user (Admin only)
+ */
+router.post(
+  "/users",
+  authenticate,
+  authorize("admin"),
+  validate(zod.object({ body: CreateUserBody })),
+  catchAsync(async (req: AuthRequest, res: Response) => {
+    const { name, email, password, role, phone, cnic, branchId } = req.body;
+
+    // Check if email already exists
+    const [existing] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.email, email));
+
+    if (existing) {
+      throw new AppError("Email already registered", 400);
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    const [user] = await db
+      .insert(usersTable)
+      .values({
+        name,
+        email,
+        passwordHash,
+        role,
+        phone: phone || null,
+        cnic: cnic || null,
+        branchId: branchId ? Number(branchId) : null,
+        isActive: true,
+        isEmailVerified: true,
+      })
+      .returning();
+
+    const { passwordHash: _, ...safeUser } = user;
+    return res.status(201).json(safeUser);
   })
 );
 
@@ -77,7 +121,7 @@ router.get(
   "/users/:id",
   authenticate,
   catchAsync(async (req: AuthRequest, res: Response) => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     if (isNaN(id)) throw new AppError("Invalid user ID", 400);
 
     // Only admin or the user themselves can view details
@@ -105,7 +149,7 @@ router.get(
 
     if (!user) throw new AppError("User not found", 404);
 
-    return sendSuccess(res, user, "User details retrieved");
+    return res.json(user);
   })
 );
 
@@ -118,7 +162,7 @@ router.put(
   authenticate,
   validate(zod.object({ body: UpdateUserBody })),
   catchAsync(async (req: AuthRequest, res: Response) => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     if (isNaN(id)) throw new AppError("Invalid user ID", 400);
 
     // Only admin or the user themselves can update
@@ -135,7 +179,7 @@ router.put(
     if (!updatedUser) throw new AppError("User not found", 404);
 
     const { passwordHash: _, ...safeUser } = updatedUser;
-    return sendSuccess(res, safeUser, "User updated successfully");
+    return res.json(safeUser);
   })
 );
 
@@ -149,7 +193,7 @@ router.post(
   authorize("admin"),
   validate(zod.object({ body: ResetPasswordBody })),
   catchAsync(async (req: AuthRequest, res: Response) => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     if (isNaN(id)) throw new AppError("Invalid user ID", 400);
 
     const passwordHash = await hashPassword(req.body.password);
@@ -161,7 +205,7 @@ router.post(
 
     if (!updated) throw new AppError("User not found", 404);
 
-    return sendSuccess(res, null, "Password reset successfully");
+    return res.sendStatus(204);
   })
 );
 
@@ -174,13 +218,13 @@ router.delete(
   authenticate,
   authorize("admin"),
   catchAsync(async (req: AuthRequest, res: Response) => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     if (isNaN(id)) throw new AppError("Invalid user ID", 400);
 
     const [deleted] = await db.delete(usersTable).where(eq(usersTable.id, id)).returning();
     if (!deleted) throw new AppError("User not found", 404);
 
-    return sendSuccess(res, null, "User deleted successfully", 204);
+    return res.sendStatus(204);
   })
 );
 
