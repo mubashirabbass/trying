@@ -67,12 +67,12 @@ export default function Register() {
       } 
     }, {
       onSuccess: (data) => {
-        login(data.user, data.token);
         toast({
-          title: "Account Created",
-          description: `Welcome to Global College, ${data.user.name.split(" ")[0]}!`,
+          title: "Registration Submitted Successfully!",
+          description: `Welcome, ${data.user.name.split(" ")[0]}! Your account is pending administrator approval. Please wait for confirmation.`,
+          duration: 6000,
         });
-        setLocation("/dashboard");
+        setLocation("/login");
       },
       onError: (error: any) => {
         toast({

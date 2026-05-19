@@ -76,7 +76,8 @@ export const GetMeResponse = zod.object({
 export const ListCoursesQueryParams = zod.object({
   "category": zod.coerce.string().optional(),
   "featured": zod.coerce.boolean().optional(),
-  "search": zod.coerce.string().optional()
+  "search": zod.coerce.string().optional(),
+  "teacherId": zod.coerce.number().optional()
 })
 
 export const ListCoursesResponseItem = zod.object({
@@ -1389,6 +1390,18 @@ export const ListSuccessStoriesResponseItem = zod.object({
   "image": zod.string().optional(),
   "course": zod.string().optional(),
   "achievement": zod.string().optional(),
+  "rating": zod.string().optional(),
+  "category": zod.string().optional(),
+  "metric1Value": zod.string().optional(),
+  "metric1Label": zod.string().optional(),
+  "metric2Value": zod.string().optional(),
+  "metric2Label": zod.string().optional(),
+  "metric3Value": zod.string().optional(),
+  "metric3Label": zod.string().optional(),
+  "categoryId": zod.number().optional(),
+  "externalLink": zod.string().optional(),
+  "storyContent": zod.string().optional(),
+  "storyType": zod.string().optional(),
   "createdAt": zod.string()
 })
 export const ListSuccessStoriesResponse = zod.array(ListSuccessStoriesResponseItem)
@@ -1418,6 +1431,27 @@ export const CreateSuccessStoryBody = zod.object({
   "storyType": zod.string().optional()
 })
 
+
+/**
+ * @summary Delete success story
+ */
+export const DeleteSuccessStoryParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary List success story categories
+ */
+export const ListSuccessStoryCategoriesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "description": zod.string().optional()
+})
+export const ListSuccessStoryCategoriesResponse = zod.array(ListSuccessStoryCategoriesResponseItem)
+
+
 /**
  * @summary Create success story category (admin)
  */
@@ -1429,9 +1463,9 @@ export const CreateSuccessStoryCategoryBody = zod.object({
 
 
 /**
- * @summary Delete success story
+ * @summary Delete success story category
  */
-export const DeleteSuccessStoryParams = zod.object({
+export const DeleteSuccessStoryCategoryParams = zod.object({
   "id": zod.coerce.number()
 })
 
@@ -1453,6 +1487,7 @@ export const ListBranchesResponseItem = zod.object({
   "manualStudentCount": zod.number().optional(),
   "image": zod.string().optional(),
   "isActive": zod.boolean().optional(),
+  "officeHours": zod.string().optional(),
   "createdAt": zod.string()
 })
 export const ListBranchesResponse = zod.array(ListBranchesResponseItem)
@@ -1473,8 +1508,8 @@ export const CreateBranchBody = zod.object({
   "headName": zod.string().optional(),
   "manualStudentCount": zod.number().optional(),
   "image": zod.string().optional(),
-  "officeHours": zod.string().optional(),
-  "isActive": zod.boolean().optional()
+  "isActive": zod.boolean().optional(),
+  "officeHours": zod.string().optional()
 })
 
 
@@ -1486,9 +1521,9 @@ export const UpdateBranchParams = zod.object({
 })
 
 export const UpdateBranchBody = zod.object({
-  "name": zod.string().optional(),
-  "city": zod.string().optional(),
-  "address": zod.string().optional(),
+  "name": zod.string(),
+  "city": zod.string(),
+  "address": zod.string(),
   "phone": zod.string().optional(),
   "email": zod.string().optional(),
   "mapUrl": zod.string().optional(),
@@ -1497,8 +1532,8 @@ export const UpdateBranchBody = zod.object({
   "headName": zod.string().optional(),
   "manualStudentCount": zod.number().optional(),
   "image": zod.string().optional(),
-  "officeHours": zod.string().optional(),
-  "isActive": zod.boolean().optional()
+  "isActive": zod.boolean().optional(),
+  "officeHours": zod.string().optional()
 })
 
 export const UpdateBranchResponse = zod.object({
@@ -1515,6 +1550,7 @@ export const UpdateBranchResponse = zod.object({
   "manualStudentCount": zod.number().optional(),
   "image": zod.string().optional(),
   "isActive": zod.boolean().optional(),
+  "officeHours": zod.string().optional(),
   "createdAt": zod.string()
 })
 
@@ -1539,11 +1575,24 @@ export const ListCertificatesResponseItem = zod.object({
   "userId": zod.number(),
   "courseId": zod.number(),
   "certificateNumber": zod.string(),
-  "studentName": zod.string(),
-  "courseName": zod.string(),
+  "pdfUrl": zod.string().optional(),
+  "status": zod.enum(['issued', 'revoked']),
+  "isRevoked": zod.boolean(),
+  "studentName": zod.string().optional(),
+  "userName": zod.string().optional(),
+  "courseName": zod.string().optional(),
+  "courseTitle": zod.string().optional(),
   "issuedAt": zod.string()
 })
 export const ListCertificatesResponse = zod.array(ListCertificatesResponseItem)
+
+
+/**
+ * @summary Download certificate PDF
+ */
+export const DownloadCertificateParams = zod.object({
+  "id": zod.coerce.number()
+})
 
 
 /**
@@ -1561,8 +1610,13 @@ export const VerifyCertificateResponse = zod.object({
   "userId": zod.number(),
   "courseId": zod.number(),
   "certificateNumber": zod.string(),
-  "studentName": zod.string(),
-  "courseName": zod.string(),
+  "pdfUrl": zod.string().optional(),
+  "status": zod.enum(['issued', 'revoked']),
+  "isRevoked": zod.boolean(),
+  "studentName": zod.string().optional(),
+  "userName": zod.string().optional(),
+  "courseName": zod.string().optional(),
+  "courseTitle": zod.string().optional(),
   "issuedAt": zod.string()
 }).optional(),
   "message": zod.string()

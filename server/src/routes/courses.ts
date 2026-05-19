@@ -9,6 +9,8 @@ import {
   UpdateCourseBody,
   DeleteCourseParams,
 } from "@workspace/api-zod";
+import { authenticate, authorize, AuthRequest } from "../middleware/auth";
+import { verifyToken } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -45,7 +47,24 @@ router.get("/courses", async (req, res): Promise<void> => {
   const limit = Number(req.query.limit) || 24;
   const offset = Number(req.query.offset) || 0;
 
+  let isStaff = false;
+  try {
+    const auth = req.headers.authorization;
+    if (auth?.startsWith("Bearer ")) {
+      const token = auth.slice(7);
+      const decoded = verifyToken(token);
+      const [user] = await db.select().from(usersTable).where(eq(usersTable.id, decoded.sub));
+      if (user && (user.role === "admin" || user.role === "teacher")) {
+        isStaff = true;
+      }
+    }
+  } catch (e) {}
+
   let conditions = [];
+  if (!isStaff) {
+    conditions.push(eq(coursesTable.status, "live"));
+  }
+
   if (params.success) {
     if (params.data.category) conditions.push(eq(coursesTable.category, params.data.category));
     if (params.data.featured !== undefined) conditions.push(eq(coursesTable.isFeatured, params.data.featured));
@@ -54,6 +73,9 @@ router.get("/courses", async (req, res): Promise<void> => {
         ilike(coursesTable.title, `%${params.data.search}%`),
         ilike(coursesTable.description, `%${params.data.search}%`)
       ));
+    }
+    if (params.data.teacherId !== undefined) {
+      conditions.push(eq(coursesTable.teacherId, params.data.teacherId));
     }
   }
 
@@ -95,19 +117,26 @@ router.get("/courses", async (req, res): Promise<void> => {
   res.json(enriched);
 });
 
-router.post("/courses", async (req, res): Promise<void> => {
+router.post("/courses", authenticate, authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
   const parsed = CreateCourseBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
   const slug = parsed.data.title.toLowerCase().replace(/ /g, "-").replace(/[^\w-]+/g, "");
-  const [course] = await db.insert(coursesTable).values({
+  
+  let insertData: any = {
     ...parsed.data,
     slug,
-    status: parsed.data.status ?? "draft"
-  }).returning();
-  res.status(201).json({ ...course, enrollmentCount: 0, lessonCount: 0, teacherName: null });
+    status: req.user.role === "admin" ? "live" : "draft"
+  };
+
+  if (req.user.role === "teacher") {
+    insertData.teacherId = req.user.id;
+  }
+
+  const [course] = await db.insert(coursesTable).values(insertData).returning();
+  res.status(201).json({ ...course, enrollmentCount: 0, lessonCount: 0, teacherName: req.user.role === "admin" ? null : req.user.name });
 });
 
 router.get("/courses/:id", async (req, res): Promise<void> => {
@@ -153,21 +182,39 @@ router.get("/courses/:id", async (req, res): Promise<void> => {
   res.json({ ...course, enrollmentCount: Number(enrollCount[0]?.c ?? 0), lessonCount: lessons.length, lessons });
 });
 
-router.put("/courses/:id", async (req, res): Promise<void> => {
+router.put("/courses/:id", authenticate, authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  
   const parsed = UpdateCourseBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const [existingCourse] = await db.select().from(coursesTable).where(eq(coursesTable.id, id));
+  if (!existingCourse) { res.status(404).json({ error: "Not found" }); return; }
+
+  if (req.user.role === "teacher" && existingCourse.teacherId !== req.user.id) {
+    res.status(403).json({ error: "You do not have permission to modify this course" });
+    return;
+  }
+
   const [course] = await db.update(coursesTable).set(parsed.data).where(eq(coursesTable.id, id)).returning();
-  if (!course) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ ...course, enrollmentCount: 0, lessonCount: 0, teacherName: null });
 });
 
-router.delete("/courses/:id", async (req, res): Promise<void> => {
+router.delete("/courses/:id", authenticate, authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [existingCourse] = await db.select().from(coursesTable).where(eq(coursesTable.id, id));
+  if (!existingCourse) { res.status(404).json({ error: "Not found" }); return; }
+
+  if (req.user.role === "teacher" && existingCourse.teacherId !== req.user.id) {
+    res.status(403).json({ error: "You do not have permission to delete this course" });
+    return;
+  }
+
   await db.delete(coursesTable).where(eq(coursesTable.id, id));
   res.sendStatus(204);
 });

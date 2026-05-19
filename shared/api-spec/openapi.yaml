@@ -120,6 +120,10 @@ paths:
           in: query
           schema:
             type: string
+        - name: teacherId
+          in: query
+          schema:
+            type: integer
       responses:
         "200":
           description: List of courses
@@ -1655,6 +1659,53 @@ paths:
         "204":
           description: Deleted
 
+  /success-story-categories:
+    get:
+      operationId: listSuccessStoryCategories
+      tags: [success-stories]
+      summary: List success story categories
+      responses:
+        "200":
+          description: Success story categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SuccessStoryCategory"
+    post:
+      operationId: createSuccessStoryCategory
+      tags: [success-stories]
+      summary: Create success story category (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSuccessStoryCategoryBody"
+      responses:
+        "201":
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessStoryCategory"
+
+  /success-story-categories/{id}:
+    delete:
+      operationId: deleteSuccessStoryCategory
+      tags: [success-stories]
+      summary: Delete success story category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
   /branches:
     get:
       operationId: listBranches
@@ -1935,6 +1986,8 @@ components:
         name:
           type: string
         phone:
+          type: string
+        cnic:
           type: string
         avatar:
           type: string
@@ -2444,6 +2497,30 @@ components:
           type: string
         achievement:
           type: string
+        rating:
+          type: string
+        category:
+          type: string
+        metric1Value:
+          type: string
+        metric1Label:
+          type: string
+        metric2Value:
+          type: string
+        metric2Label:
+          type: string
+        metric3Value:
+          type: string
+        metric3Label:
+          type: string
+        categoryId:
+          type: integer
+        externalLink:
+          type: string
+        storyContent:
+          type: string
+        storyType:
+          type: string
         createdAt:
           type: string
       required: [id, studentName, title, description, createdAt]
@@ -2463,7 +2540,56 @@ components:
           type: string
         achievement:
           type: string
+        rating:
+          type: string
+        category:
+          type: string
+        metric1Value:
+          type: string
+        metric1Label:
+          type: string
+        metric2Value:
+          type: string
+        metric2Label:
+          type: string
+        metric3Value:
+          type: string
+        metric3Label:
+          type: string
+        categoryId:
+          type: integer
+        externalLink:
+          type: string
+        storyContent:
+          type: string
+        storyType:
+          type: string
       required: [studentName, title, description]
+
+    SuccessStoryCategory:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+      required: [id, name, slug]
+
+    CreateSuccessStoryCategoryBody:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+      required: [name, slug]
+
 
     Section:
       type: object
@@ -2522,6 +2648,8 @@ components:
           type: string
         isActive:
           type: boolean
+        officeHours:
+          type: string
         createdAt:
           type: string
       required: [id, name, city, address, createdAt]
@@ -2553,6 +2681,8 @@ components:
           type: string
         isActive:
           type: boolean
+        officeHours:
+          type: string
       required: [name, city, address]
 
     Certificate:
@@ -2566,13 +2696,24 @@ components:
           type: integer
         certificateNumber:
           type: string
+        pdfUrl:
+          type: string
+        status:
+          type: string
+          enum: [issued, revoked]
+        isRevoked:
+          type: boolean
         studentName:
+          type: string
+        userName:
           type: string
         courseName:
           type: string
+        courseTitle:
+          type: string
         issuedAt:
           type: string
-      required: [id, userId, courseId, certificateNumber, studentName, courseName, issuedAt]
+      required: [id, userId, courseId, certificateNumber, status, isRevoked, issuedAt]
 
     CertificateVerification:
       type: object
@@ -2840,31 +2981,6 @@ components:
           type: string
       required: [id, userId, documentType, documentUrl, status, submittedAt]
 
-    Certificate:
-      type: object
-      properties:
-        id:
-          type: integer
-        userId:
-          type: integer
-        courseId:
-          type: integer
-        certificateNumber:
-          type: string
-        pdfUrl:
-          type: string
-        status:
-          type: string
-          enum: [issued, revoked]
-        isRevoked:
-          type: boolean
-        issuedAt:
-          type: string
-        userName:
-          type: string
-        courseTitle:
-          type: string
-      required: [id, userId, courseId, certificateNumber, status, isRevoked, issuedAt]
 
     CreateMessageThreadBody:
       type: object

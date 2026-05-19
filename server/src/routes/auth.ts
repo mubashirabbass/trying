@@ -51,7 +51,11 @@ router.post("/auth/login", authRateLimiter, catchAsync(async (req: Request, res:
   }
   
   if (!user.isActive) {
-    res.status(403).json({ error: "Account is disabled" });
+    if (user.role === "student") {
+      res.status(403).json({ error: "Your student registration is pending administrator approval. You will receive an email once it is approved." });
+    } else {
+      res.status(403).json({ error: "Your account has been deactivated. Please contact the administrator." });
+    }
     return;
   }
   const token = createToken(user.id, user.role, !!rememberMe);
@@ -67,13 +71,17 @@ router.post("/auth/register", authRateLimiter, catchAsync(async (req: Request, r
     return;
   }
   const { email, password, name, role, phone, cnic, branchId } = parsed.data;
+  if (role !== "student") {
+    res.status(403).json({ error: "Only student registration is allowed publicly. Teacher and administrator accounts must be created by an Admin." });
+    return;
+  }
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   if (existing) {
     res.status(409).json({ error: "Email already in use" });
     return;
   }
   const passwordHash = await hashPassword(password);
-  const [user] = await db.insert(usersTable).values({ email, passwordHash, name, role, phone, cnic, branchId }).returning();
+  const [user] = await db.insert(usersTable).values({ email, passwordHash, name, role, phone, cnic, branchId, isActive: false }).returning();
   const token = createToken(user.id, user.role);
 
   // Send verification email (async, don't block response)

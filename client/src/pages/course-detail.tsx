@@ -7,13 +7,15 @@ import {
   useCreateEnrollment, 
   useListLessons, 
   getListLessonsQueryKey,
-  useListEnrollments 
+  useListEnrollments,
+  getListEnrollmentsQueryKey
 } from "@workspace/api-client-react";
 import { useRoute, useLocation } from "wouter";
 import { useAuth } from "@/lib/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, PlayCircle, Clock, CheckCircle2, GraduationCap, DollarSign, FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function CourseDetail() {
   const [, params] = useRoute("/courses/:id");
@@ -55,7 +57,10 @@ export default function CourseDetail() {
       if (enrollmentStatus === "active") {
         setLocation(`/dashboard/lessons/${courseId}`);
       } else {
-        toast({ title: "Enrollment Pending", description: "Your enrollment is waiting for payment verification." });
+        toast({ 
+          title: "Enrollment Pending Approval", 
+          description: "Your admission request for this course has been submitted and is pending administrator approval. We will notify you once verified.",
+        });
       }
       return;
     }
@@ -70,15 +75,17 @@ export default function CourseDetail() {
       {
         onSuccess: () => {
           toast({
-            title: "Enrollment Successful",
-            description: "You have successfully enrolled in the course.",
+            title: "Admission Request Submitted",
+            description: "Your request to enroll in this free course has been submitted and is pending administrator review.",
           });
+          // Invalidate query to update enrollments
+          queryClient.invalidateQueries({ queryKey: ["enrollments"] });
           setLocation("/dashboard/courses");
         },
         onError: (error: any) => {
           toast({
-            title: "Enrollment Failed",
-            description: error.message || "Failed to enroll.",
+            title: "Request Failed",
+            description: error.response?.data?.message || error.message || "Failed to submit admission request.",
             variant: "destructive"
           });
         }
@@ -206,7 +213,7 @@ export default function CourseDetail() {
                 disabled={enrollMutation.isPending}
               >
                 {enrollMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
-                {isEnrolled ? (enrollmentStatus === 'active' ? 'Go to Course' : 'Payment Pending') : 'Enroll Now'}
+                {isEnrolled ? (enrollmentStatus === 'active' ? 'Go to Course' : 'Approval Pending') : 'Enroll Now'}
               </Button>
             </CardContent>
           </Card>

@@ -8,7 +8,7 @@ import {
   useListCourses,
   getListEnrollmentsQueryKey 
 } from "@workspace/api-client-react";
-import { Loader2, Plus, Trash2, GraduationCap, User, BookOpen } from "lucide-react";
+import { Loader2, Plus, Trash2, GraduationCap, User, BookOpen, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -54,6 +54,32 @@ export default function AdminEnrollments() {
         description: error.message || "Is the student already enrolled?",
         variant: "destructive" 
       });
+    }
+  };
+
+  const [approvingId, setApprovingId] = useState<number | null>(null);
+
+  const handleApprove = async (id: number) => {
+    setApprovingId(id);
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const response = await fetch(`/api/enrollments/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: "active" })
+      });
+
+      if (!response.ok) throw new Error("Failed to approve enrollment");
+
+      toast({ title: "Enrollment Approved Successfully" });
+      queryClient.invalidateQueries({ queryKey: getListEnrollmentsQueryKey({}) });
+    } catch (error) {
+      toast({ title: "Error approving enrollment", variant: "destructive" });
+    } finally {
+      setApprovingId(null);
     }
   };
 
@@ -136,12 +162,30 @@ export default function AdminEnrollments() {
                     </div>
                   </TableCell>
                   <TableCell className="py-4">
-                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100 font-medium capitalize">
-                      {enrollment.status}
-                    </Badge>
+                    {enrollment.status === "pending" ? (
+                      <Badge className="bg-amber-50 text-amber-700 border-amber-200 font-medium">
+                        <Loader2 className="h-3 w-3 animate-spin mr-1 text-amber-500" /> Pending Approval
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 font-medium capitalize">
+                        {enrollment.status}
+                      </Badge>
+                    )}
                   </TableCell>
-                  <TableCell className="text-right py-4">
-                    <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-600 transition-colors" onClick={() => handleDelete(enrollment.id)}>
+                  <TableCell className="text-right py-4 space-x-1">
+                    {enrollment.status === "pending" && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        title="Approve Enrollment"
+                        className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl"
+                        onClick={() => handleApprove(enrollment.id)}
+                        disabled={approvingId === enrollment.id}
+                      >
+                        {approvingId === enrollment.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-600 transition-colors rounded-xl" onClick={() => handleDelete(enrollment.id)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </TableCell>

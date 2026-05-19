@@ -109,7 +109,8 @@ router.post("/success-stories", authenticate, authorize("admin"), catchAsync(asy
 
 // PUT /api/success-stories/:id
 router.put("/success-stories/:id", authenticate, authorize("admin"), catchAsync(async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const idStr = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(idStr as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const parsed = CreateSuccessStoryBody.safeParse(req.body);
@@ -126,7 +127,8 @@ router.put("/success-stories/:id", authenticate, authorize("admin"), catchAsync(
 
 // PATCH /api/success-stories/:id/visibility
 router.patch("/success-stories/:id/visibility", authenticate, authorize("admin"), catchAsync(async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const idStr = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(idStr as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [current] = await db.select().from(successStoriesTable).where(eq(successStoriesTable.id, id));
@@ -142,7 +144,8 @@ router.patch("/success-stories/:id/visibility", authenticate, authorize("admin")
 
 // DELETE /api/success-stories/:id
 router.delete("/success-stories/:id", authenticate, authorize("admin"), catchAsync(async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const idStr = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(idStr as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db.delete(successStoriesTable).where(eq(successStoriesTable.id, id));
   res.sendStatus(204);

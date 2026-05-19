@@ -48,6 +48,22 @@ router.post("/payments", async (req: AuthRequest, res): Promise<void> => {
   const [payment] = await db.insert(paymentsTable)
     .values({ userId, courseId: parsed.data.courseId, amount: parsed.data.amount, method: parsed.data.method, receiptUrl: parsed.data.receiptUrl })
     .returning();
+
+  // Automatically insert/update enrollment to pending state for admin review
+  const [existing] = await db.select().from(enrollmentsTable)
+    .where(and(eq(enrollmentsTable.userId, userId), eq(enrollmentsTable.courseId, parsed.data.courseId)));
+  if (!existing) {
+    await db.insert(enrollmentsTable).values({
+      userId,
+      courseId: parsed.data.courseId,
+      status: "pending"
+    });
+  } else if (existing.status !== "active") {
+    await db.update(enrollmentsTable)
+      .set({ status: "pending" })
+      .where(eq(enrollmentsTable.id, existing.id));
+  }
+
   res.status(201).json({ ...payment, userName: null, courseName: null });
 });
 

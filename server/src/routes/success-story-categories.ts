@@ -49,7 +49,8 @@ router.post("/", authenticate, authorize("admin"), async (req, res): Promise<voi
 });
 
 router.delete("/:id", authenticate, authorize("admin"), async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const idStr = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(idStr as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   await db.delete(successStoryCategoriesTable).where(eq(successStoryCategoriesTable.id, id));
   res.sendStatus(204);

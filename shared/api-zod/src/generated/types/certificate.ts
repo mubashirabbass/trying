@@ -5,13 +5,19 @@
  * Global College LMS API
  * OpenAPI spec version: 0.1.0
  */
+import type { CertificateStatus } from './certificateStatus';
 
 export interface Certificate {
   id: number;
   userId: number;
   courseId: number;
   certificateNumber: string;
-  studentName: string;
-  courseName: string;
+  pdfUrl?: string;
+  status: CertificateStatus;
+  isRevoked: boolean;
+  studentName?: string;
+  userName?: string;
+  courseName?: string;
+  courseTitle?: string;
   issuedAt: string;
 }

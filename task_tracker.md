@@ -258,6 +258,17 @@
 
 ---
 
+---
+
+## Phase 18: Dynamic Faculty & Course Management RBAC `[5/5]`
+> **Status:** ✅ Complete | **Goal:** Faculty round-robin distribution and strict route ownership enforcement
+
+- [x] 18.1 Resolve duplicate `Certificate` schemas and fix YAML parsing syntax errors
+- [x] 18.2 Regenerate OpenAPI specs and Zod schemas across libraries
+- [x] 18.3 Add `teacherId` query parameter to `ListCoursesQueryParams`
+- [x] 18.4 Implement secure course ownership restrictions in `/courses` and `/lessons` routes
+- [x] 18.5 Add interactive faculty creation script with round-robin course assignment
+
 ## Decisions Log
 
 | Date | Decision | Reason |

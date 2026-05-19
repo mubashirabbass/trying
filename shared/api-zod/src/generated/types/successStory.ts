@@ -14,5 +14,17 @@ export interface SuccessStory {
   image?: string;
   course?: string;
   achievement?: string;
+  rating?: string;
+  category?: string;
+  metric1Value?: string;
+  metric1Label?: string;
+  metric2Value?: string;
+  metric2Label?: string;
+  metric3Value?: string;
+  metric3Label?: string;
+  categoryId?: number;
+  externalLink?: string;
+  storyContent?: string;
+  storyType?: string;
   createdAt: string;
 }

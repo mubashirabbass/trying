@@ -24,7 +24,10 @@ import {
   UserCircle,
   KeyRound,
   FileText,
-  Lock
+  Lock,
+  Upload,
+  Image as ImageIcon,
+  X
 } from "lucide-react";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -69,6 +72,7 @@ export default function AdminTeachers() {
   
   const [search, setSearch] = useState("");
   const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
+  const [teacherToDelete, setTeacherToDelete] = useState<any>(null);
   
   // Registration Form State
   const [form, setForm] = useState({
@@ -79,6 +83,15 @@ export default function AdminTeachers() {
     branchId: "",
     phone: "",
     cnic: "",
+    qualification: "",
+    specialization: "",
+    experience: "",
+    salary: "",
+    address: "",
+    designation: "",
+    gender: "",
+    joiningDate: "",
+    avatar: "",
   });
 
   // Edit Form State
@@ -88,6 +101,15 @@ export default function AdminTeachers() {
     cnic: "",
     branchId: "",
     isActive: true,
+    qualification: "",
+    specialization: "",
+    experience: "",
+    salary: "",
+    address: "",
+    designation: "",
+    gender: "",
+    joiningDate: "",
+    avatar: "",
   });
 
   // Reset Password State
@@ -108,7 +130,23 @@ export default function AdminTeachers() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListUsersQueryKey({ role: "teacher" }) });
         setOpen(false);
-        setForm({ name: "", email: "", password: "", role: "teacher", branchId: "", phone: "", cnic: "" });
+        setForm({
+          name: "",
+          email: "",
+          password: "",
+          role: "teacher",
+          branchId: "",
+          phone: "",
+          cnic: "",
+          qualification: "",
+          specialization: "",
+          experience: "",
+          salary: "",
+          address: "",
+          designation: "",
+          gender: "",
+          joiningDate: "",
+        });
         toast({ title: "Teacher account created successfully" });
       },
       onError: (err: any) => toast({ title: err?.response?.data?.message || "Failed to create teacher", variant: "destructive" }),
@@ -131,6 +169,7 @@ export default function AdminTeachers() {
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListUsersQueryKey({ role: "teacher" }) });
+        setTeacherToDelete(null);
         toast({ title: "Teacher removed successfully" });
       },
       onError: (err: any) => toast({ title: err?.response?.data?.message || "Failed to remove teacher", variant: "destructive" }),
@@ -149,13 +188,55 @@ export default function AdminTeachers() {
     }
   });
 
+  // Image Upload State & Handler
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const handleImageUpload = async (file: File | null, isEdit: boolean) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please choose an image file", variant: "destructive" });
+      return;
+    }
+
+    const body = new FormData();
+    body.append("avatar", file);
+
+    try {
+      setIsUploadingImage(true);
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const response = await fetch("/api/users/upload-avatar", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.message || error?.error || "Image upload failed");
+      }
+
+      const uploaded = await response.json();
+      if (isEdit) {
+        setEditForm((current) => ({ ...current, avatar: uploaded.url }));
+      } else {
+        setForm((current) => ({ ...current, avatar: uploaded.url }));
+      }
+      toast({ title: "Teacher profile photo uploaded" });
+    } catch (error: any) {
+      toast({ title: error?.message || "Image upload failed", variant: "destructive" });
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   // Submit Handlers
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     createMutation.mutate({ 
       data: { 
         ...form, 
-        branchId: form.branchId ? Number(form.branchId) : undefined 
+        branchId: form.branchId ? Number(form.branchId) : undefined,
+        salary: form.salary ? Number(form.salary) : undefined,
+        joiningDate: form.joiningDate ? new Date(form.joiningDate).toISOString() : undefined,
       } as any 
     });
   };
@@ -171,6 +252,15 @@ export default function AdminTeachers() {
         cnic: editForm.cnic || undefined,
         branchId: editForm.branchId ? Number(editForm.branchId) : undefined,
         isActive: editForm.isActive,
+        qualification: editForm.qualification || undefined,
+        specialization: editForm.specialization || undefined,
+        experience: editForm.experience || undefined,
+        salary: editForm.salary ? Number(editForm.salary) : undefined,
+        address: editForm.address || undefined,
+        designation: editForm.designation || undefined,
+        gender: editForm.gender || undefined,
+        joiningDate: editForm.joiningDate ? new Date(editForm.joiningDate).toISOString() : undefined,
+        avatar: editForm.avatar || undefined,
       }
     });
   };
@@ -194,6 +284,15 @@ export default function AdminTeachers() {
       cnic: teacher.cnic || "",
       branchId: teacher.branchId ? teacher.branchId.toString() : "",
       isActive: teacher.isActive,
+      qualification: teacher.qualification || "",
+      specialization: teacher.specialization || "",
+      experience: teacher.experience || "",
+      salary: teacher.salary ? teacher.salary.toString() : "",
+      address: teacher.address || "",
+      designation: teacher.designation || "",
+      gender: teacher.gender || "",
+      joiningDate: teacher.joiningDate ? new Date(teacher.joiningDate).toISOString().split('T')[0] : "",
+      avatar: teacher.avatar || "",
     });
     setEditOpen(true);
   };
@@ -218,36 +317,50 @@ export default function AdminTeachers() {
               <Plus className="h-4 w-4 mr-2" /> Add Instructor
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[550px] rounded-2xl">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-black text-gray-900 dark:text-white">Register New Instructor</DialogTitle>
+          <DialogContent className="sm:max-w-[750px] rounded-2xl p-0 overflow-hidden">
+            <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+              <DialogTitle className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-indigo-600 dark:text-indigo-400" /> Register New Instructor
+              </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <Label className="font-bold">Full Name *</Label>
-                  <Input 
-                    required 
-                    value={form.name} 
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="e.g. Prof. Ahmed Khan" 
-                    className="rounded-xl"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div className="max-h-[60vh] overflow-y-auto px-1 py-1 space-y-4 pr-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Row 1: Name & Designation */}
                   <div className="space-y-2">
-                    <Label className="font-bold">Email Address *</Label>
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Full Name *</Label>
+                    <Input 
+                      required 
+                      value={form.name} 
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder="e.g. Prof. Dr. Ahmed Khan" 
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Academic/Faculty Designation</Label>
+                    <Input 
+                      value={form.designation} 
+                      onChange={(e) => setForm({ ...form, designation: e.target.value })}
+                      placeholder="e.g. Senior Professor / Lecturer" 
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  {/* Row 2: Email & Password */}
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Email Address *</Label>
                     <Input 
                       type="email" 
                       required 
                       value={form.email} 
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
-                      placeholder="ahmed@college.edu" 
+                      placeholder="ahmed.khan@college.edu" 
                       className="rounded-xl"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-bold">Password *</Label>
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Account Password *</Label>
                     <Input 
                       type="password" 
                       required 
@@ -257,10 +370,10 @@ export default function AdminTeachers() {
                       className="rounded-xl"
                     />
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+
+                  {/* Row 3: Campus & Phone */}
                   <div className="space-y-2">
-                    <Label className="font-bold">Assigned Campus *</Label>
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Assigned Campus *</Label>
                     <Select 
                       value={form.branchId} 
                       onValueChange={(val) => setForm({ ...form, branchId: val })}
@@ -279,30 +392,173 @@ export default function AdminTeachers() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-bold">Phone Number</Label>
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Phone Number</Label>
                     <Input 
                       value={form.phone} 
                       onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      placeholder="+92 3..." 
+                      placeholder="e.g. +92 321 1234567" 
                       className="rounded-xl"
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="font-bold">National ID / CNIC (13 digits)</Label>
-                  <Input 
-                    value={form.cnic} 
-                    onChange={(e) => setForm({ ...form, cnic: e.target.value })}
-                    placeholder="37405-XXXXXXX-X" 
-                    className="rounded-xl"
-                  />
+
+                  {/* Row 4: CNIC & Gender */}
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">CNIC / National ID</Label>
+                    <Input 
+                      value={form.cnic} 
+                      onChange={(e) => setForm({ ...form, cnic: e.target.value })}
+                      placeholder="e.g. 37405-1234567-1" 
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Gender</Label>
+                    <Select 
+                      value={form.gender} 
+                      onValueChange={(val) => setForm({ ...form, gender: val })}
+                    >
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder="Select Gender" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Row 5: Qualification & Specialization */}
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Qualifications / Degree</Label>
+                    <Input 
+                      value={form.qualification} 
+                      onChange={(e) => setForm({ ...form, qualification: e.target.value })}
+                      placeholder="e.g. PhD in Computer Science" 
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Specialization / Expertise</Label>
+                    <Input 
+                      value={form.specialization} 
+                      onChange={(e) => setForm({ ...form, specialization: e.target.value })}
+                      placeholder="e.g. Software Engineering / AI" 
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  {/* Row 6: Experience & Salary */}
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Years of Experience</Label>
+                    <Input 
+                      value={form.experience} 
+                      onChange={(e) => setForm({ ...form, experience: e.target.value })}
+                      placeholder="e.g. 8 Years" 
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Monthly Salary (PKR)</Label>
+                    <Input 
+                      type="number"
+                      value={form.salary} 
+                      onChange={(e) => setForm({ ...form, salary: e.target.value })}
+                      placeholder="e.g. 150000" 
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  {/* Row 7: Joining Date */}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Joining Date</Label>
+                    <Input 
+                      type="date"
+                      value={form.joiningDate} 
+                      onChange={(e) => setForm({ ...form, joiningDate: e.target.value })}
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  {/* Row 8: Residential Address */}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Complete Residential Address</Label>
+                    <Input 
+                      value={form.address} 
+                      onChange={(e) => setForm({ ...form, address: e.target.value })}
+                      placeholder="e.g. House #123, Street 4, Sector G-11, Islamabad" 
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  {/* Row 9: Profile Photo */}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Faculty Profile Photo</Label>
+                    <div className="rounded-xl border border-dashed border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900/50 p-4">
+                      {form.avatar ? (
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={form.avatar}
+                            alt="Teacher avatar preview"
+                            className="h-16 w-16 rounded-full object-cover border-2 border-indigo-600 bg-white"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">Photo ready</p>
+                            <p className="text-xs text-gray-500 truncate">{form.avatar}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full"
+                            onClick={() => setForm({ ...form, avatar: "" })}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <div className="h-16 w-16 rounded-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-800 flex items-center justify-center text-gray-400">
+                            <ImageIcon className="h-6 w-6" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">Upload teacher profile picture</p>
+                            <p className="text-xs text-gray-500">JPG, PNG, or WEBP up to 10MB</p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex items-center gap-3">
+                        <Label className="flex items-center gap-2 cursor-pointer border border-input dark:border-slate-800 bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 rounded-xl w-fit font-bold text-xs">
+                          {isUploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                          <span>{isUploadingImage ? "Uploading..." : form.avatar ? "Replace Photo" : "Choose Photo"}</span>
+                          <Input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            className="hidden"
+                            disabled={isUploadingImage}
+                            onChange={(e) => {
+                              handleImageUpload(e.target.files?.[0] || null, false);
+                              e.target.value = "";
+                            }}
+                          />
+                        </Label>
+                        <Input
+                          value={form.avatar}
+                          onChange={(e) => setForm({ ...form, avatar: e.target.value })}
+                          placeholder="Or paste direct image URL"
+                          className="flex-1 rounded-xl"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="flex justify-end gap-3 pt-6">
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
                 <Button type="button" variant="ghost" onClick={() => setOpen(false)} className="rounded-xl font-bold">Cancel</Button>
-                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 px-8 text-white rounded-xl font-bold" disabled={createMutation.isPending}>
+                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 px-8 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 dark:shadow-none" disabled={createMutation.isPending}>
                   {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                  Create Account
+                  Register Faculty Account
                 </Button>
               </div>
             </form>
@@ -344,20 +600,28 @@ export default function AdminTeachers() {
                     <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto opacity-20" />
                   </TableCell>
                 </TableRow>
-              ) : teachers.length === 0 ? (
+              ) : (!Array.isArray(teachers) && !Array.isArray((teachers as any)?.data)) || (Array.isArray(teachers) ? teachers : (teachers as any).data).length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="h-64 text-center text-gray-500 font-bold">
                     No instructors found.
                   </TableCell>
                 </TableRow>
               ) : (
-                teachers.map((teacher: any) => (
+                (Array.isArray(teachers) ? teachers : (teachers as any).data).map((teacher: any) => (
                   <TableRow key={teacher.id} className="hover:bg-indigo-50/10 dark:hover:bg-slate-800/10 transition-colors border-b dark:border-slate-800/60 last:border-0">
                     <TableCell className="py-4 pl-6">
                       <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-700 dark:text-indigo-400 font-bold shrink-0">
-                          <GraduationCap className="h-5 w-5" />
-                        </div>
+                        {teacher.avatar ? (
+                          <img
+                            src={teacher.avatar}
+                            alt={teacher.name}
+                            className="h-10 w-10 rounded-xl object-cover border border-indigo-100 dark:border-indigo-950/40 shrink-0"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-700 dark:text-indigo-400 font-bold shrink-0">
+                            <GraduationCap className="h-5 w-5" />
+                          </div>
+                        )}
                         <div className="flex flex-col">
                           <Link href={`/admin/teachers/${teacher.id}`}>
                             <span className="font-extrabold text-gray-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors">{teacher.name}</span>
@@ -420,10 +684,9 @@ export default function AdminTeachers() {
                           </DropdownMenuItem>
                           <DropdownMenuItem 
                             className="text-rose-600 font-semibold cursor-pointer rounded-lg focus:bg-rose-50 dark:focus:bg-rose-950/20 focus:text-rose-600"
-                            onClick={() => {
-                              if (confirm(`Remove access and delete records for ${teacher.name}?`)) {
-                                deleteMutation.mutate({ id: teacher.id });
-                              }
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              setTeacherToDelete(teacher);
                             }}
                           >
                             <Trash2 className="h-4 w-4 mr-2" /> Remove Faculty
@@ -439,78 +702,236 @@ export default function AdminTeachers() {
         </CardContent>
       </Card>
 
-      {/* Edit Instructor Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black text-gray-900 dark:text-white">Edit Faculty Profile</DialogTitle>
+        <DialogContent className="sm:max-w-[750px] rounded-2xl p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+            <DialogTitle className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+              <Edit className="h-5 w-5 text-indigo-600 dark:text-indigo-400" /> Edit Faculty Profile
+            </DialogTitle>
           </DialogHeader>
           {selectedTeacher && (
-            <form onSubmit={handleEditSubmit} className="space-y-4 mt-4">
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <Label className="font-bold">Full Name *</Label>
-                  <Input 
-                    required 
-                    value={editForm.name} 
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="rounded-xl"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+            <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+              <div className="max-h-[60vh] overflow-y-auto px-1 py-1 space-y-4 pr-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Row 1: Name & Designation */}
                   <div className="space-y-2">
-                    <Label className="font-bold">Phone Number</Label>
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Full Name *</Label>
+                    <Input 
+                      required 
+                      value={editForm.name} 
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      placeholder="e.g. Prof. Dr. Ahmed Khan" 
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Academic/Faculty Designation</Label>
+                    <Input 
+                      value={editForm.designation} 
+                      onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })}
+                      placeholder="e.g. Senior Professor / Lecturer" 
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  {/* Row 2: Campus & Phone */}
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Assigned Campus *</Label>
+                    <Select 
+                      value={editForm.branchId} 
+                      onValueChange={(val) => setEditForm({ ...editForm, branchId: val })}
+                      required
+                    >
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder="Select Campus" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        {Array.isArray(branches) && branches.map((branch: any) => (
+                          <SelectItem key={branch.id} value={branch.id.toString()}>
+                            {branch.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Phone Number</Label>
                     <Input 
                       value={editForm.phone} 
                       onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                      placeholder="+92 3..." 
+                      placeholder="e.g. +92 321 1234567" 
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  {/* Row 3: CNIC & Gender */}
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">CNIC / National ID</Label>
+                    <Input 
+                      value={editForm.cnic} 
+                      onChange={(e) => setEditForm({ ...editForm, cnic: e.target.value })}
+                      placeholder="e.g. 37405-1234567-1" 
                       className="rounded-xl"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-bold">National ID / CNIC</Label>
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Gender</Label>
+                    <Select 
+                      value={editForm.gender} 
+                      onValueChange={(val) => setEditForm({ ...editForm, gender: val })}
+                    >
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder="Select Gender" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Row 4: Qualification & Specialization */}
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Qualifications / Degree</Label>
                     <Input 
-                      value={editForm.cnic} 
-                      onChange={(e) => setEditForm({ ...editForm, cnic: e.target.value })}
-                      placeholder="37405-XXXXXXX-X" 
+                      value={editForm.qualification} 
+                      onChange={(e) => setEditForm({ ...editForm, qualification: e.target.value })}
+                      placeholder="e.g. PhD in Computer Science" 
                       className="rounded-xl"
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="font-bold">Campus / Branch Assignment *</Label>
-                  <Select 
-                    value={editForm.branchId} 
-                    onValueChange={(val) => setEditForm({ ...editForm, branchId: val })}
-                    required
-                  >
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder="Select Campus" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      {Array.isArray(branches) && branches.map((branch: any) => (
-                        <SelectItem key={branch.id} value={branch.id.toString()}>
-                          {branch.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <div className="flex flex-col">
-                    <Label className="font-bold text-sm text-gray-900 dark:text-white">Account Status</Label>
-                    <span className="text-xs text-gray-400">Toggle whether this teacher has system access</span>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Specialization / Expertise</Label>
+                    <Input 
+                      value={editForm.specialization} 
+                      onChange={(e) => setEditForm({ ...editForm, specialization: e.target.value })}
+                      placeholder="e.g. Software Engineering / AI" 
+                      className="rounded-xl"
+                    />
                   </div>
-                  <Switch 
-                    checked={editForm.isActive}
-                    onCheckedChange={(checked) => setEditForm({ ...editForm, isActive: checked })}
-                  />
+
+                  {/* Row 5: Experience & Salary */}
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Years of Experience</Label>
+                    <Input 
+                      value={editForm.experience} 
+                      onChange={(e) => setEditForm({ ...editForm, experience: e.target.value })}
+                      placeholder="e.g. 8 Years" 
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Monthly Salary (PKR)</Label>
+                    <Input 
+                      type="number"
+                      value={editForm.salary} 
+                      onChange={(e) => setEditForm({ ...editForm, salary: e.target.value })}
+                      placeholder="e.g. 150000" 
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  {/* Row 6: Joining Date */}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Joining Date</Label>
+                    <Input 
+                      type="date"
+                      value={editForm.joiningDate} 
+                      onChange={(e) => setEditForm({ ...editForm, joiningDate: e.target.value })}
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  {/* Row 7: Residential Address */}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Complete Residential Address</Label>
+                    <Input 
+                      value={editForm.address} 
+                      onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                      placeholder="e.g. House #123, Street 4, Sector G-11, Islamabad" 
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  {/* Row 7.5: Profile Photo */}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Faculty Profile Photo</Label>
+                    <div className="rounded-xl border border-dashed border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900/50 p-4">
+                      {editForm.avatar ? (
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={editForm.avatar}
+                            alt="Teacher avatar preview"
+                            className="h-16 w-16 rounded-full object-cover border-2 border-indigo-600 bg-white"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">Photo ready</p>
+                            <p className="text-xs text-gray-500 truncate">{editForm.avatar}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full"
+                            onClick={() => setEditForm({ ...editForm, avatar: "" })}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <div className="h-16 w-16 rounded-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-800 flex items-center justify-center text-gray-400">
+                            <ImageIcon className="h-6 w-6" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">Upload teacher profile picture</p>
+                            <p className="text-xs text-gray-500">JPG, PNG, or WEBP up to 10MB</p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex items-center gap-3">
+                        <Label className="flex items-center gap-2 cursor-pointer border border-input dark:border-slate-800 bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 rounded-xl w-fit font-bold text-xs">
+                          {isUploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                          <span>{isUploadingImage ? "Uploading..." : editForm.avatar ? "Replace Photo" : "Choose Photo"}</span>
+                          <Input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            className="hidden"
+                            disabled={isUploadingImage}
+                            onChange={(e) => {
+                              handleImageUpload(e.target.files?.[0] || null, true);
+                              e.target.value = "";
+                            }}
+                          />
+                        </Label>
+                        <Input
+                          value={editForm.avatar}
+                          onChange={(e) => setEditForm({ ...editForm, avatar: e.target.value })}
+                          placeholder="Or paste direct image URL"
+                          className="flex-1 rounded-xl"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 8: Account Status */}
+                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 md:col-span-2">
+                    <div className="flex flex-col">
+                      <Label className="font-bold text-sm text-gray-900 dark:text-white">Account Status</Label>
+                      <span className="text-xs text-gray-400">Toggle whether this teacher has system access</span>
+                    </div>
+                    <Switch 
+                      checked={editForm.isActive}
+                      onCheckedChange={(checked) => setEditForm({ ...editForm, isActive: checked })}
+                    />
+                  </div>
                 </div>
               </div>
-              <div className="flex justify-end gap-3 pt-6">
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
                 <Button type="button" variant="ghost" onClick={() => setEditOpen(false)} className="rounded-xl font-bold">Cancel</Button>
-                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 px-8 text-white rounded-xl font-bold" disabled={updateMutation.isPending}>
+                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 px-8 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 dark:shadow-none" disabled={updateMutation.isPending}>
                   {updateMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                   Save Changes
                 </Button>
@@ -548,6 +969,37 @@ export default function AdminTeachers() {
               </div>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!teacherToDelete} onOpenChange={(val) => !val && setTeacherToDelete(null)}>
+        <DialogContent className="sm:max-w-[425px] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-rose-600 flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Remove Faculty Member
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-gray-600 dark:text-gray-300">
+              Are you sure you want to completely remove <strong>{teacherToDelete?.name}</strong> from the system?
+              <br/><br/>
+              This will safely detach them from any courses they were assigned to and clean up their records. This action cannot be undone.
+            </p>
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+            <Button type="button" variant="ghost" className="rounded-xl font-bold" onClick={() => setTeacherToDelete(null)}>Cancel</Button>
+            <Button 
+              variant="destructive" 
+              className="rounded-xl font-bold"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                deleteMutation.mutate({ id: teacherToDelete.id });
+              }}
+            >
+              {deleteMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Yes, Delete Instructor
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

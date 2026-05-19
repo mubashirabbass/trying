@@ -81,6 +81,7 @@ export interface CreateUserBody {
 export interface UpdateUserBody {
   name?: string;
   phone?: string;
+  cnic?: string;
   avatar?: string;
   isActive?: boolean;
   branchId?: number;
@@ -403,13 +404,14 @@ export interface SuccessStory {
   achievement?: string;
   rating?: string;
   category?: string;
-  categoryId?: number;
   metric1Value?: string;
   metric1Label?: string;
   metric2Value?: string;
   metric2Label?: string;
   metric3Value?: string;
   metric3Label?: string;
+  categoryId?: number;
+  externalLink?: string;
   storyContent?: string;
   storyType?: string;
   createdAt: string;
@@ -424,13 +426,14 @@ export interface CreateSuccessStoryBody {
   achievement?: string;
   rating?: string;
   category?: string;
-  categoryId?: number;
   metric1Value?: string;
   metric1Label?: string;
   metric2Value?: string;
   metric2Label?: string;
   metric3Value?: string;
   metric3Label?: string;
+  categoryId?: number;
+  externalLink?: string;
   storyContent?: string;
   storyType?: string;
 }
@@ -440,7 +443,6 @@ export interface SuccessStoryCategory {
   name: string;
   slug: string;
   description?: string;
-  createdAt: string;
 }
 
 export interface CreateSuccessStoryCategoryBody {
@@ -478,6 +480,7 @@ export interface Branch {
   manualStudentCount?: number;
   image?: string;
   isActive?: boolean;
+  officeHours?: string;
   createdAt: string;
 }
 
@@ -494,15 +497,29 @@ export interface CreateBranchBody {
   manualStudentCount?: number;
   image?: string;
   isActive?: boolean;
+  officeHours?: string;
 }
+
+export type CertificateStatus = typeof CertificateStatus[keyof typeof CertificateStatus];
+
+
+export const CertificateStatus = {
+  issued: 'issued',
+  revoked: 'revoked',
+} as const;
 
 export interface Certificate {
   id: number;
   userId: number;
   courseId: number;
   certificateNumber: string;
-  studentName: string;
-  courseName: string;
+  pdfUrl?: string;
+  status: CertificateStatus;
+  isRevoked: boolean;
+  studentName?: string;
+  userName?: string;
+  courseName?: string;
+  courseTitle?: string;
   issuedAt: string;
 }
 
@@ -687,6 +704,7 @@ export type ListCoursesParams = {
 category?: string;
 featured?: boolean;
 search?: string;
+teacherId?: number;
 };
 
 export type ListLessonsParams = {

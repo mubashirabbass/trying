@@ -72,14 +72,16 @@ export default function StudentCourses() {
 
                 <CardContent className="p-7 flex-1">
                   <div className="flex justify-between items-start mb-5">
-                    <div className={`h-12 w-12 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform ${isComplete ? 'bg-emerald-50 text-emerald-600' : 'bg-primary/8 text-primary'}`}>
-                      {isComplete ? <CheckCircle2 className="h-6 w-6" /> : <PlayCircle className="h-6 w-6" />}
+                    <div className={`h-12 w-12 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform ${isComplete ? 'bg-emerald-50 text-emerald-600' : enrollment.status === 'pending' ? 'bg-amber-50 text-amber-600' : 'bg-primary/8 text-primary'}`}>
+                      {isComplete ? <CheckCircle2 className="h-6 w-6" /> : enrollment.status === 'pending' ? <Loader2 className="h-6 w-6 animate-spin text-amber-500" /> : <PlayCircle className="h-6 w-6" />}
                     </div>
                     <Badge className={isComplete 
                       ? 'bg-emerald-100 text-emerald-700 border-emerald-200 font-black text-[10px] uppercase tracking-wider' 
+                      : enrollment.status === 'pending'
+                      ? 'bg-amber-100 text-amber-700 border-amber-200 font-black text-[10px] uppercase tracking-wider animate-pulse'
                       : 'bg-blue-100 text-blue-700 border-blue-200 font-black text-[10px] uppercase tracking-wider'
                     }>
-                      {isComplete ? 'Completed' : 'In Progress'}
+                      {isComplete ? 'Completed' : enrollment.status === 'pending' ? 'Pending Approval' : 'In Progress'}
                     </Badge>
                   </div>
 
@@ -87,13 +89,20 @@ export default function StudentCourses() {
                     {enrollment.courseName}
                   </h3>
 
-                  <div className="space-y-3">
-                    <div className="flex items-end justify-between">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Progress</span>
-                      <span className={`text-lg font-black ${isComplete ? 'text-emerald-600' : 'text-primary'}`}>{progress}%</span>
+                  {enrollment.status !== 'pending' ? (
+                    <div className="space-y-3">
+                      <div className="flex items-end justify-between">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Progress</span>
+                        <span className={`text-lg font-black ${isComplete ? 'text-emerald-600' : 'text-primary'}`}>{progress}%</span>
+                      </div>
+                      <Progress value={progress} className="h-2.5 bg-slate-100 rounded-full" />
                     </div>
-                    <Progress value={progress} className="h-2.5 bg-slate-100 rounded-full" />
-                  </div>
+                  ) : (
+                    <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-4 text-xs font-semibold text-amber-800 flex gap-2">
+                      <Loader2 className="h-4 w-4 shrink-0 text-amber-500 animate-spin mt-0.5" />
+                      <p>Your admission request is awaiting review by Global College administration. You'll gain access once verified.</p>
+                    </div>
+                  )}
 
                   <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-4">
                     Enrolled {new Date(enrollment.enrolledAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
@@ -101,15 +110,24 @@ export default function StudentCourses() {
                 </CardContent>
 
                 <CardFooter className="p-7 pt-0">
-                  <Link href={`/dashboard/lessons/${enrollment.courseId}`} className="w-full">
+                  {enrollment.status === 'pending' ? (
                     <Button 
-                      className="w-full h-12 font-bold text-md rounded-2xl shadow-lg shadow-primary/10" 
-                      variant={isComplete ? 'outline' : 'default'}
+                      className="w-full h-12 font-bold text-md rounded-2xl bg-slate-100 text-slate-400 border border-slate-200 hover:bg-slate-100 cursor-not-allowed" 
+                      disabled
                     >
-                      {isComplete ? 'Review Course' : 'Continue Learning'}
-                      <ArrowRight className="h-4 w-4 ml-2" />
+                      Awaiting Admin Approval
                     </Button>
-                  </Link>
+                  ) : (
+                    <Link href={`/dashboard/lessons/${enrollment.courseId}`} className="w-full">
+                      <Button 
+                        className="w-full h-12 font-bold text-md rounded-2xl shadow-lg shadow-primary/10" 
+                        variant={isComplete ? 'outline' : 'default'}
+                      >
+                        {isComplete ? 'Review Course' : 'Continue Learning'}
+                        <ArrowRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    </Link>
+                  )}
                 </CardFooter>
               </Card>
             );

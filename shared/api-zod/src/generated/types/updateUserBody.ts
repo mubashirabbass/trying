@@ -9,6 +9,7 @@
 export interface UpdateUserBody {
   name?: string;
   phone?: string;
+  cnic?: string;
   avatar?: string;
   isActive?: boolean;
   branchId?: number;

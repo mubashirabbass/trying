@@ -1,6 +1,6 @@
 import * as zod from "zod";
 import { Request, Response, Router, type IRouter } from "express";
-import { db, usersTable, branchesTable } from "@workspace/db";
+import { db, usersTable, branchesTable, coursesTable, paymentsTable, identityVerificationsTable, lessonCompletionsTable, quizResultsTable, videoAccessLogsTable, notificationsTable, messagesTable, messageThreadsTable, forumPostsTable, forumRepliesTable, enrollmentsTable, certificatesTable, assignmentSubmissionsTable } from "@workspace/db";
 import { eq, and, ilike, or, desc } from "drizzle-orm";
 import {
   ListUsersQueryParams,
@@ -12,9 +12,37 @@ import { hashPassword, AppError } from "../lib/auth";
 import { catchAsync } from "../middleware/error";
 import { authenticate, authorize, AuthRequest } from "../middleware/auth";
 import { validate } from "../middleware/validate";
+import { upload } from "../middleware/upload";
+import { uploadToCloudinary } from "../lib/cloudinary";
 
 
 const router: IRouter = Router();
+
+/**
+ * @route POST /api/v1/users/upload-avatar
+ * @desc Upload an avatar image
+ * @access Private
+ */
+router.post(
+  "/users/upload-avatar",
+  authenticate,
+  upload.single("avatar"),
+  catchAsync(async (req: any, res) => {
+    if (!req.file) {
+      throw new AppError("Avatar image is required", 400);
+    }
+
+    if (!req.file.mimetype.startsWith("image/")) {
+      throw new AppError("Only image files are allowed", 400);
+    }
+
+    const result = await uploadToCloudinary(req.file.buffer, "avatars", "image");
+    res.status(201).json({
+      url: result.secure_url,
+      publicId: result.public_id,
+    });
+  })
+);
 
 /**
  * @route GET /api/v1/users
@@ -57,6 +85,14 @@ router.get(
         createdAt: usersTable.createdAt,
         branchId: usersTable.branchId,
         branchName: branchesTable.name,
+        qualification: usersTable.qualification,
+        specialization: usersTable.specialization,
+        experience: usersTable.experience,
+        salary: usersTable.salary,
+        address: usersTable.address,
+        designation: usersTable.designation,
+        gender: usersTable.gender,
+        joiningDate: usersTable.joiningDate,
       })
       .from(usersTable)
       .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
@@ -79,7 +115,24 @@ router.post(
   authorize("admin"),
   validate(zod.object({ body: CreateUserBody })),
   catchAsync(async (req: AuthRequest, res: Response) => {
-    const { name, email, password, role, phone, cnic, branchId } = req.body;
+    const {
+      name,
+      email,
+      password,
+      role,
+      phone,
+      cnic,
+      avatar,
+      branchId,
+      qualification,
+      specialization,
+      experience,
+      salary,
+      address,
+      designation,
+      gender,
+      joiningDate
+    } = req.body;
 
     // Check if email already exists
     const [existing] = await db
@@ -102,7 +155,16 @@ router.post(
         role,
         phone: phone || null,
         cnic: cnic || null,
+        avatar: avatar || null,
         branchId: branchId ? Number(branchId) : null,
+        qualification: qualification || null,
+        specialization: specialization || null,
+        experience: experience || null,
+        salary: salary ? Number(salary) : null,
+        address: address || null,
+        designation: designation || null,
+        gender: gender || null,
+        joiningDate: joiningDate ? new Date(joiningDate) : null,
         isActive: true,
         isEmailVerified: true,
       })
@@ -142,6 +204,14 @@ router.get(
         createdAt: usersTable.createdAt,
         branchId: usersTable.branchId,
         branchName: branchesTable.name,
+        qualification: usersTable.qualification,
+        specialization: usersTable.specialization,
+        experience: usersTable.experience,
+        salary: usersTable.salary,
+        address: usersTable.address,
+        designation: usersTable.designation,
+        gender: usersTable.gender,
+        joiningDate: usersTable.joiningDate,
       })
       .from(usersTable)
       .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
@@ -170,9 +240,20 @@ router.put(
       throw new AppError("Not authorized to update this profile", 403);
     }
 
+    const updateData = { ...req.body };
+    if (updateData.joiningDate) {
+      updateData.joiningDate = new Date(updateData.joiningDate);
+    }
+    if (updateData.salary) {
+      updateData.salary = Number(updateData.salary);
+    }
+    if (updateData.branchId) {
+      updateData.branchId = Number(updateData.branchId);
+    }
+
     const [updatedUser] = await db
       .update(usersTable)
-      .set(req.body)
+      .set(updateData)
       .where(eq(usersTable.id, id))
       .returning();
 
@@ -221,6 +302,29 @@ router.delete(
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) throw new AppError("Invalid user ID", 400);
 
+    // 1. Soft-unlink: set nullable FK references to null
+    await db.update(coursesTable).set({ teacherId: null }).where(eq(coursesTable.teacherId, id));
+    await db.update(paymentsTable).set({ reviewedBy: null }).where(eq(paymentsTable.reviewedBy, id));
+    await db.update(identityVerificationsTable).set({ reviewedBy: null }).where(eq(identityVerificationsTable.reviewedBy, id));
+
+    // 2. Hard-delete child records (messages sub-tables first, then threads)
+    await db.delete(messagesTable).where(eq(messagesTable.senderId, id));
+    await db.delete(messageThreadsTable).where(or(eq(messageThreadsTable.studentId, id), eq(messageThreadsTable.teacherId, id)));
+
+    // 3. Delete remaining user-linked records
+    await db.delete(videoAccessLogsTable).where(eq(videoAccessLogsTable.userId, id));
+    await db.delete(quizResultsTable).where(eq(quizResultsTable.userId, id));
+    await db.delete(lessonCompletionsTable).where(eq(lessonCompletionsTable.userId, id));
+    await db.delete(assignmentSubmissionsTable).where(eq(assignmentSubmissionsTable.userId, id));
+    await db.delete(paymentsTable).where(eq(paymentsTable.userId, id));
+    await db.delete(notificationsTable).where(eq(notificationsTable.userId, id));
+    await db.delete(forumRepliesTable).where(eq(forumRepliesTable.userId, id));
+    await db.delete(forumPostsTable).where(eq(forumPostsTable.userId, id));
+    await db.delete(enrollmentsTable).where(eq(enrollmentsTable.userId, id));
+    await db.delete(certificatesTable).where(eq(certificatesTable.userId, id));
+    await db.delete(identityVerificationsTable).where(eq(identityVerificationsTable.userId, id));
+
+    // 4. Finally delete the user
     const [deleted] = await db.delete(usersTable).where(eq(usersTable.id, id)).returning();
     if (!deleted) throw new AppError("User not found", 404);
 

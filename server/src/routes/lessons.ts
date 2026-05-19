@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, lessonsTable, lessonCompletionsTable, videoAccessLogsTable } from "@workspace/db";
+import { db, lessonsTable, lessonCompletionsTable, videoAccessLogsTable, coursesTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import {
   ListLessonsQueryParams,
@@ -11,7 +11,7 @@ import {
   UpdateLessonProgressParams,
   UpdateLessonProgressBody,
 } from "@workspace/api-zod";
-import { AuthRequest } from "../middleware/auth";
+import { AuthRequest, authorize } from "../middleware/auth";
 import { encrypt, decrypt } from "../lib/crypto";
 import jwt from "jsonwebtoken";
 import { enrollmentsTable } from "@workspace/db";
@@ -22,9 +22,22 @@ router.get("/lessons", async (req: AuthRequest, res): Promise<void> => {
   const params = ListLessonsQueryParams.safeParse(req.query);
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const courseId = Number(params.data.courseId);
-  const lessons = await db.select().from(lessonsTable).where(eq(lessonsTable.courseId, courseId)).orderBy(lessonsTable.orderIndex);
 
   const userId = req.user?.id;
+  const isStaff = req.user?.role === "admin" || req.user?.role === "teacher";
+
+  if (!isStaff) {
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const [enrollment] = await db.select().from(enrollmentsTable)
+      .where(and(eq(enrollmentsTable.userId, userId), eq(enrollmentsTable.courseId, courseId)));
+    if (!enrollment || enrollment.status !== "active") {
+      res.status(403).json({ error: "You are not enrolled in this course or your admission is pending approval." });
+      return;
+    }
+  }
+
+  const lessons = await db.select().from(lessonsTable).where(eq(lessonsTable.courseId, courseId)).orderBy(lessonsTable.orderIndex);
+
   if (userId) {
     const completions = await db.select().from(lessonCompletionsTable).where(eq(lessonCompletionsTable.userId, userId));
     const completionMap = new Map(completions.map(c => [c.lessonId, c.isCompleted]));
@@ -34,13 +47,21 @@ router.get("/lessons", async (req: AuthRequest, res): Promise<void> => {
   res.json(lessons.map(l => ({ ...l, isCompleted: false })));
 });
 
-router.post("/lessons", async (req, res): Promise<void> => {
+router.post("/lessons", authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
   const parsed = CreateLessonBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   
-  const data = { ...parsed.data };
+  const courseId = Number(parsed.data.courseId);
+  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId));
+  if (!course) { res.status(404).json({ error: "Course not found" }); return; }
+
+  if (req.user.role === "teacher" && course.teacherId !== req.user.id) {
+    res.status(403).json({ error: "You do not have permission to manage lessons for this course" });
+    return;
+  }
+
+  const data: any = { ...parsed.data };
   if (data.videoUrl && (data.videoUrl.includes("youtube.com") || data.videoUrl.includes("youtu.be"))) {
-    // Basic extraction of ID if it's a URL, or just encrypt what's there
     data.encryptedYoutubeId = encrypt(data.videoUrl);
   }
 
@@ -57,27 +78,50 @@ router.get("/lessons/:id", async (req, res): Promise<void> => {
   res.json({ ...lesson, isCompleted: false });
 });
 
-router.put("/lessons/:id", async (req, res): Promise<void> => {
+router.put("/lessons/:id", authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [existingLesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, id));
+  if (!existingLesson) { res.status(404).json({ error: "Lesson not found" }); return; }
+
+  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, existingLesson.courseId));
+  if (!course) { res.status(404).json({ error: "Associated course not found" }); return; }
+
+  if (req.user.role === "teacher" && course.teacherId !== req.user.id) {
+    res.status(403).json({ error: "You do not have permission to modify this lesson" });
+    return;
+  }
+
   const parsed = UpdateLessonBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   
-  const data = { ...parsed.data };
+  const data: any = { ...parsed.data };
   if (data.videoUrl && (data.videoUrl.includes("youtube.com") || data.videoUrl.includes("youtu.be"))) {
     data.encryptedYoutubeId = encrypt(data.videoUrl);
   }
 
   const [lesson] = await db.update(lessonsTable).set(data).where(eq(lessonsTable.id, id)).returning();
-  if (!lesson) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ ...lesson, isCompleted: false });
 });
 
-router.delete("/lessons/:id", async (req, res): Promise<void> => {
+router.delete("/lessons/:id", authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [existingLesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, id));
+  if (!existingLesson) { res.status(404).json({ error: "Lesson not found" }); return; }
+
+  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, existingLesson.courseId));
+  if (!course) { res.status(404).json({ error: "Associated course not found" }); return; }
+
+  if (req.user.role === "teacher" && course.teacherId !== req.user.id) {
+    res.status(403).json({ error: "You do not have permission to delete this lesson" });
+    return;
+  }
+
   await db.delete(lessonsTable).where(eq(lessonsTable.id, id));
   res.sendStatus(204);
 });
@@ -101,7 +145,7 @@ router.post("/lessons/:id/progress", async (req: AuthRequest, res): Promise<void
     [completion] = await db.update(lessonCompletionsTable)
       .set({ 
         isCompleted: parsed.data.isCompleted, 
-        watchedPercent: parsed.data.watchedPercent ?? existing.watchedPercent,
+        watchedPercent: (parsed.data as any).watchedPercent ?? existing.watchedPercent,
         completedAt: parsed.data.isCompleted && !existing.isCompleted ? new Date() : existing.completedAt
       })
       .where(eq(lessonCompletionsTable.id, existing.id))
@@ -112,7 +156,7 @@ router.post("/lessons/:id/progress", async (req: AuthRequest, res): Promise<void
         lessonId, 
         userId: userId, 
         isCompleted: parsed.data.isCompleted, 
-        watchedPercent: parsed.data.watchedPercent ?? 0,
+        watchedPercent: (parsed.data as any).watchedPercent ?? 0,
         completedAt: parsed.data.isCompleted ? new Date() : null
       })
       .returning();
@@ -141,19 +185,22 @@ router.post("/lessons/:id/progress", async (req: AuthRequest, res): Promise<void
 });
 
 router.get("/lessons/:id/stream-token", async (req: AuthRequest, res): Promise<void> => {
-  const lessonId = parseInt(req.params.id, 10);
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const lessonId = parseInt(raw, 10);
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
 
   const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId));
   if (!lesson) { res.status(404).json({ error: "Lesson not found" }); return; }
 
-  // Verify enrollment
+  // Verify active enrollment
   const [enrollment] = await db.select().from(enrollmentsTable)
     .where(and(eq(enrollmentsTable.userId, userId), eq(enrollmentsTable.courseId, lesson.courseId)));
   
-  if (!enrollment && req.user?.role !== "admin") {
-    res.status(403).json({ error: "Not enrolled in this course" });
+  const isStaff = req.user?.role === "admin" || req.user?.role === "teacher";
+  
+  if ((!enrollment || enrollment.status !== "active") && !isStaff) {
+    res.status(403).json({ error: "Your enrollment is not active or is pending administrator approval." });
     return;
   }
 

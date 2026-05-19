@@ -65,12 +65,14 @@ router.get("/dashboard/student", async (req, res): Promise<void> => {
   const userId = Number(params.data.userId);
 
   // 1. Stats
-  const [enrolled] = await db.select({ c: count() }).from(enrollmentsTable).where(eq(enrollmentsTable.userId, userId));
+  const [enrolled] = await db.select({ c: count() }).from(enrollmentsTable)
+    .where(and(eq(enrollmentsTable.userId, userId), inArray(enrollmentsTable.status, ["active", "completed"])));
   const [certs] = await db.select({ c: count() }).from(certificatesTable).where(eq(certificatesTable.userId, userId));
   const [pendingSubmissions] = await db.select({ c: count() }).from(assignmentSubmissionsTable).where(eq(assignmentSubmissionsTable.userId, userId));
 
   // 2. Progress & Completed
-  const enrollments = await db.select().from(enrollmentsTable).where(eq(enrollmentsTable.userId, userId));
+  const enrollments = await db.select().from(enrollmentsTable)
+    .where(and(eq(enrollmentsTable.userId, userId), inArray(enrollmentsTable.status, ["active", "completed"])));
   const completedCourses = enrollments.filter(e => e.status === "completed").length;
   const avgProgress = enrollments.length > 0 
     ? enrollments.reduce((acc, e) => acc + (e.progress || 0), 0) / enrollments.length 

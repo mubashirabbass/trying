@@ -45,6 +45,7 @@ import type {
   CreateQuizBody,
   CreateSectionBody,
   CreateSuccessStoryBody,
+  CreateSuccessStoryCategoryBody,
   CreateTestimonialBody,
   CreateUserBody,
   Enrollment,
@@ -95,7 +96,6 @@ import type {
   SubmitQuizBody,
   SuccessStory,
   SuccessStoryCategory,
-  CreateSuccessStoryCategoryBody,
   TeacherDashboard,
   Testimonial,
   UpdateForumPostBody,
@@ -6309,6 +6309,224 @@ export const useDeleteSuccessStory = <TError = ErrorType<unknown>,
       return useMutation(getDeleteSuccessStoryMutationOptions(options));
     }
 
+export const getListSuccessStoryCategoriesUrl = () => {
+
+
+
+
+  return `/api/success-story-categories`
+}
+
+/**
+ * @summary List success story categories
+ */
+export const listSuccessStoryCategories = async ( options?: RequestInit): Promise<SuccessStoryCategory[]> => {
+
+  return customFetch<SuccessStoryCategory[]>(getListSuccessStoryCategoriesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSuccessStoryCategoriesQueryKey = () => {
+    return [
+    `/api/success-story-categories`
+    ] as const;
+    }
+
+
+export const getListSuccessStoryCategoriesQueryOptions = <TData = Awaited<ReturnType<typeof listSuccessStoryCategories>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSuccessStoryCategories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSuccessStoryCategoriesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSuccessStoryCategories>>> = ({ signal }) => listSuccessStoryCategories({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSuccessStoryCategories>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSuccessStoryCategoriesQueryResult = NonNullable<Awaited<ReturnType<typeof listSuccessStoryCategories>>>
+export type ListSuccessStoryCategoriesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List success story categories
+ */
+
+export function useListSuccessStoryCategories<TData = Awaited<ReturnType<typeof listSuccessStoryCategories>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSuccessStoryCategories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSuccessStoryCategoriesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateSuccessStoryCategoryUrl = () => {
+
+
+
+
+  return `/api/success-story-categories`
+}
+
+/**
+ * @summary Create success story category (admin)
+ */
+export const createSuccessStoryCategory = async (createSuccessStoryCategoryBody: CreateSuccessStoryCategoryBody, options?: RequestInit): Promise<SuccessStoryCategory> => {
+
+  return customFetch<SuccessStoryCategory>(getCreateSuccessStoryCategoryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createSuccessStoryCategoryBody,)
+  }
+);}
+
+
+
+
+export const getCreateSuccessStoryCategoryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSuccessStoryCategory>>, TError,{data: BodyType<CreateSuccessStoryCategoryBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSuccessStoryCategory>>, TError,{data: BodyType<CreateSuccessStoryCategoryBody>}, TContext> => {
+
+const mutationKey = ['createSuccessStoryCategory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSuccessStoryCategory>>, {data: BodyType<CreateSuccessStoryCategoryBody>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createSuccessStoryCategory(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSuccessStoryCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof createSuccessStoryCategory>>>
+    export type CreateSuccessStoryCategoryMutationBody = BodyType<CreateSuccessStoryCategoryBody>
+    export type CreateSuccessStoryCategoryMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create success story category (admin)
+ */
+export const useCreateSuccessStoryCategory = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSuccessStoryCategory>>, TError,{data: BodyType<CreateSuccessStoryCategoryBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSuccessStoryCategory>>,
+        TError,
+        {data: BodyType<CreateSuccessStoryCategoryBody>},
+        TContext
+      > => {
+      return useMutation(getCreateSuccessStoryCategoryMutationOptions(options));
+    }
+
+export const getDeleteSuccessStoryCategoryUrl = (id: number,) => {
+
+
+
+
+  return `/api/success-story-categories/${id}`
+}
+
+/**
+ * @summary Delete success story category
+ */
+export const deleteSuccessStoryCategory = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteSuccessStoryCategoryUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteSuccessStoryCategoryMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSuccessStoryCategory>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteSuccessStoryCategory>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteSuccessStoryCategory'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSuccessStoryCategory>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteSuccessStoryCategory(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteSuccessStoryCategoryMutationResult = NonNullable<Awaited<ReturnType<typeof deleteSuccessStoryCategory>>>
+
+    export type DeleteSuccessStoryCategoryMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Delete success story category
+ */
+export const useDeleteSuccessStoryCategory = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSuccessStoryCategory>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteSuccessStoryCategory>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteSuccessStoryCategoryMutationOptions(options));
+    }
+
 export const getListBranchesUrl = () => {
 
 
@@ -6683,6 +6901,83 @@ export function useListCertificates<TData = Awaited<ReturnType<typeof listCertif
 
 
 
+export const getDownloadCertificateUrl = (id: number,) => {
+
+
+
+
+  return `/api/certificates/${id}/download`
+}
+
+/**
+ * @summary Download certificate PDF
+ */
+export const downloadCertificate = async (id: number, options?: RequestInit): Promise<Blob> => {
+
+  return customFetch<Blob>(getDownloadCertificateUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDownloadCertificateQueryKey = (id: number,) => {
+    return [
+    `/api/certificates/${id}/download`
+    ] as const;
+    }
+
+
+export const getDownloadCertificateQueryOptions = <TData = Awaited<ReturnType<typeof downloadCertificate>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadCertificate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDownloadCertificateQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadCertificate>>> = ({ signal }) => downloadCertificate(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof downloadCertificate>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DownloadCertificateQueryResult = NonNullable<Awaited<ReturnType<typeof downloadCertificate>>>
+export type DownloadCertificateQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Download certificate PDF
+ */
+
+export function useDownloadCertificate<TData = Awaited<ReturnType<typeof downloadCertificate>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof downloadCertificate>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDownloadCertificateQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
 export const getVerifyCertificateUrl = (params?: VerifyCertificateParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -7005,117 +7300,6 @@ export function useGetTeacherDashboard<TData = Awaited<ReturnType<typeof getTeac
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
-
-export const getListSuccessStoryCategoriesUrl = () => {
-  return `/api/success-story-categories`
-}
-
-export const listSuccessStoryCategories = async ( options?: RequestInit): Promise<SuccessStoryCategory[]> => {
-  return customFetch<SuccessStoryCategory[]>(getListSuccessStoryCategoriesUrl(),
-  {
-    ...options,
-    method: 'GET'
-  }
-);}
-
-export const getListSuccessStoryCategoriesQueryKey = () => {
-    return [`/api/success-story-categories`] as const;
-}
-
-export const getListSuccessStoryCategoriesQueryOptions = <TData = Awaited<ReturnType<typeof listSuccessStoryCategories>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSuccessStoryCategories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-const {query: queryOptions, request: requestOptions} = options ?? {};
-  const queryKey =  queryOptions?.queryKey ?? getListSuccessStoryCategoriesQueryKey();
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSuccessStoryCategories>>> = ({ signal }) => listSuccessStoryCategories({ signal, ...requestOptions });
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSuccessStoryCategories>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export function useListSuccessStoryCategories<TData = Awaited<ReturnType<typeof listSuccessStoryCategories>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSuccessStoryCategories>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getListSuccessStoryCategoriesQueryOptions(options)
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-  return { ...query, queryKey: queryOptions.queryKey };
-}
-
-export const getCreateSuccessStoryCategoryUrl = () => {
-  return `/api/success-story-categories`
-}
-
-export const createSuccessStoryCategory = async (createSuccessStoryCategoryBody: CreateSuccessStoryCategoryBody, options?: RequestInit): Promise<SuccessStoryCategory> => {
-  return customFetch<SuccessStoryCategory>(getCreateSuccessStoryCategoryUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(createSuccessStoryCategoryBody,)
-  }
-);}
-
-export const getCreateSuccessStoryCategoryMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSuccessStoryCategory>>, TError,{data: BodyType<CreateSuccessStoryCategoryBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createSuccessStoryCategory>>, TError,{data: BodyType<CreateSuccessStoryCategoryBody>}, TContext> => {
-const mutationKey = ['createSuccessStoryCategory'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSuccessStoryCategory>>, {data: BodyType<CreateSuccessStoryCategoryBody>}> = (props) => {
-          const {data} = props ?? {};
-          return  createSuccessStoryCategory(data,requestOptions)
-        }
-  return  { mutationFn, ...mutationOptions }}
-
-export const useCreateSuccessStoryCategory = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSuccessStoryCategory>>, TError,{data: BodyType<CreateSuccessStoryCategoryBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof createSuccessStoryCategory>>,
-        TError,
-        {data: BodyType<CreateSuccessStoryCategoryBody>},
-        TContext
-      > => {
-      return useMutation(getCreateSuccessStoryCategoryMutationOptions(options));
-    }
-
-export const getDeleteSuccessStoryCategoryUrl = (id: number,) => {
-  return `/api/success-story-categories/${id}`
-}
-
-export const deleteSuccessStoryCategory = async (id: number, options?: RequestInit): Promise<void> => {
-  return customFetch<void>(getDeleteSuccessStoryCategoryUrl(id),
-  {
-    ...options,
-    method: 'DELETE'
-  }
-);}
-
-export const getDeleteSuccessStoryCategoryMutationOptions = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSuccessStoryCategory>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof deleteSuccessStoryCategory>>, TError,{id: number}, TContext> => {
-const mutationKey = ['deleteSuccessStoryCategory'];
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteSuccessStoryCategory>>, {id: number}> = (props) => {
-          const {id} = props ?? {};
-          return  deleteSuccessStoryCategory(id,requestOptions)
-        }
-  return  { mutationFn, ...mutationOptions }}
-
-export const useDeleteSuccessStoryCategory = <TError = ErrorType<unknown>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteSuccessStoryCategory>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof deleteSuccessStoryCategory>>,
-        TError,
-        {id: number},
-        TContext
-      > => {
-      return useMutation(getDeleteSuccessStoryCategoryMutationOptions(options));
-    }
-
 
 
 

@@ -22,7 +22,11 @@ import {
   FileText,
   Lock,
   Edit,
-  KeyRound
+  KeyRound,
+  Upload,
+  Image as ImageIcon,
+  X,
+  GraduationCap
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -72,6 +76,15 @@ export default function AdminTeacherDetail() {
     cnic: "",
     branchId: "",
     isActive: true,
+    qualification: "",
+    specialization: "",
+    experience: "",
+    salary: "",
+    address: "",
+    designation: "",
+    gender: "",
+    joiningDate: "",
+    avatar: "",
   });
 
   const [newPassword, setNewPassword] = useState("");
@@ -85,6 +98,15 @@ export default function AdminTeacherDetail() {
         cnic: teacher.cnic || "",
         branchId: teacher.branchId ? teacher.branchId.toString() : "",
         isActive: teacher.isActive ?? true,
+        qualification: teacher.qualification || "",
+        specialization: teacher.specialization || "",
+        experience: teacher.experience || "",
+        salary: teacher.salary ? teacher.salary.toString() : "",
+        address: teacher.address || "",
+        designation: teacher.designation || "",
+        gender: teacher.gender || "",
+        joiningDate: teacher.joiningDate ? new Date(teacher.joiningDate).toISOString().split('T')[0] : "",
+        avatar: teacher.avatar || "",
       });
     }
   }, [teacher]);
@@ -113,6 +135,42 @@ export default function AdminTeacherDetail() {
     }
   });
 
+  // Image Upload State & Handler
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const handleImageUpload = async (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please choose an image file", variant: "destructive" });
+      return;
+    }
+
+    const body = new FormData();
+    body.append("avatar", file);
+
+    try {
+      setIsUploadingImage(true);
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const response = await fetch("/api/users/upload-avatar", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null);
+        throw new Error(error?.message || error?.error || "Image upload failed");
+      }
+
+      const uploaded = await response.json();
+      setEditForm((current) => ({ ...current, avatar: uploaded.url }));
+      toast({ title: "Teacher profile photo uploaded" });
+    } catch (error: any) {
+      toast({ title: error?.message || "Image upload failed", variant: "destructive" });
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateMutation.mutate({
@@ -123,6 +181,15 @@ export default function AdminTeacherDetail() {
         cnic: editForm.cnic || undefined,
         branchId: editForm.branchId ? Number(editForm.branchId) : undefined,
         isActive: editForm.isActive,
+        qualification: editForm.qualification || undefined,
+        specialization: editForm.specialization || undefined,
+        experience: editForm.experience || undefined,
+        salary: editForm.salary ? Number(editForm.salary) : undefined,
+        address: editForm.address || undefined,
+        designation: editForm.designation || undefined,
+        gender: editForm.gender || undefined,
+        joiningDate: editForm.joiningDate ? new Date(editForm.joiningDate).toISOString() : undefined,
+        avatar: editForm.avatar || undefined,
       }
     });
   };
@@ -173,9 +240,17 @@ export default function AdminTeacherDetail() {
         
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="flex items-center gap-6">
-            <div className="h-24 w-24 rounded-[32px] bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-4xl font-black shadow-inner shrink-0">
-              {teacher.name.charAt(0)}
-            </div>
+            {teacher.avatar ? (
+              <img
+                src={teacher.avatar}
+                alt={teacher.name}
+                className="h-24 w-24 rounded-[32px] object-cover border-2 border-indigo-100 dark:border-indigo-950 shadow-inner shrink-0"
+              />
+            ) : (
+              <div className="h-24 w-24 rounded-[32px] bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-4xl font-black shadow-inner shrink-0">
+                {teacher.name.charAt(0)}
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-3xl font-black text-gray-900 dark:text-white">{teacher.name}</h1>
@@ -231,43 +306,146 @@ export default function AdminTeacherDetail() {
 
           <Card className="border-none shadow-sm ring-1 ring-gray-100 dark:ring-slate-800 rounded-[24px]">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-black text-gray-400 uppercase tracking-widest">Bio-Data & Contacts</CardTitle>
+              <CardTitle className="text-sm font-black text-gray-400 uppercase tracking-widest">Faculty Bio-Data & Profile</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-                  <Mail className="h-4 w-4" />
+            <CardContent className="space-y-6">
+              {/* Category: Professional Details */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider border-b border-gray-50 dark:border-slate-800/60 pb-1.5">Academic & Career</h3>
+                
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                    <BookOpen className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase">Designation</p>
+                    <p className="font-extrabold text-gray-900 dark:text-white text-sm">{teacher.designation || "Faculty Member"}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase">Email Address</p>
-                  <p className="font-bold text-gray-900 dark:text-white text-sm">{teacher.email}</p>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-violet-50 dark:bg-violet-950/30 flex items-center justify-center text-violet-600 dark:text-violet-400 shrink-0">
+                    <GraduationCap className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase">Qualifications</p>
+                    <p className="font-extrabold text-gray-900 dark:text-white text-sm">{teacher.qualification || "Not provided"}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-purple-50 dark:bg-purple-950/30 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
+                    <CheckCircle2 className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase">Specialization</p>
+                    <p className="font-extrabold text-gray-900 dark:text-white text-sm">{teacher.specialization || "Not provided"}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-pink-50 dark:bg-pink-950/30 flex items-center justify-center text-pink-600 dark:text-pink-400 shrink-0">
+                    <Users className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase">Teaching Experience</p>
+                    <p className="font-extrabold text-gray-900 dark:text-white text-sm">{teacher.experience || "Not provided"}</p>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                  <Phone className="h-4 w-4" />
+
+              {/* Category: Personal & Legal */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider border-b border-gray-50 dark:border-slate-800/60 pb-1.5">Personal Credentials</h3>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase">National ID / CNIC</p>
+                    <p className="font-extrabold text-gray-900 dark:text-white text-sm">{teacher.cnic || "Not provided"}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase">Phone Number</p>
-                  <p className="font-bold text-gray-900 dark:text-white text-sm">{teacher.phone || "Not provided"}</p>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-orange-50 dark:bg-orange-950/30 flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
+                    <Users className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase">Gender</p>
+                    <p className="font-extrabold text-gray-900 dark:text-white text-sm">{teacher.gender || "Not specified"}</p>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-purple-50 dark:bg-purple-950/30 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
-                  <FileText className="h-4 w-4" />
+
+              {/* Category: Contact details */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider border-b border-gray-50 dark:border-slate-800/60 pb-1.5">Contact Info</h3>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
+                    <Mail className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase">Email Address</p>
+                    <p className="font-extrabold text-gray-900 dark:text-white text-sm">{teacher.email}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase">National ID / CNIC</p>
-                  <p className="font-bold text-gray-900 dark:text-white text-sm">{teacher.cnic || "Not provided"}</p>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-teal-50 dark:bg-teal-950/30 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0">
+                    <Phone className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase">Phone Number</p>
+                    <p className="font-extrabold text-gray-900 dark:text-white text-sm">{teacher.phone || "Not provided"}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <MapPin className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase">Assigned Branch</p>
+                    <p className="font-extrabold text-gray-900 dark:text-white text-sm">{teacher.branchName || "Main Campus"}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-sky-50 dark:bg-sky-950/30 flex items-center justify-center text-sky-600 dark:text-sky-400 shrink-0 mt-0.5">
+                    <MapPin className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase">Residential Address</p>
+                    <p className="font-semibold text-gray-900 dark:text-white text-sm">{teacher.address || "Not provided"}</p>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
-                  <MapPin className="h-4 w-4" />
+
+              {/* Category: HR / Salary */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-wider border-b border-gray-50 dark:border-slate-800/60 pb-1.5">Employment & HR</h3>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-green-50 dark:bg-green-950/30 flex items-center justify-center text-green-600 dark:text-green-400 shrink-0">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase">Monthly Salary</p>
+                    <p className="font-extrabold text-gray-900 dark:text-white text-sm">{teacher.salary ? `PKR ${Number(teacher.salary).toLocaleString()}` : "Not declared"}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase">Assigned Branch</p>
-                  <p className="font-bold text-gray-900 dark:text-white text-sm">{teacher.branchName || "Main Campus"}</p>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-cyan-50 dark:bg-cyan-950/30 flex items-center justify-center text-cyan-600 dark:text-cyan-400 shrink-0">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase">Joining Date</p>
+                    <p className="font-extrabold text-gray-900 dark:text-white text-sm">{teacher.joiningDate ? new Date(teacher.joiningDate).toLocaleDateString() : "Not declared"}</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -341,75 +519,234 @@ export default function AdminTeacherDetail() {
 
       {/* Edit Faculty Modal */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[500px] rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black text-gray-900 dark:text-white">Edit Faculty Profile</DialogTitle>
+        <DialogContent className="sm:max-w-[750px] rounded-2xl p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+            <DialogTitle className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+              <Edit className="h-5 w-5 text-indigo-600 dark:text-indigo-400" /> Edit Faculty Profile
+            </DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleEditSubmit} className="space-y-4 mt-4">
-            <div className="grid gap-4">
-              <div className="space-y-2">
-                <Label className="font-bold">Full Name *</Label>
-                <Input 
-                  required 
-                  value={editForm.name} 
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="rounded-xl"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+          <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+            <div className="max-h-[60vh] overflow-y-auto px-1 py-1 space-y-4 pr-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Row 1: Name & Designation */}
                 <div className="space-y-2">
-                  <Label className="font-bold">Phone Number</Label>
+                  <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Full Name *</Label>
+                  <Input 
+                    required 
+                    value={editForm.name} 
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    placeholder="e.g. Prof. Dr. Ahmed Khan" 
+                    className="rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Academic/Faculty Designation</Label>
+                  <Input 
+                    value={editForm.designation} 
+                    onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })}
+                    placeholder="e.g. Senior Professor / Lecturer" 
+                    className="rounded-xl"
+                  />
+                </div>
+
+                {/* Row 2: Campus & Phone */}
+                <div className="space-y-2">
+                  <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Assigned Campus *</Label>
+                  <Select 
+                    value={editForm.branchId} 
+                    onValueChange={(val) => setEditForm({ ...editForm, branchId: val })}
+                    required
+                  >
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="Select Campus" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      {Array.isArray(branches) && branches.map((branch: any) => (
+                        <SelectItem key={branch.id} value={branch.id.toString()}>
+                          {branch.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Phone Number</Label>
                   <Input 
                     value={editForm.phone} 
                     onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                    placeholder="+92 3..." 
+                    placeholder="e.g. +92 321 1234567" 
+                    className="rounded-xl"
+                  />
+                </div>
+
+                {/* Row 3: CNIC & Gender */}
+                <div className="space-y-2">
+                  <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">CNIC / National ID</Label>
+                  <Input 
+                    value={editForm.cnic} 
+                    onChange={(e) => setEditForm({ ...editForm, cnic: e.target.value })}
+                    placeholder="e.g. 37405-1234567-1" 
                     className="rounded-xl"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="font-bold">National ID / CNIC</Label>
+                  <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Gender</Label>
+                  <Select 
+                    value={editForm.gender} 
+                    onValueChange={(val) => setEditForm({ ...editForm, gender: val })}
+                  >
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="Select Gender" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Row 4: Qualification & Specialization */}
+                <div className="space-y-2">
+                  <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Qualifications / Degree</Label>
                   <Input 
-                    value={editForm.cnic} 
-                    onChange={(e) => setEditForm({ ...editForm, cnic: e.target.value })}
-                    placeholder="37405-XXXXXXX-X" 
+                    value={editForm.qualification} 
+                    onChange={(e) => setEditForm({ ...editForm, qualification: e.target.value })}
+                    placeholder="e.g. PhD in Computer Science" 
                     className="rounded-xl"
                   />
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="font-bold">Campus / Branch Assignment *</Label>
-                <Select 
-                  value={editForm.branchId} 
-                  onValueChange={(val) => setEditForm({ ...editForm, branchId: val })}
-                  required
-                >
-                  <SelectTrigger className="rounded-xl">
-                    <SelectValue placeholder="Select Campus" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    {branches.map((branch: any) => (
-                      <SelectItem key={branch.id} value={branch.id.toString()}>
-                        {branch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
-                <div className="flex flex-col">
-                  <Label className="font-bold text-sm text-gray-900 dark:text-white">Account Status</Label>
-                  <span className="text-xs text-gray-400">Toggle whether this teacher has system access</span>
+                <div className="space-y-2">
+                  <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Specialization / Expertise</Label>
+                  <Input 
+                    value={editForm.specialization} 
+                    onChange={(e) => setEditForm({ ...editForm, specialization: e.target.value })}
+                    placeholder="e.g. Software Engineering / AI" 
+                    className="rounded-xl"
+                  />
                 </div>
-                <Switch 
-                  checked={editForm.isActive}
-                  onCheckedChange={(checked) => setEditForm({ ...editForm, isActive: checked })}
-                />
+
+                {/* Row 5: Experience & Salary */}
+                <div className="space-y-2">
+                  <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Years of Experience</Label>
+                  <Input 
+                    value={editForm.experience} 
+                    onChange={(e) => setEditForm({ ...editForm, experience: e.target.value })}
+                    placeholder="e.g. 8 Years" 
+                    className="rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Monthly Salary (PKR)</Label>
+                  <Input 
+                    type="number"
+                    value={editForm.salary} 
+                    onChange={(e) => setEditForm({ ...editForm, salary: e.target.value })}
+                    placeholder="e.g. 150000" 
+                    className="rounded-xl"
+                  />
+                </div>
+
+                {/* Row 6: Joining Date */}
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Joining Date</Label>
+                  <Input 
+                    type="date"
+                    value={editForm.joiningDate} 
+                    onChange={(e) => setEditForm({ ...editForm, joiningDate: e.target.value })}
+                    className="rounded-xl"
+                  />
+                </div>
+
+                {/* Row 7: Residential Address */}
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Complete Residential Address</Label>
+                  <Input 
+                    value={editForm.address} 
+                    onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                    placeholder="e.g. House #123, Street 4, Sector G-11, Islamabad" 
+                    className="rounded-xl"
+                  />
+                </div>
+
+                {/* Row 7.5: Profile Photo */}
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Faculty Profile Photo</Label>
+                  <div className="rounded-xl border border-dashed border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900/50 p-4">
+                    {editForm.avatar ? (
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={editForm.avatar}
+                          alt="Teacher avatar preview"
+                          className="h-16 w-16 rounded-full object-cover border-2 border-indigo-600 bg-white"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">Photo ready</p>
+                          <p className="text-xs text-gray-500 truncate">{editForm.avatar}</p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full"
+                          onClick={() => setEditForm({ ...editForm, avatar: "" })}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <div className="h-16 w-16 rounded-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-800 flex items-center justify-center text-gray-400">
+                          <ImageIcon className="h-6 w-6" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">Upload teacher profile picture</p>
+                          <p className="text-xs text-gray-500">JPG, PNG, or WEBP up to 10MB</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mt-3 flex items-center gap-3">
+                      <Label className="flex items-center gap-2 cursor-pointer border border-input dark:border-slate-800 bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 rounded-xl w-fit font-bold text-xs">
+                        {isUploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        <span>{isUploadingImage ? "Uploading..." : editForm.avatar ? "Replace Photo" : "Choose Photo"}</span>
+                        <Input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          className="hidden"
+                          disabled={isUploadingImage}
+                          onChange={(e) => {
+                            handleImageUpload(e.target.files?.[0] || null);
+                            e.target.value = "";
+                          }}
+                        />
+                      </Label>
+                      <Input
+                        value={editForm.avatar}
+                        onChange={(e) => setEditForm({ ...editForm, avatar: e.target.value })}
+                        placeholder="Or paste direct image URL"
+                        className="flex-1 rounded-xl"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 8: Account Status */}
+                <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 md:col-span-2">
+                  <div className="flex flex-col">
+                    <Label className="font-bold text-sm text-gray-900 dark:text-white">Account Status</Label>
+                    <span className="text-xs text-gray-400">Toggle whether this teacher has system access</span>
+                  </div>
+                  <Switch 
+                    checked={editForm.isActive}
+                    onCheckedChange={(checked) => setEditForm({ ...editForm, isActive: checked })}
+                  />
+                </div>
               </div>
             </div>
-            <div className="flex justify-end gap-3 pt-6">
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
               <Button type="button" variant="ghost" onClick={() => setEditOpen(false)} className="rounded-xl font-bold">Cancel</Button>
-              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 px-8 text-white rounded-xl font-bold" disabled={updateMutation.isPending}>
+              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 px-8 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 dark:shadow-none" disabled={updateMutation.isPending}>
                 {updateMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 Save Changes
               </Button>

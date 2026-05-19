@@ -6,9 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ListCoursesParams = {
-category?: string;
-featured?: boolean;
-search?: string;
-teacherId?: number;
-};
+export interface CreateSuccessStoryCategoryBody {
+  name: string;
+  slug: string;
+  description?: string;
+}

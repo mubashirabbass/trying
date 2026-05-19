@@ -5,8 +5,19 @@ import { Loader2, Plus, BookOpen, Clock, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+import { useAuth } from "@/lib/AuthContext";
+
 export default function TeacherCourses() {
-  const { data: courses, isLoading } = useListCourses({}, { query: { queryKey: getListCoursesQueryKey({}) } });
+  const { user } = useAuth();
+  const { data: courses, isLoading } = useListCourses(
+    { teacherId: user?.id ?? undefined },
+    { 
+      query: { 
+        queryKey: getListCoursesQueryKey({ teacherId: user?.id ?? undefined }),
+        enabled: !!user?.id
+      } 
+    }
+  );
 
   if (isLoading) {
     return (

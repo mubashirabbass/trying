@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, quizzesTable, quizResultsTable, questionsTable } from "@workspace/db";
+import { db, quizzesTable, quizResultsTable, questionsTable, coursesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import {
   ListQuizzesQueryParams,
@@ -7,7 +7,7 @@ import {
   SubmitQuizParams,
   SubmitQuizBody,
 } from "@workspace/api-zod";
-import { AuthRequest } from "../middleware/auth";
+import { AuthRequest, authorize } from "../middleware/auth";
 import { notificationTriggers } from "../lib/notifications";
 
 const router: IRouter = Router();
@@ -37,11 +37,19 @@ router.get("/quizzes", async (req, res): Promise<void> => {
   res.json(quizzesWithQuestions);
 });
 
-router.post("/quizzes", async (req, res): Promise<void> => {
+router.post("/quizzes", authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
   const parsed = CreateQuizBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   
   const { questions, ...quizData } = parsed.data;
+
+  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, Number(quizData.courseId)));
+  if (!course) { res.status(404).json({ error: "Course not found" }); return; }
+
+  if (req.user.role === "teacher" && course.teacherId !== req.user.id) {
+    res.status(403).json({ error: "You do not have permission to manage quizzes for this course" });
+    return;
+  }
 
   // Use a transaction to ensure both quiz and questions are inserted
   const result = await db.transaction(async (tx) => {

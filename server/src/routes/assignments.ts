@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, assignmentsTable, assignmentSubmissionsTable, usersTable } from "@workspace/db";
+import { db, assignmentsTable, assignmentSubmissionsTable, usersTable, coursesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { notificationTriggers } from "../lib/notifications";
 import {
@@ -10,7 +10,7 @@ import {
   GradeAssignmentParams,
   GradeAssignmentBody,
 } from "@workspace/api-zod";
-import { AuthRequest } from "../middleware/auth";
+import { AuthRequest, authorize } from "../middleware/auth";
 
 const router: IRouter = Router();
 
@@ -25,9 +25,19 @@ router.get("/assignments", async (req, res): Promise<void> => {
   res.json(assignments);
 });
 
-router.post("/assignments", async (req, res): Promise<void> => {
+router.post("/assignments", authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
   const parsed = CreateAssignmentBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  
+  const courseId = Number(parsed.data.courseId);
+  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId));
+  if (!course) { res.status(404).json({ error: "Course not found" }); return; }
+
+  if (req.user.role === "teacher" && course.teacherId !== req.user.id) {
+    res.status(403).json({ error: "You do not have permission to manage assignments for this course" });
+    return;
+  }
+
   const values = {
     ...parsed.data,
     dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
@@ -109,37 +119,57 @@ router.get("/assignments/submissions", async (req, res): Promise<void> => {
   res.json(submissions);
 });
 
-router.post("/assignments/:id/grade", async (req, res): Promise<void> => {
+router.post("/assignments/:id/grade", authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
   const parsed = GradeAssignmentBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   
   const { submissionId, marks, feedback } = parsed.data;
 
-  const [submission] = await db
+  const [submission] = await db.select().from(assignmentSubmissionsTable).where(eq(assignmentSubmissionsTable.id, submissionId));
+  if (!submission) { res.status(404).json({ error: "Submission not found" }); return; }
+
+  const [assignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, submission.assignmentId));
+  if (!assignment) { res.status(404).json({ error: "Assignment not found" }); return; }
+
+  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, assignment.courseId));
+  if (!course) { res.status(404).json({ error: "Course not found" }); return; }
+
+  if (req.user.role === "teacher" && course.teacherId !== req.user.id) {
+    res.status(403).json({ error: "You do not have permission to grade this assignment" });
+    return;
+  }
+
+  const [updatedSubmission] = await db
     .update(assignmentSubmissionsTable)
     .set({ marks, feedback, status: "graded" })
     .where(eq(assignmentSubmissionsTable.id, submissionId))
     .returning();
-    
-  if (!submission) { res.status(404).json({ error: "Submission not found" }); return; }
 
   // Trigger notification
   try {
-    const [assignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, submission.assignmentId));
-    if (assignment) {
-      notificationTriggers.assignmentGraded(submission.userId, assignment.title, marks, assignment.totalMarks || 100)
-        .catch(err => console.error("Failed to trigger assignment notification:", err));
-    }
+    notificationTriggers.assignmentGraded(submission.userId, assignment.title, marks, assignment.totalMarks || 100)
+      .catch(err => console.error("Failed to trigger assignment notification:", err));
   } catch (err) {
-    console.error("Error fetching assignment for notification:", err);
+    console.error("Error triggering assignment notification:", err);
   }
 
-  res.json(submission);
+  res.json(updatedSubmission);
 });
 
-router.put("/assignments/:id", async (req, res): Promise<void> => {
+router.put("/assignments/:id", authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [existingAssignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, id));
+  if (!existingAssignment) { res.status(404).json({ error: "Assignment not found" }); return; }
+
+  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, existingAssignment.courseId));
+  if (!course) { res.status(404).json({ error: "Associated course not found" }); return; }
+
+  if (req.user.role === "teacher" && course.teacherId !== req.user.id) {
+    res.status(403).json({ error: "You do not have permission to modify this assignment" });
+    return;
+  }
 
   const parsed = CreateAssignmentBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
@@ -153,13 +183,23 @@ router.put("/assignments/:id", async (req, res): Promise<void> => {
     .where(eq(assignmentsTable.id, id))
     .returning();
 
-  if (!assignment) { res.status(404).json({ error: "Assignment not found" }); return; }
   res.json(assignment);
 });
 
-router.delete("/assignments/:id", async (req, res): Promise<void> => {
+router.delete("/assignments/:id", authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [existingAssignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, id));
+  if (!existingAssignment) { res.status(404).json({ error: "Assignment not found" }); return; }
+
+  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, existingAssignment.courseId));
+  if (!course) { res.status(404).json({ error: "Associated course not found" }); return; }
+
+  if (req.user.role === "teacher" && course.teacherId !== req.user.id) {
+    res.status(403).json({ error: "You do not have permission to delete this assignment" });
+    return;
+  }
 
   await db.delete(assignmentsTable).where(eq(assignmentsTable.id, id));
   res.sendStatus(204);

@@ -174,7 +174,7 @@ export default function Home() {
     fetchPublic("/api/faqs").then(setFaqs);
   }, []);
 
-  const displaySuccessStories = (successStories && successStories.filter((s: any) => !s.isHidden).length > 0)
+  const rawSuccessStories = (successStories && successStories.filter((s: any) => !s.isHidden).length > 0)
     ? successStories.filter((story: any) => !story.isHidden)
     : [
         {
@@ -188,7 +188,8 @@ export default function Home() {
           story: "I made my first $1,000 in just 6 weeks after completing the EBC program. The support and training quality is unmatched.",
           description: "I made my first $1,000 in just 6 weeks after completing the EBC program. The support and training quality is unmatched.",
           rating: 5,
-          isHidden: false
+          isHidden: false,
+          categoryId: 1
         },
         {
           id: 2,
@@ -201,7 +202,8 @@ export default function Home() {
           story: "The practical training here is what made the difference. I now manage multiple international client stores with confidence.",
           description: "The practical training here is what made the difference. I now manage multiple international client stores with confidence.",
           rating: 5,
-          isHidden: false
+          isHidden: false,
+          categoryId: 1
         },
         {
           id: 3,
@@ -214,7 +216,8 @@ export default function Home() {
           story: "Global College gave me the roadmap to financial independence through freelancing. I started with zero and now I'm here.",
           description: "Global College gave me the roadmap to financial independence through freelancing. I started with zero and now I'm here.",
           rating: 5,
-          isHidden: false
+          isHidden: false,
+          categoryId: 2
         },
         {
           id: 4,
@@ -227,7 +230,8 @@ export default function Home() {
           story: "The ecosystem here is incredible. You don't just learn; you grow with a community of like-minded entrepreneurs.",
           description: "The ecosystem here is incredible. You don't just learn; you grow with a community of like-minded entrepreneurs.",
           rating: 5,
-          isHidden: false
+          isHidden: false,
+          categoryId: 2
         },
         {
           id: 5,
@@ -240,9 +244,15 @@ export default function Home() {
           story: "Mastering international markets was my goal. Global College made it a reality. I'm now earning in multiple currencies.",
           description: "Mastering international markets was my goal. Global College made it a reality. I'm now earning in multiple currencies.",
           rating: 5,
-          isHidden: false
+          isHidden: false,
+          categoryId: 3
         }
       ];
+
+  const displaySuccessStories = rawSuccessStories.filter((story: any) => {
+    if (selectedCategoryId === "all") return true;
+    return Number(story.categoryId) === Number(selectedCategoryId);
+  });
 
   const [activeAchiever, setActiveAchiever] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -793,6 +803,39 @@ export default function Home() {
             <p className="text-gray-500 text-lg font-medium">
               Our 6 Figures & 7 Figures Club Students
             </p>
+          </div>
+
+          {/* Horizontal Category Slider Bar */}
+          <div className="flex items-center justify-center gap-2 mb-12 overflow-x-auto hide-scrollbar max-w-2xl mx-auto px-4 py-2 border-b border-slate-100">
+            <button
+              onClick={() => {
+                setSelectedCategoryId("all");
+                setActiveAchiever(0);
+              }}
+              className={`px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                selectedCategoryId === "all"
+                  ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10"
+                  : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-100 shadow-sm"
+              }`}
+            >
+              All Achievers
+            </button>
+            {categories?.map((cat: any) => (
+              <button
+                key={cat.id}
+                onClick={() => {
+                  setSelectedCategoryId(cat.id);
+                  setActiveAchiever(0);
+                }}
+                className={`px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                  selectedCategoryId === cat.id
+                    ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10"
+                    : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-100 shadow-sm"
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
           </div>
 
           {displaySuccessStories.length > 0 ? (
