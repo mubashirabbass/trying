@@ -172,7 +172,6 @@ const ADMIN_NAV_GROUPS = [
   {
     label: "PAYMENTS",
     items: [
-      { name: "Payments", path: "/admin/payments", icon: CreditCard },
       { name: "Manual Enrollment", path: "/admin/enrollments", icon: ClipboardList },
     ],
   },
@@ -195,6 +194,7 @@ const ADMIN_NAV_GROUPS = [
     label: "DATA",
     items: [
       { name: "Reports", path: "/admin/reports", icon: FileBarChart },
+      { name: "Payment Records", path: "/admin/payments", icon: CreditCard },
     ],
   },
   {

@@ -84,7 +84,7 @@ router.post("/payments/:id/verify", async (req, res): Promise<void> => {
 
   if (!payment) { res.status(404).json({ error: "Not found" }); return; }
 
-  // If verified, auto-enroll the user
+  // If verified, auto-enroll the user AND activate their account
   if (status === "verified") {
     const [existing] = await db.select().from(enrollmentsTable)
       .where(and(eq(enrollmentsTable.userId, payment.userId), eq(enrollmentsTable.courseId, payment.courseId)));
@@ -100,6 +100,11 @@ router.post("/payments/:id/verify", async (req, res): Promise<void> => {
         .set({ status: "active" })
         .where(eq(enrollmentsTable.id, existing.id));
     }
+
+    // Activate the student's user account so they can log in
+    await db.update(usersTable)
+      .set({ isActive: true })
+      .where(eq(usersTable.id, payment.userId));
 
     // Trigger notification
     try {
