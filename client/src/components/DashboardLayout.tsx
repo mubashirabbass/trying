@@ -328,6 +328,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           { name: "Assignments", path: "/teacher/assignments", icon: FileText },
           { name: "Quizzes", path: "/teacher/quizzes", icon: CheckSquare },
           { name: "Grading", path: "/teacher/grading", icon: GraduationCap },
+          { name: "Articles & News", path: "/teacher/articles", icon: Newspaper },
           { name: "Forum", path: "/teacher/forum", icon: MessageSquare },
           { name: "Messages", path: "/teacher/messages", icon: MessageCircle },
           { name: "My Profile", path: "/teacher/profile", icon: User },

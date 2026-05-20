@@ -12,6 +12,7 @@ export const articlesTable = pgTable("articles", {
   category: text("category").notNull().default("General"),
   imageUrl: text("image_url"),
   isPublished: boolean("is_published").notNull().default(false),
+  isFeatured: boolean("is_featured").notNull().default(false),
   readTime: text("read_time").default("5 min read"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),

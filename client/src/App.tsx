@@ -21,6 +21,7 @@ import Services from "@/pages/services";
 import SuccessStories from "@/pages/success-stories";
 import SuccessStoryDetail from "@/pages/success-story-detail";
 import Resources from "@/pages/resources";
+import ArticleDetail from "@/pages/article-detail";
 import Incubators from "@/pages/incubators";
 import Feedback from "@/pages/feedback";
 import ForgotPassword from "@/pages/forgot-password";
@@ -126,6 +127,7 @@ function Router() {
         <Route path="/success-stories" component={SuccessStories} />
         <Route path="/success-stories/:id" component={SuccessStoryDetail} />
         <Route path="/resources" component={Resources} />
+        <Route path="/resources/:slug" component={ArticleDetail} />
         <Route path="/incubators" component={Incubators} />
         <Route path="/courses/:id" component={CourseDetail} />
         <Route path="/verify-certificate" component={VerifyCertificate} />
@@ -233,6 +235,9 @@ function Router() {
         </Route>
         <Route path="/teacher/reviews">
           <ProtectedRoute component={LectureReviews} />
+        </Route>
+        <Route path="/teacher/articles">
+          <ProtectedRoute component={AdminArticles} />
         </Route>
 
         {/* Admin Protected Routes */}

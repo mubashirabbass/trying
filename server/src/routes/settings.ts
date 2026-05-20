@@ -10,9 +10,11 @@ const DEFAULT_SETTINGS = [
   { key: "site_email", value: "info@globalcollege.edu.pk", label: "Contact Email", category: "contact" },
   { key: "site_whatsapp", value: "923001234567", label: "WhatsApp Number", category: "contact" },
   { key: "site_address", value: "123 Education Street, Lahore", label: "Main Address", category: "contact" },
-  { key: "site_facebook", value: "https://facebook.com/globalcollege", label: "Facebook URL", category: "social" },
-  { key: "site_instagram", value: "https://instagram.com/globalcollege", label: "Instagram URL", category: "social" },
-  { key: "site_youtube", value: "https://youtube.com/globalcollege", label: "YouTube URL", category: "social" },
+  { key: "site_facebook", value: "https://facebook.com/globalcollege", label: "Facebook Page URL", category: "social" },
+  { key: "site_instagram", value: "https://instagram.com/globalcollege", label: "Instagram Profile URL", category: "social" },
+  { key: "site_youtube", value: "https://youtube.com/globalcollege", label: "YouTube Channel URL", category: "social" },
+  { key: "tawk_property_id", value: "6a0d64b5eb79041c2f204f14", label: "Tawk.to Property ID (Live Chat)", category: "social" },
+  { key: "tawk_widget_id", value: "1jp252pdn", label: "Tawk.to Widget ID (Live Chat)", category: "social" },
   { key: "hero_title", value: "Learn from the Best Industry Experts", label: "Hero Title", category: "homepage" },
   { key: "hero_subtitle", value: "Start your journey today with our world-class courses designed to help you excel in the digital age.", label: "Hero Subtitle", category: "homepage" },
   { key: "hero_cta_text", value: "Browse Courses", label: "Hero CTA Text", category: "homepage" },
@@ -27,6 +29,15 @@ const DEFAULT_SETTINGS = [
 
 router.get("/settings", async (req, res): Promise<void> => {
   const rows = await db.select().from(settingsTable).orderBy(settingsTable.category, settingsTable.key);
+  // Always upsert any missing default keys (handles new fields added after initial seed)
+  const existingKeys = new Set(rows.map((r: any) => r.key));
+  const missing = DEFAULT_SETTINGS.filter(d => !existingKeys.has(d.key));
+  if (missing.length > 0) {
+    await db.insert(settingsTable).values(missing);
+    const updated = await db.select().from(settingsTable).orderBy(settingsTable.category, settingsTable.key);
+    res.json(updated);
+    return;
+  }
   if (rows.length === 0) {
     const inserted = await db.insert(settingsTable).values(DEFAULT_SETTINGS).returning();
     res.json(inserted);
