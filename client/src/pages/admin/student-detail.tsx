@@ -1,11 +1,14 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { 
   useGetUser, 
   useListEnrollments, 
   useListPayments,
   useDeleteEnrollment,
-  getListEnrollmentsQueryKey
+  getListEnrollmentsQueryKey,
+  useListBranches,
+  getListBranchesQueryKey,
+  getGetUserQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -27,13 +30,20 @@ import {
   ExternalLink,
   Download,
   Eye,
-  File
+  File,
+  Edit2,
+  Plus,
+  GraduationCap
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function AdminStudentDetail() {
   const queryClient = useQueryClient();
@@ -73,6 +83,193 @@ export default function AdminStudentDetail() {
   const handleUnenroll = (enrollId: number) => {
     if (confirm("Are you sure you want to unenroll this student? This action cannot be undone.")) {
       unenrollMutation.mutate({ id: enrollId });
+    }
+  };
+
+  const [, setLocation] = useLocation();
+  const [editOpen, setEditOpen] = useState(false);
+  const [actioning, setActioning] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    branchId: "",
+    cnic: "",
+    dob: "",
+    lastEducation: "" as "Matric" | "Intermediate" | "BS" | "",
+    educationStream: "",
+    obtainedMarks: "",
+    totalMarks: ""
+  });
+  const [cnicFile, setCnicFile] = useState<File | null>(null);
+  const [educationFile, setEducationFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const { data: branchesResponse = [] } = useListBranches({ query: { queryKey: getListBranchesQueryKey() } });
+  const branches = Array.isArray(branchesResponse) ? branchesResponse : [];
+
+  const initEditForm = () => {
+    if (!student) return;
+    setFormData({
+      name: student.name || "",
+      email: student.email || "",
+      phone: student.phone || "",
+      branchId: student.branchId ? String(student.branchId) : "",
+      cnic: student.cnic || "",
+      dob: student.dob ? new Date(student.dob).toISOString().split('T')[0] : "",
+      lastEducation: (student.qualification || "") as any,
+      educationStream: student.specialization || "",
+      obtainedMarks: student.obtainedMarks ? String(student.obtainedMarks) : "",
+      totalMarks: student.totalMarks ? String(student.totalMarks) : ""
+    });
+    setCnicFile(null);
+    setEducationFile(null);
+    setEditOpen(true);
+  };
+
+  const approveStudent = async () => {
+    setActioning(true);
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const res = await fetch(`/api/users/${studentId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ isActive: true })
+      });
+      if (!res.ok) throw new Error("Approval failed");
+      toast({ title: "✅ Student Approved!", description: "The account is now active and verified." });
+      
+      // Try to auto-approve identity verification record if present
+      if (identityDocs.length > 0) {
+        const pendingDoc = identityDocs.find((d: any) => d.status === "pending");
+        if (pendingDoc) {
+          await fetch(`/api/admin/identity-verifications/${pendingDoc.id}/approve`, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: getUserQueryKey(studentId) });
+      queryClient.invalidateQueries({ queryKey: ['identity-verification', studentId] });
+    } catch (err: any) {
+      toast({ title: "Failed to approve student", description: err.message, variant: "destructive" });
+    } finally {
+      setActioning(false);
+    }
+  };
+
+  const deactivateStudent = async () => {
+    setActioning(true);
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const res = await fetch(`/api/users/${studentId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ isActive: false })
+      });
+      if (!res.ok) throw new Error("Deactivation failed");
+      toast({ title: "Student Account Deactivated", description: "The account is now inactive." });
+      queryClient.invalidateQueries({ queryKey: getUserQueryKey(studentId) });
+    } catch (err: any) {
+      toast({ title: "Failed to deactivate student", description: err.message, variant: "destructive" });
+    } finally {
+      setActioning(false);
+    }
+  };
+
+  const rejectStudent = async () => {
+    if (!confirm("Are you sure you want to REJECT and permanently delete this registration request?")) return;
+    setActioning(true);
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const res = await fetch(`/api/users/${studentId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Rejection failed");
+      toast({ title: "Registration Request Rejected", description: "The student registration request has been deleted." });
+      setLocation("/admin/users");
+    } catch (err: any) {
+      toast({ title: "Failed to reject registration", description: err.message, variant: "destructive" });
+    } finally {
+      setActioning(false);
+    }
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!student) return;
+    let identityDocumentUrl = student.identityDocumentUrl || "";
+    let educationDocumentUrl = student.educationDocumentUrl || "";
+
+    try {
+      setIsUploading(true);
+
+      // Upload CNIC if changed
+      if (cnicFile) {
+        const fd = new FormData();
+        fd.append("document", cnicFile);
+        const res = await fetch("/api/auth/upload-identity", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || "CNIC Upload Failed");
+        identityDocumentUrl = data.url;
+      }
+
+      // Upload transcript if changed
+      if (educationFile) {
+        const fd = new FormData();
+        fd.append("document", educationFile);
+        const res = await fetch("/api/auth/upload-identity", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || "Transcript Upload Failed");
+        educationDocumentUrl = data.url;
+      }
+    } catch (err: any) {
+      toast({ title: "Upload Failed", description: err.message, variant: "destructive" });
+      setIsUploading(false);
+      return;
+    }
+
+    setIsUploading(false);
+
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const res = await fetch(`/api/users/${studentId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone || undefined,
+          branchId: formData.branchId ? Number(formData.branchId) : undefined,
+          cnic: formData.cnic || undefined,
+          dob: formData.dob ? new Date(formData.dob) : undefined,
+          qualification: formData.lastEducation || undefined,
+          specialization: formData.educationStream || undefined,
+          obtainedMarks: formData.obtainedMarks ? Number(formData.obtainedMarks) : undefined,
+          totalMarks: formData.totalMarks ? Number(formData.totalMarks) : undefined,
+          identityDocumentUrl: identityDocumentUrl || undefined,
+          educationDocumentUrl: educationDocumentUrl || undefined
+        })
+      });
+      if (!res.ok) throw new Error("Update failed");
+      
+      toast({ title: "✅ Profile Updated Successfully!" });
+      setEditOpen(false);
+      queryClient.invalidateQueries({ queryKey: getGetUserQueryKey(studentId) });
+      queryClient.invalidateQueries({ queryKey: ['identity-verification', studentId] });
+    } catch (err: any) {
+      toast({ title: "Failed to update profile", description: err.message, variant: "destructive" });
     }
   };
 
@@ -132,10 +329,39 @@ export default function AdminStudentDetail() {
             </div>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="rounded-xl font-bold">Edit Profile</Button>
-            <Button className={student.isActive ? "bg-rose-50 text-rose-600 hover:bg-rose-100 border-none font-bold shadow-none" : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-none font-bold shadow-none"}>
-              {student.isActive ? "Deactivate Account" : "Activate Account"}
+            <Button variant="outline" className="rounded-xl font-bold h-10 border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm" onClick={initEditForm}>
+              <Edit2 className="h-4 w-4 mr-2 text-slate-500" /> Edit Profile
             </Button>
+            {student.isActive ? (
+              <Button 
+                className="bg-rose-50 hover:bg-rose-100 text-rose-600 border-none font-bold shadow-none rounded-xl h-10 px-4 transition-colors"
+                onClick={deactivateStudent}
+                disabled={actioning}
+              >
+                {actioning ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <XCircle className="h-4 w-4 mr-1.5" />}
+                Deactivate Account
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button 
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl h-10 px-4 shadow-sm transition-colors"
+                  onClick={approveStudent}
+                  disabled={actioning}
+                >
+                  {actioning ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <CheckCircle2 className="h-4 w-4 mr-1.5" />}
+                  Approve Account
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="text-rose-600 border-rose-200 hover:bg-rose-50 font-bold rounded-xl h-10 px-4 shadow-none transition-colors"
+                  onClick={rejectStudent}
+                  disabled={actioning}
+                >
+                  <XCircle className="h-4 w-4 mr-1.5" />
+                  Reject Registration
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -552,6 +778,135 @@ export default function AdminStudentDetail() {
           </Tabs>
         </div>
       </div>
+      {/* Edit Student Profile Modal */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-1.5 text-lg font-black text-slate-900">
+              <Edit2 className="h-5 w-5 text-emerald-600" />
+              Edit Student Profile
+            </DialogTitle>
+            <DialogDescription className="text-xs">Modify identity details and academic records for this student.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4 py-2">
+            <div className="bg-slate-50 p-3 rounded-xl ring-1 ring-slate-100 flex flex-col gap-3">
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider">Basic Information</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">Full Name</Label>
+                  <Input required value={formData.name} onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))} className="rounded-xl bg-white" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">Email Address</Label>
+                  <Input required type="email" value={formData.email} onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))} className="rounded-xl bg-white" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">Phone</Label>
+                  <Input value={formData.phone} onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))} className="rounded-xl bg-white" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">Select Branch / Campus</Label>
+                  <Select value={formData.branchId} onValueChange={val => setFormData(prev => ({ ...prev, branchId: val }))}>
+                    <SelectTrigger className="rounded-xl bg-white"><SelectValue placeholder="Choose branch..." /></SelectTrigger>
+                    <SelectContent>
+                      {branches.map((b: any) => (
+                        <SelectItem key={b.id} value={String(b.id)}>{b.name} — {b.city}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-emerald-50/30 border border-emerald-100 p-4 rounded-xl flex flex-col gap-4">
+              <h3 className="text-xs font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1">
+                <GraduationCap className="h-4 w-4" />
+                Academic Qualification & Documents
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">CNIC / Form-B Number</Label>
+                  <Input required value={formData.cnic} onChange={e => setFormData(prev => ({ ...prev, cnic: e.target.value }))} className="rounded-xl bg-white" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">Date of Birth</Label>
+                  <Input required type="date" value={formData.dob} onChange={e => setFormData(prev => ({ ...prev, dob: e.target.value }))} className="rounded-xl bg-white" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-600">Update CNIC / Form-B Photo</Label>
+                <Input type="file" accept="image/*" onChange={e => setCnicFile(e.target.files?.[0] || null)} className="rounded-xl bg-white pt-2 text-xs" />
+                <p className="text-[10px] text-slate-400">Leave blank to keep existing document</p>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-600">Last Completed Education Level</Label>
+                <Select value={formData.lastEducation} onValueChange={(val: any) => setFormData(prev => ({ ...prev, lastEducation: val }))}>
+                  <SelectTrigger className="rounded-xl bg-white"><SelectValue placeholder="Select education..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Matric">Matric / O-Level</SelectItem>
+                    <SelectItem value="Intermediate">Intermediate / A-Level</SelectItem>
+                    <SelectItem value="BS">BS / Bachelor's</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {formData.lastEducation && (
+                <div className="p-3 bg-white rounded-xl border border-slate-100 space-y-3">
+                  {(formData.lastEducation === "Intermediate" || formData.lastEducation === "BS") && (
+                    <div className="space-y-1">
+                      <Label className="text-xs font-bold text-slate-600">Major / Stream (e.g. ICS, Pre-Medical, CS)</Label>
+                      <Input required value={formData.educationStream} onChange={e => setFormData(prev => ({ ...prev, educationStream: e.target.value }))} className="rounded-xl bg-slate-50" />
+                    </div>
+                  )}
+
+                  {(formData.lastEducation === "Matric" || formData.lastEducation === "Intermediate") && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-bold text-slate-600">Obtained Marks</Label>
+                        <Input required type="number" value={formData.obtainedMarks} onChange={e => setFormData(prev => ({ ...prev, obtainedMarks: e.target.value }))} className="rounded-xl bg-slate-50" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-bold text-slate-600">Total Marks</Label>
+                        <Input required type="number" value={formData.totalMarks} onChange={e => setFormData(prev => ({ ...prev, totalMarks: e.target.value }))} className="rounded-xl bg-slate-50" />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-slate-600">Update Transcript / Result Card</Label>
+                    <Input type="file" accept="image/*,.pdf" onChange={e => setEducationFile(e.target.files?.[0] || null)} className="rounded-xl bg-slate-50 pt-2 text-xs" />
+                    <p className="text-[10px] text-slate-400">Leave blank to keep existing document</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="pt-3 border-t border-slate-100 flex gap-2">
+              <Button type="button" variant="outline" className="rounded-xl text-xs h-9" onClick={() => setEditOpen(false)} disabled={isUploading}>Cancel</Button>
+              <Button type="submit" className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 shadow-md" disabled={isUploading}>
+                {isUploading ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                    Uploading Documents...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                    Save Profile Changes
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

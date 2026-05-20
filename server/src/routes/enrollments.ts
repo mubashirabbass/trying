@@ -47,9 +47,9 @@ router.post("/enrollments", async (req: any, res): Promise<void> => {
     .where(and(eq(enrollmentsTable.userId, userId), eq(enrollmentsTable.courseId, courseId)));
   if (existing) { res.status(409).json({ error: "Already enrolled" }); return; }
 
-  // If requester is Admin, enroll as "active" immediately. Otherwise, enroll as "pending" for admin approval.
-  const isAdmin = req.user?.role === "admin";
-  const status = isAdmin ? "active" : "pending";
+  // Always create enrollment as "pending" so it flows through the full pipeline:
+  // Enrollment Requests → Fee Payment (admin verifies slip) → Enrolled Students
+  const status = "pending";
 
   const [enrollment] = await db.insert(enrollmentsTable).values({ userId, courseId, status }).returning();
   res.status(201).json({ ...enrollment, courseName: course.title, userName: null });
