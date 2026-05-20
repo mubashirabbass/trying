@@ -7,7 +7,7 @@ import {
   useDeleteEnrollment,
   getListEnrollmentsQueryKey
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Loader2, 
@@ -24,7 +24,10 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Download,
+  Eye,
+  File
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +44,21 @@ export default function AdminStudentDetail() {
   
   const { data: enrollments = [], isLoading: enrollLoading } = useListEnrollments({ userId: studentId });
   const { data: payments = [], isLoading: payLoading } = useListPayments({ userId: studentId });
+
+  // Fetch identity verification documents
+  const { data: identityDoc, isLoading: docsLoading } = useQuery({
+    queryKey: ['identity-verification', studentId],
+    queryFn: async () => {
+      const res = await fetch(`/api/identity-verification?userId=${studentId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!studentId,
+  });
+
+  const identityDocs = identityDoc ? [identityDoc] : [];
 
   const unenrollMutation = useDeleteEnrollment({
     mutation: {
@@ -69,12 +87,16 @@ export default function AdminStudentDetail() {
   }
 
   if (!student) {
+    console.log('Student data:', student);
+    console.log('Student ID:', studentId);
     return (
       <DashboardLayout>
         <div className="text-center py-20">
           <AlertCircle className="h-12 w-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold">Student Not Found</h2>
           <p className="text-gray-500 mt-2">The student you are looking for does not exist or has been removed.</p>
+          <p className="text-sm text-gray-400 mt-2">Student ID: {studentId}</p>
+          <p className="text-sm text-gray-400">Please check if you're logged in and have the correct permissions.</p>
           <Link href="/admin/users">
             <Button className="mt-6">Back to Students</Button>
           </Link>
@@ -264,6 +286,9 @@ export default function AdminStudentDetail() {
               <TabsTrigger value="payments" className="rounded-xl h-12 px-6 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
                 <CreditCard className="h-4 w-4 mr-2" /> Payments
               </TabsTrigger>
+              <TabsTrigger value="documents" className="rounded-xl h-12 px-6 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+                <FileText className="h-4 w-4 mr-2" /> Documents
+              </TabsTrigger>
               <TabsTrigger value="activity" className="rounded-xl h-12 px-6 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
                 <Clock className="h-4 w-4 mr-2" /> Activity
               </TabsTrigger>
@@ -355,6 +380,165 @@ export default function AdminStudentDetail() {
                     )}
                   </TableBody>
                 </Table>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="documents">
+              <Card className="border-none shadow-sm ring-1 ring-gray-100 rounded-[24px] overflow-hidden">
+                <CardHeader className="bg-gray-50/50 border-b border-gray-100">
+                  <CardTitle className="text-lg font-black">Uploaded Documents</CardTitle>
+                  <p className="text-sm text-gray-500 font-medium">All documents submitted by the student for verification and enrollment</p>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {docsLoading ? (
+                    <div className="flex justify-center items-center h-32">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary opacity-20" />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Education Document */}
+                      {student?.educationDocumentUrl && (
+                        <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100">
+                          <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
+                              <Award className="h-6 w-6" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-gray-900">Education Certificate</h4>
+                              <p className="text-xs text-gray-500 font-medium">
+                                {student.qualification || "Academic qualification document"}
+                              </p>
+                              {student.obtainedMarks && student.totalMarks && (
+                                <p className="text-xs text-blue-600 font-bold mt-1">
+                                  Marks: {student.obtainedMarks}/{student.totalMarks} ({Math.round((student.obtainedMarks / student.totalMarks) * 100)}%)
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <a 
+                              href={student.educationDocumentUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="h-10 w-10 rounded-xl bg-white hover:bg-blue-100 flex items-center justify-center text-blue-600 transition-colors"
+                              title="View Document"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </a>
+                            <a 
+                              href={student.educationDocumentUrl} 
+                              download
+                              className="h-10 w-10 rounded-xl bg-white hover:bg-blue-100 flex items-center justify-center text-blue-600 transition-colors"
+                              title="Download Document"
+                            >
+                              <Download className="h-4 w-4" />
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Identity Verification Documents */}
+                      {identityDocs.length > 0 ? (
+                        identityDocs.map((doc: any) => (
+                          <div key={doc.id} className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100">
+                            <div className="flex items-center gap-4">
+                              <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600">
+                                <ShieldCheck className="h-6 w-6" />
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-gray-900">{doc.documentType || "Identity Document"}</h4>
+                                <p className="text-xs text-gray-500 font-medium">
+                                  {doc.cnicNumber || "CNIC / B-Form verification document"}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge className={
+                                    doc.status === 'verified' ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
+                                    doc.status === 'pending' ? "bg-amber-100 text-amber-700 border-amber-200" :
+                                    "bg-rose-100 text-rose-700 border-rose-200"
+                                  }>
+                                    {doc.status}
+                                  </Badge>
+                                  <span className="text-xs text-gray-400">
+                                    Submitted {new Date(doc.submittedAt).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                {doc.rejectionReason && (
+                                  <p className="text-xs text-rose-600 font-medium mt-1">
+                                    Reason: {doc.rejectionReason}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <a 
+                                href={doc.documentUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="h-10 w-10 rounded-xl bg-white hover:bg-purple-100 flex items-center justify-center text-purple-600 transition-colors"
+                                title="View Document"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </a>
+                              <a 
+                                href={doc.documentUrl} 
+                                download
+                                className="h-10 w-10 rounded-xl bg-white hover:bg-purple-100 flex items-center justify-center text-purple-600 transition-colors"
+                                title="Download Document"
+                              >
+                                <Download className="h-4 w-4" />
+                              </a>
+                            </div>
+                          </div>
+                        ))
+                      ) : null}
+
+                      {/* No Documents Message */}
+                      {!student?.educationDocumentUrl && identityDocs.length === 0 && (
+                        <div className="text-center py-12">
+                          <File className="h-16 w-16 mx-auto text-gray-200 mb-4" />
+                          <h3 className="text-lg font-bold text-gray-900 mb-2">No Documents Uploaded</h3>
+                          <p className="text-sm text-gray-500">
+                            This student hasn't uploaded any documents yet.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Document Summary */}
+                      {(student?.educationDocumentUrl || identityDocs.length > 0) && (
+                        <div className="mt-6 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-bold text-gray-900 text-sm">Document Summary</h4>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Total documents: {(student?.educationDocumentUrl ? 1 : 0) + identityDocs.length}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-4 text-xs font-bold">
+                              {identityDocs.filter((d: any) => d.status === 'verified').length > 0 && (
+                                <div className="flex items-center gap-1 text-emerald-600">
+                                  <CheckCircle2 className="h-4 w-4" />
+                                  {identityDocs.filter((d: any) => d.status === 'verified').length} Verified
+                                </div>
+                              )}
+                              {identityDocs.filter((d: any) => d.status === 'pending').length > 0 && (
+                                <div className="flex items-center gap-1 text-amber-600">
+                                  <AlertCircle className="h-4 w-4" />
+                                  {identityDocs.filter((d: any) => d.status === 'pending').length} Pending
+                                </div>
+                              )}
+                              {identityDocs.filter((d: any) => d.status === 'rejected').length > 0 && (
+                                <div className="flex items-center gap-1 text-rose-600">
+                                  <XCircle className="h-4 w-4" />
+                                  {identityDocs.filter((d: any) => d.status === 'rejected').length} Rejected
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
               </Card>
             </TabsContent>
 
