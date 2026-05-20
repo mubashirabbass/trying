@@ -30,6 +30,13 @@ export interface RegisterBody {
   role: RegisterBodyRole;
   phone?: string;
   cnic?: string;
+  dob?: string;
+  identityDocumentUrl?: string;
+  lastEducation?: string;
+  educationStream?: string;
+  obtainedMarks?: number;
+  totalMarks?: number;
+  educationDocumentUrl?: string;
   branchId?: number;
 }
 
@@ -52,6 +59,22 @@ export interface User {
   avatar?: string;
   isActive: boolean;
   createdAt: string;
+  qualification?: string;
+  specialization?: string;
+  obtainedMarks?: number;
+  totalMarks?: number;
+  educationDocumentUrl?: string;
+  isIdentityVerified?: boolean;
+  identityDocumentUrl?: string;
+  identityVerificationStatus?: string;
+  branchId?: number;
+  branchName?: string;
+  experience?: string;
+  salary?: number;
+  address?: string;
+  designation?: string;
+  gender?: string;
+  joiningDate?: string;
 }
 
 export interface AuthResponse {
@@ -699,6 +722,10 @@ export interface SubmitIdentityVerificationBody {
 export interface HealthCheckResponse {
   status: string;
 }
+
+export type VerifyEmailBody = {
+  token: string;
+};
 
 export type ListCoursesParams = {
 category?: string;

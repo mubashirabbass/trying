@@ -8,7 +8,9 @@ import {
   UpdateUserBody,
   ResetPasswordBody,
 } from "@workspace/api-zod";
-import { hashPassword, AppError } from "../lib/auth";
+import { hashPassword, createToken, AppError } from "../lib/auth";
+import { sendEmail, emailTemplates } from "../lib/email";
+import { logger } from "../lib/logger";
 import { catchAsync } from "../middleware/error";
 import { authenticate, authorize, AuthRequest } from "../middleware/auth";
 import { validate } from "../middleware/validate";
@@ -213,9 +215,16 @@ router.get(
         designation: usersTable.designation,
         gender: usersTable.gender,
         joiningDate: usersTable.joiningDate,
+        obtainedMarks: usersTable.obtainedMarks,
+        totalMarks: usersTable.totalMarks,
+        educationDocumentUrl: usersTable.educationDocumentUrl,
+        isIdentityVerified: usersTable.isIdentityVerified,
+        identityDocumentUrl: identityVerificationsTable.documentUrl,
+        identityVerificationStatus: identityVerificationsTable.status,
       })
       .from(usersTable)
       .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
+      .leftJoin(identityVerificationsTable, eq(usersTable.id, identityVerificationsTable.userId))
       .where(eq(usersTable.id, id));
 
     if (!user) throw new AppError("User not found", 404);
@@ -241,6 +250,9 @@ router.put(
       throw new AppError("Not authorized to update this profile", 403);
     }
 
+    const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+    if (!existingUser) throw new AppError("User not found", 404);
+
     const updateData = { ...req.body };
     if (updateData.joiningDate) {
       updateData.joiningDate = new Date(updateData.joiningDate);
@@ -259,6 +271,17 @@ router.put(
       .returning();
 
     if (!updatedUser) throw new AppError("User not found", 404);
+
+    // Send verification email if the user is being activated
+    if (!existingUser.isActive && updatedUser.isActive) {
+      const origin = req.headers.origin || "http://localhost:5173";
+      const token = createToken(updatedUser.id, updatedUser.role);
+      const verifyUrl = `${origin}/verify-email?token=${token}`;
+      sendEmail({
+        to: updatedUser.email,
+        ...emailTemplates.verification(updatedUser.name, verifyUrl)
+      }).catch(err => logger.error(`Failed to send approval/verification email:`, err));
+    }
 
     const { passwordHash: _, ...safeUser } = updatedUser;
     return res.json(safeUser);

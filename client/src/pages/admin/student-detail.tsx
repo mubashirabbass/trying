@@ -23,7 +23,8 @@ import {
   Award,
   CheckCircle2,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  ExternalLink
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,8 +37,7 @@ export default function AdminStudentDetail() {
   const { toast } = useToast();
   const { id } = useParams();
   const studentId = id ? Number(id) : 0;
-
-  const { data: student, isLoading: userLoading } = useGetUser({ id: studentId });
+  const { data: student, isLoading: userLoading } = useGetUser(studentId);
   
   const { data: enrollments = [], isLoading: enrollLoading } = useListEnrollments({ userId: studentId });
   const { data: payments = [], isLoading: payLoading } = useListPayments({ userId: studentId });
@@ -156,25 +156,100 @@ export default function AdminStudentDetail() {
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-sm ring-1 ring-gray-100 rounded-[24px] bg-gradient-to-br from-slate-900 to-slate-800 text-white">
-            <CardHeader>
-              <CardTitle className="text-sm font-black text-slate-400 uppercase tracking-widest">Identity Status</CardTitle>
+          <Card className="border-none shadow-sm ring-1 ring-gray-100 rounded-[24px]">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-black text-gray-400 uppercase tracking-widest">Academic & Qualification</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10">
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
+                  <Award className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase">Degree / Qualification</p>
+                  <p className="font-bold text-gray-900">{student.qualification || "Not provided"}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-pink-50 flex items-center justify-center text-pink-600">
+                  <BookOpen className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-400 uppercase">Specialization / Stream</p>
+                  <p className="font-bold text-gray-900">{student.specialization || "Not provided"}</p>
+                </div>
+              </div>
+              {student.obtainedMarks !== undefined && student.totalMarks !== undefined && student.obtainedMarks !== null && student.totalMarks !== null && (
                 <div className="flex items-center gap-3">
-                  <ShieldCheck className={`h-6 w-6 ${student.isIdentityVerified ? "text-emerald-400" : "text-amber-400"}`} />
+                  <div className="h-9 w-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+                    <FileText className="h-4 w-4" />
+                  </div>
                   <div>
-                    <p className="font-bold">{student.isIdentityVerified ? "Verified" : "Unverified"}</p>
-                    <p className="text-xs text-slate-400">Identity Documents</p>
+                    <p className="text-xs font-bold text-gray-400 uppercase">Obtained Marks</p>
+                    <p className="font-bold text-gray-900">
+                      {student.obtainedMarks} / {student.totalMarks} 
+                      <span className="text-xs text-gray-500 font-semibold ml-2">
+                        ({Math.round((student.obtainedMarks / student.totalMarks) * 100)}%)
+                      </span>
+                    </p>
                   </div>
                 </div>
-                {!student.isIdentityVerified && (
-                  <Button size="sm" variant="outline" className="bg-transparent border-white/20 text-white hover:bg-white/10 h-8 text-xs font-bold">
-                    Verify Now
-                  </Button>
-                )}
+              )}
+              {student.educationDocumentUrl && (
+                <div className="pt-2 border-t border-gray-50">
+                  <a 
+                    href={student.educationDocumentUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-slate-700 hover:text-slate-900 group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <FileText className="h-4 w-4 text-slate-400 group-hover:text-slate-600" />
+                      <span className="text-xs font-bold truncate max-w-[180px]">Education Certificate</span>
+                    </div>
+                    <ExternalLink className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-600" />
+                  </a>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-sm ring-1 ring-gray-100 rounded-[24px] bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+            <CardHeader>
+              <CardTitle className="text-sm font-black text-slate-400 uppercase tracking-widest">Identity & Verification</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
+                <ShieldCheck className={`h-6 w-6 shrink-0 ${student.isIdentityVerified ? "text-emerald-400" : "text-amber-400"}`} />
+                <div>
+                  <p className="font-bold text-sm">{student.isIdentityVerified ? "Identity Verified" : "Verification Pending"}</p>
+                  <p className="text-xs text-slate-400">Status: {student.identityVerificationStatus || (student.isIdentityVerified ? "verified" : "unverified")}</p>
+                </div>
               </div>
+
+              {student.cnic && (
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CNIC / B-Form Number</p>
+                  <p className="font-mono text-sm font-bold tracking-wider">{student.cnic}</p>
+                </div>
+              )}
+
+              {student.identityDocumentUrl && (
+                <div className="pt-2">
+                  <a 
+                    href={student.identityDocumentUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-3 rounded-xl bg-white/10 hover:bg-white/15 transition-colors text-white group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <FileText className="h-4 w-4 text-slate-300 group-hover:text-white" />
+                      <span className="text-xs font-bold truncate max-w-[180px]">CNIC / B-Form Document</span>
+                    </div>
+                    <ExternalLink className="h-3.5 w-3.5 text-slate-300 group-hover:text-white" />
+                  </a>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

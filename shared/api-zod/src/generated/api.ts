@@ -34,7 +34,23 @@ export const LoginResponse = zod.object({
   "cnic": zod.string().optional(),
   "avatar": zod.string().optional(),
   "isActive": zod.boolean(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "qualification": zod.string().optional(),
+  "specialization": zod.string().optional(),
+  "obtainedMarks": zod.number().optional(),
+  "totalMarks": zod.number().optional(),
+  "educationDocumentUrl": zod.string().optional(),
+  "isIdentityVerified": zod.boolean().optional(),
+  "identityDocumentUrl": zod.string().optional(),
+  "identityVerificationStatus": zod.string().optional(),
+  "branchId": zod.number().optional(),
+  "branchName": zod.string().optional(),
+  "experience": zod.string().optional(),
+  "salary": zod.number().optional(),
+  "address": zod.string().optional(),
+  "designation": zod.string().optional(),
+  "gender": zod.string().optional(),
+  "joiningDate": zod.string().optional()
 }),
   "token": zod.string()
 })
@@ -50,7 +66,22 @@ export const RegisterBody = zod.object({
   "role": zod.enum(['student', 'teacher', 'admin']),
   "phone": zod.string().optional(),
   "cnic": zod.string().optional(),
+  "dob": zod.coerce.date().optional(),
+  "identityDocumentUrl": zod.string().optional(),
+  "lastEducation": zod.string().optional(),
+  "educationStream": zod.string().optional(),
+  "obtainedMarks": zod.number().optional(),
+  "totalMarks": zod.number().optional(),
+  "educationDocumentUrl": zod.string().optional(),
   "branchId": zod.number().optional()
+})
+
+
+/**
+ * @summary Verify user email
+ */
+export const VerifyEmailBody = zod.object({
+  "token": zod.string()
 })
 
 
@@ -66,7 +97,23 @@ export const GetMeResponse = zod.object({
   "cnic": zod.string().optional(),
   "avatar": zod.string().optional(),
   "isActive": zod.boolean(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "qualification": zod.string().optional(),
+  "specialization": zod.string().optional(),
+  "obtainedMarks": zod.number().optional(),
+  "totalMarks": zod.number().optional(),
+  "educationDocumentUrl": zod.string().optional(),
+  "isIdentityVerified": zod.boolean().optional(),
+  "identityDocumentUrl": zod.string().optional(),
+  "identityVerificationStatus": zod.string().optional(),
+  "branchId": zod.number().optional(),
+  "branchName": zod.string().optional(),
+  "experience": zod.string().optional(),
+  "salary": zod.number().optional(),
+  "address": zod.string().optional(),
+  "designation": zod.string().optional(),
+  "gender": zod.string().optional(),
+  "joiningDate": zod.string().optional()
 })
 
 
@@ -857,7 +904,23 @@ export const ListUsersResponseItem = zod.object({
   "cnic": zod.string().optional(),
   "avatar": zod.string().optional(),
   "isActive": zod.boolean(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "qualification": zod.string().optional(),
+  "specialization": zod.string().optional(),
+  "obtainedMarks": zod.number().optional(),
+  "totalMarks": zod.number().optional(),
+  "educationDocumentUrl": zod.string().optional(),
+  "isIdentityVerified": zod.boolean().optional(),
+  "identityDocumentUrl": zod.string().optional(),
+  "identityVerificationStatus": zod.string().optional(),
+  "branchId": zod.number().optional(),
+  "branchName": zod.string().optional(),
+  "experience": zod.string().optional(),
+  "salary": zod.number().optional(),
+  "address": zod.string().optional(),
+  "designation": zod.string().optional(),
+  "gender": zod.string().optional(),
+  "joiningDate": zod.string().optional()
 })
 export const ListUsersResponse = zod.array(ListUsersResponseItem)
 
@@ -1231,7 +1294,23 @@ export const GetUserResponse = zod.object({
   "cnic": zod.string().optional(),
   "avatar": zod.string().optional(),
   "isActive": zod.boolean(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "qualification": zod.string().optional(),
+  "specialization": zod.string().optional(),
+  "obtainedMarks": zod.number().optional(),
+  "totalMarks": zod.number().optional(),
+  "educationDocumentUrl": zod.string().optional(),
+  "isIdentityVerified": zod.boolean().optional(),
+  "identityDocumentUrl": zod.string().optional(),
+  "identityVerificationStatus": zod.string().optional(),
+  "branchId": zod.number().optional(),
+  "branchName": zod.string().optional(),
+  "experience": zod.string().optional(),
+  "salary": zod.number().optional(),
+  "address": zod.string().optional(),
+  "designation": zod.string().optional(),
+  "gender": zod.string().optional(),
+  "joiningDate": zod.string().optional()
 })
 
 
@@ -1260,7 +1339,23 @@ export const UpdateUserResponse = zod.object({
   "cnic": zod.string().optional(),
   "avatar": zod.string().optional(),
   "isActive": zod.boolean(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "qualification": zod.string().optional(),
+  "specialization": zod.string().optional(),
+  "obtainedMarks": zod.number().optional(),
+  "totalMarks": zod.number().optional(),
+  "educationDocumentUrl": zod.string().optional(),
+  "isIdentityVerified": zod.boolean().optional(),
+  "identityDocumentUrl": zod.string().optional(),
+  "identityVerificationStatus": zod.string().optional(),
+  "branchId": zod.number().optional(),
+  "branchName": zod.string().optional(),
+  "experience": zod.string().optional(),
+  "salary": zod.number().optional(),
+  "address": zod.string().optional(),
+  "designation": zod.string().optional(),
+  "gender": zod.string().optional(),
+  "joiningDate": zod.string().optional()
 })
 
 

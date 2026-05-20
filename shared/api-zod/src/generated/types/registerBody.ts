@@ -14,5 +14,12 @@ export interface RegisterBody {
   role: RegisterBodyRole;
   phone?: string;
   cnic?: string;
+  dob?: Date;
+  identityDocumentUrl?: string;
+  lastEducation?: string;
+  educationStream?: string;
+  obtainedMarks?: number;
+  totalMarks?: number;
+  educationDocumentUrl?: string;
   branchId?: number;
 }

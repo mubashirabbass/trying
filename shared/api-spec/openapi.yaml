@@ -89,6 +89,25 @@ paths:
         "200":
           description: Logged out
 
+  /auth/verify-email:
+    post:
+      operationId: verifyEmail
+      tags: [auth]
+      summary: Verify user email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+              required: [token]
+      responses:
+        "200":
+          description: Email verified successfully
+
   /auth/me:
     get:
       operationId: getMe
@@ -1923,6 +1942,21 @@ components:
           type: string
         cnic:
           type: string
+        dob:
+          type: string
+          format: date
+        identityDocumentUrl:
+          type: string
+        lastEducation:
+          type: string
+        educationStream:
+          type: string
+        obtainedMarks:
+          type: integer
+        totalMarks:
+          type: integer
+        educationDocumentUrl:
+          type: string
         branchId:
           type: integer
       required: [name, email, password, role]
@@ -1957,6 +1991,38 @@ components:
         isActive:
           type: boolean
         createdAt:
+          type: string
+        qualification:
+          type: string
+        specialization:
+          type: string
+        obtainedMarks:
+          type: integer
+        totalMarks:
+          type: integer
+        educationDocumentUrl:
+          type: string
+        isIdentityVerified:
+          type: boolean
+        identityDocumentUrl:
+          type: string
+        identityVerificationStatus:
+          type: string
+        branchId:
+          type: integer
+        branchName:
+          type: string
+        experience:
+          type: string
+        salary:
+          type: integer
+        address:
+          type: string
+        designation:
+          type: string
+        gender:
+          type: string
+        joiningDate:
           type: string
       required: [id, name, email, role, isActive, createdAt]
 

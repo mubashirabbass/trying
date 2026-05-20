@@ -46,10 +46,10 @@ export default function CourseDetail() {
   const handleEnroll = () => {
     if (!user) {
       toast({
-        title: "Login Required",
-        description: "Please login or register to enroll in this course.",
+        title: "Create a Free Account",
+        description: "Sign up in seconds to enroll in this course and start learning!",
       });
-      setLocation("/login");
+      setLocation("/register");
       return;
     }
 

@@ -15,6 +15,13 @@
       "when": 1779253914073,
       "tag": "0001_parched_agent_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779285512664,
+      "tag": "0002_peaceful_madame_web",
+      "breakpoints": true
     }
   ]
 }

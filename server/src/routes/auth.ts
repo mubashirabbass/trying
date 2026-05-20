@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { Request, Response, Router, type IRouter } from "express";
-import { db, usersTable } from "@workspace/db";
+import { db, usersTable, identityVerificationsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { LoginBody, RegisterBody, GetMeResponse } from "@workspace/api-zod";
 import { hashPassword, verifyPassword, createToken, verifyToken, AppError } from "../lib/auth";
@@ -9,6 +9,8 @@ import { sendEmail, emailTemplates } from "../lib/email";
 
 import { catchAsync } from "../middleware/error";
 import { authRateLimiter } from "../middleware/rate-limit";
+import { upload } from "../middleware/upload";
+import { uploadToCloudinary } from "../lib/cloudinary";
 
 const router: IRouter = Router();
 
@@ -70,7 +72,10 @@ router.post("/auth/register", authRateLimiter, catchAsync(async (req: Request, r
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const { email, password, name, role, phone, cnic, branchId } = parsed.data;
+  const { 
+    email, password, name, role, phone, cnic, dob, identityDocumentUrl, branchId,
+    lastEducation, educationStream, obtainedMarks, totalMarks, educationDocumentUrl
+  } = parsed.data;
   if (role !== "student") {
     res.status(403).json({ error: "Only student registration is allowed publicly. Teacher and administrator accounts must be created by an Admin." });
     return;
@@ -81,19 +86,60 @@ router.post("/auth/register", authRateLimiter, catchAsync(async (req: Request, r
     return;
   }
   const passwordHash = await hashPassword(password);
-  const [user] = await db.insert(usersTable).values({ email, passwordHash, name, role, phone, cnic, branchId, isActive: false }).returning();
-  const token = createToken(user.id, user.role);
+  
+  const [user] = await db.insert(usersTable).values({ 
+    email, 
+    passwordHash, 
+    name, 
+    role, 
+    phone, 
+    cnic, 
+    dob: dob ? new Date(dob) : undefined,
+    branchId,
+    qualification: lastEducation,
+    specialization: educationStream,
+    obtainedMarks,
+    totalMarks,
+    educationDocumentUrl,
+    isActive: false 
+  }).returning();
 
-  // Send verification email (async, don't block response)
-  const origin = req.headers.origin || "http://localhost:5173";
-  const verifyUrl = `${origin}/verify-email?token=${token}`; // Using the session token as a simple verification token for now
-  sendEmail({
-    to: user.email,
-    ...emailTemplates.verification(user.name, verifyUrl)
-  }).catch(err => logger.error(`Failed to send welcome email to ${user.email}:`, err));
+  if (identityDocumentUrl) {
+    await db.insert(identityVerificationsTable).values({
+      userId: user.id,
+      documentType: "CNIC",
+      cnicNumber: cnic || null,
+      documentUrl: identityDocumentUrl,
+      status: "pending"
+    });
+  }
+
+  const token = createToken(user.id, user.role);
 
   const { passwordHash: _, ...safeUser } = user;
   res.status(201).json({ user: safeUser, token });
+}));
+
+router.post("/auth/upload-identity", upload.single("document"), catchAsync(async (req: Request, res: Response) => {
+  if (!req.file) throw new AppError("Document is required", 400);
+  const result = await uploadToCloudinary(req.file.buffer, "identity-docs", "image");
+  res.status(201).json({ url: result.secure_url });
+}));
+
+router.post("/auth/verify-email", catchAsync(async (req: Request, res: Response) => {
+  const { token } = req.body;
+  if (!token) throw new AppError("Token is required", 400);
+  const payload = verifyToken(token);
+  if (!payload || !payload.id) throw new AppError("Invalid or expired token", 400);
+
+  const [user] = await db.update(usersTable)
+    .set({ isEmailVerified: true })
+    .where(eq(usersTable.id, payload.id))
+    .returning();
+
+  if (!user) throw new AppError("User not found", 404);
+
+  res.json({ message: "Email verified successfully" });
 }));
 
 router.post("/auth/logout", catchAsync(async (req: Request, res: Response): Promise<void> => {

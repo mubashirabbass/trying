@@ -27,6 +27,7 @@ import Feedback from "@/pages/feedback";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
 import PrivacyPolicy from "@/pages/privacy.tsx";
+import VerifyEmail from "@/pages/verify-email";
 import StudentAttendance from "@/pages/student/attendance";
 import StudentLiveClasses from "@/pages/student/live-classes";
 import TeacherLiveClasses from "@/pages/teacher/live-classes";
@@ -136,6 +137,7 @@ function Router() {
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password/:token" component={ResetPassword} />
         <Route path="/privacy" component={PrivacyPolicy} />
+        <Route path="/verify-email" component={VerifyEmail} />
 
         {/* Student Protected Routes */}
         <Route path="/dashboard">

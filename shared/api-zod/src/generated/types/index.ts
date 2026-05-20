@@ -110,5 +110,6 @@ export * from './updateUserBody';
 export * from './user';
 export * from './userRole';
 export * from './verifyCertificateParams';
+export * from './verifyEmailBody';
 export * from './verifyPaymentBody';
 export * from './verifyPaymentBodyStatus';
