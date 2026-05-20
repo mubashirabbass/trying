@@ -34,7 +34,9 @@ import {
   Compass,
   Sun,
   Moon,
-  CalendarRange
+  CalendarRange,
+  Video,
+  Newspaper
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -144,6 +146,7 @@ const ADMIN_NAV_GROUPS = [
     label: "OVERVIEW",
     items: [
       { name: "Dashboard", path: "/admin", icon: LayoutDashboard },
+      { name: "Live Classes", path: "/admin/live-classes", icon: Video },
     ],
   },
   {
@@ -157,9 +160,11 @@ const ADMIN_NAV_GROUPS = [
     label: "CONTENT",
     items: [
       { name: "Courses", path: "/admin/courses", icon: BookOpen },
+      { name: "Lecture Reviews", path: "/admin/reviews", icon: Star },
       { name: "FAQs", path: "/admin/faqs", icon: ClipboardList },
       { name: "Success Stories", path: "/admin/success-stories", icon: Award },
-      { name: "Home CMS", path: "/admin/home-cms", icon: LayoutDashboard },
+      { name: "Featured Courses", path: "/admin/featured-courses", icon: Star },
+      { name: "Articles & News", path: "/admin/articles", icon: Newspaper },
       { name: "Testimonials", path: "/admin/testimonials", icon: Star },
       { name: "Attendance", path: "/admin/attendance", icon: CalendarRange },
     ],
@@ -207,6 +212,90 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, setTheme } = useTheme();
 
+  const [unreadMessages, setUnreadMessages] = useState<number>(() => {
+    const val = localStorage.getItem("unread_messages_count");
+    return val !== null ? Number(val) : 2; // Default to 2 on first load
+  });
+  const [pendingAssignments, setPendingAssignments] = useState<number>(0);
+  const [pendingCourses, setPendingCourses] = useState<number>(0);
+  const [attendanceStatus, setAttendanceStatus] = useState<"green" | "red" | null>(null);
+  const [pendingQuizzes, setPendingQuizzes] = useState<number>(() => {
+    const val = localStorage.getItem("unread_quizzes_count");
+    return val !== null ? Number(val) : 1; // Default to 1 on first load
+  });
+  const [forumHasUpdates, setForumHasUpdates] = useState<boolean>(() => {
+    const val = localStorage.getItem("unread_forum_has_updates");
+    return val !== null ? val === "true" : true; // Default to true on first load
+  });
+
+  // Track location changes to clear counts/marks
+  useEffect(() => {
+    if (location === "/dashboard/messages") {
+      setUnreadMessages(0);
+      localStorage.setItem("unread_messages_count", "0");
+    }
+    if (location === "/dashboard/quizzes") {
+      setPendingQuizzes(0);
+      localStorage.setItem("unread_quizzes_count", "0");
+    }
+    if (location === "/dashboard/forum") {
+      setForumHasUpdates(false);
+      localStorage.setItem("unread_forum_has_updates", "false");
+    }
+  }, [location]);
+
+  // Real-time backend fetching sync
+  useEffect(() => {
+    if (!user || user.role !== "student") return;
+
+    const headers = { 
+      Authorization: `Bearer ${token}`, 
+      "Content-Type": "application/json" 
+    };
+    const fetchSidebarData = async () => {
+      try {
+        // 1. Fetch Student Dashboard Stats for Pending Assignments
+        const rDash = await fetch(`/api/dashboard/student?userId=${user.id}`, { headers });
+        if (rDash.ok) {
+          const data = await rDash.json();
+          setPendingAssignments(data.pendingAssignments || 0);
+        }
+
+        // 2. Fetch Enrollments for Course Approvals
+        const rEnroll = await fetch(`/api/enrollments?userId=${user.id}`, { headers });
+        if (rEnroll.ok) {
+          const enrollments = await rEnroll.json();
+          // Count courses that are pending approval OR active but 0 progress
+          const count = enrollments.filter((e: any) => 
+            e.status === "pending" || (e.status === "active" && (e.progress ?? 0) === 0)
+          ).length;
+          setPendingCourses(count);
+        }
+
+        // 3. Fetch Attendance Status for today/recent
+        const rAttend = await fetch(`/api/attendance/my`, { headers });
+        if (rAttend.ok) {
+          const attendData = await rAttend.json();
+          const records = attendData.records || [];
+          if (records.length > 0) {
+            const lastRecord = records[records.length - 1];
+            if (lastRecord.status === "present" || lastRecord.status === "late") {
+              setAttendanceStatus("green");
+            } else if (lastRecord.status === "absent") {
+              setAttendanceStatus("red");
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching dynamic sidebar states:", err);
+      }
+    };
+
+    fetchSidebarData();
+    const interval = setInterval(fetchSidebarData, 12000); // refresh every 12 seconds
+    return () => clearInterval(interval);
+  }, [user, token, location]);
+
   if (!user) return null;
 
   const getNavItems = () => {
@@ -216,6 +305,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           { name: "Overview", path: "/dashboard", icon: LayoutDashboard },
           { name: "Browse Courses", path: "/dashboard/browse", icon: Compass },
           { name: "My Courses", path: "/dashboard/courses", icon: BookOpen },
+          { name: "Live Classes", path: "/dashboard/live-classes", icon: Video },
           { name: "Attendance", path: "/dashboard/attendance", icon: CalendarRange },
           { name: "Progress", path: "/dashboard/progress", icon: BarChart3 },
           { name: "Assignments", path: "/dashboard/assignments", icon: FileText },
@@ -231,6 +321,8 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         return [
           { name: "Overview", path: "/teacher", icon: LayoutDashboard },
           { name: "My Courses", path: "/teacher/courses", icon: BookOpen },
+          { name: "Lecture Reviews", path: "/teacher/reviews", icon: Star },
+          { name: "Live Classes", path: "/teacher/live-classes", icon: Video },
           { name: "Attendance", path: "/teacher/attendance", icon: CalendarRange },
           { name: "Students", path: "/teacher/students", icon: Users },
           { name: "Assignments", path: "/teacher/assignments", icon: FileText },
@@ -324,6 +416,45 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                   (item.path !== "/dashboard" &&
                     item.path !== "/teacher" &&
                     location.startsWith(item.path));
+                
+                let badgeContent: React.ReactNode = null;
+                
+                if (item.path === "/dashboard/messages" && unreadMessages > 0) {
+                  badgeContent = (
+                    <span className="ml-auto h-5 w-5 bg-red-500 text-[10px] font-black text-white rounded-full flex items-center justify-center shadow-sm animate-pulse shrink-0">
+                      {unreadMessages}
+                    </span>
+                  );
+                } else if (item.path === "/dashboard/assignments" && pendingAssignments > 0) {
+                  badgeContent = (
+                    <span className="ml-auto h-5 w-5 bg-red-500 text-[10px] font-black text-white rounded-full flex items-center justify-center shadow-sm animate-pulse shrink-0">
+                      {pendingAssignments}
+                    </span>
+                  );
+                } else if (item.path === "/dashboard/courses" && pendingCourses > 0) {
+                  badgeContent = (
+                    <span className="ml-auto h-5 w-5 bg-blue-500 text-[10px] font-black text-white rounded-full flex items-center justify-center shadow-sm animate-pulse shrink-0" title="Pending courses / approval">
+                      {pendingCourses}
+                    </span>
+                  );
+                } else if (item.path === "/dashboard/quizzes" && pendingQuizzes > 0) {
+                  badgeContent = (
+                    <span className="ml-auto h-5 w-5 bg-red-500 text-[10px] font-black text-white rounded-full flex items-center justify-center shadow-sm animate-pulse shrink-0">
+                      {pendingQuizzes}
+                    </span>
+                  );
+                } else if (item.path === "/dashboard/attendance" && attendanceStatus) {
+                  badgeContent = (
+                    <span className={`ml-auto h-2.5 w-2.5 rounded-full shadow-sm animate-pulse shrink-0 ${
+                      attendanceStatus === "green" ? "bg-emerald-500" : "bg-red-500"
+                    }`} title={attendanceStatus === "green" ? "Marked Present Today" : "Marked Absent / Update"} />
+                  );
+                } else if (item.path === "/dashboard/forum" && forumHasUpdates) {
+                  badgeContent = (
+                    <span className="ml-auto h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-sm animate-pulse shrink-0" title="New discussion replies" />
+                  );
+                }
+
                 return (
                   <Link
                     key={item.path}
@@ -336,7 +467,8 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                     }`}
                   >
                     <Icon className={`h-4 w-4 ${isActive ? "text-primary" : "text-sidebar-foreground/45"}`} />
-                    {item.name}
+                    <span>{item.name}</span>
+                    {badgeContent}
                   </Link>
                 );
               })}
@@ -374,9 +506,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </button>
 
           <div className="flex-1 hidden md:block">
-            <p className="text-sm text-muted-foreground">
-              Welcome back, <span className="font-semibold text-foreground">{user.name.split(" ")[0]}</span>
-            </p>
+            {/* Welcome message moved inside pages for cleaner layout */}
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
@@ -386,19 +516,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
               </Button>
             </Link>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="h-9 w-9 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              title="Toggle Theme"
-            >
-              <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-              <span className="sr-only">Toggle theme</span>
-            </Button>
-
-            <NotificationBell userId={user.id} token={token} />
+            {/* Icons moved or cleaned for simplified header */}
           </div>
         </header>
 

@@ -27,6 +27,9 @@ import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
 import PrivacyPolicy from "@/pages/privacy.tsx";
 import StudentAttendance from "@/pages/student/attendance";
+import StudentLiveClasses from "@/pages/student/live-classes";
+import TeacherLiveClasses from "@/pages/teacher/live-classes";
+import AdminLiveClasses from "@/pages/admin/live-classes";
 
 // Student Pages
 import StudentDashboard from "@/pages/student/dashboard";
@@ -60,6 +63,7 @@ import Branches from "@/pages/branches";
 
 // Shared Pages
 import AttendanceManager from "@/pages/shared/attendance-manager";
+import LectureReviews from "@/pages/shared/reviews";
 
 // Admin Pages
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -84,7 +88,8 @@ import AdminCourseContent from "@/pages/admin/course-content";
 import AdminForum from "@/pages/admin/forum";
 import AdminMessages from "@/pages/admin/messages";
 import AdminLeaderboard from "@/pages/admin/leaderboard";
-import AdminHomeCMS from "@/pages/admin/home-cms";
+import AdminFeaturedCourses from "@/pages/admin/featured-courses";
+import AdminArticles from "@/pages/admin/articles";
 import AdminFAQs from "@/pages/admin/faqs";
 
 const queryClient = new QueryClient();
@@ -185,6 +190,9 @@ function Router() {
         <Route path="/dashboard/attendance">
           <ProtectedRoute component={StudentAttendance} />
         </Route>
+        <Route path="/dashboard/live-classes">
+          <ProtectedRoute component={StudentLiveClasses} />
+        </Route>
 
         {/* Teacher Protected Routes */}
         <Route path="/teacher">
@@ -219,6 +227,12 @@ function Router() {
         </Route>
         <Route path="/teacher/attendance">
           <ProtectedRoute component={AttendanceManager} />
+        </Route>
+        <Route path="/teacher/live-classes">
+          <ProtectedRoute component={TeacherLiveClasses} />
+        </Route>
+        <Route path="/teacher/reviews">
+          <ProtectedRoute component={LectureReviews} />
         </Route>
 
         {/* Admin Protected Routes */}
@@ -288,14 +302,23 @@ function Router() {
         <Route path="/admin/leaderboard">
           <ProtectedRoute component={AdminLeaderboard} />
         </Route>
-        <Route path="/admin/home-cms">
-          <ProtectedRoute component={AdminHomeCMS} />
+        <Route path="/admin/featured-courses">
+          <ProtectedRoute component={AdminFeaturedCourses} />
+        </Route>
+        <Route path="/admin/articles">
+          <ProtectedRoute component={AdminArticles} />
         </Route>
         <Route path="/admin/faqs">
           <ProtectedRoute component={AdminFAQs} />
         </Route>
         <Route path="/admin/attendance">
           <ProtectedRoute component={AttendanceManager} />
+        </Route>
+        <Route path="/admin/live-classes">
+          <ProtectedRoute component={AdminLiveClasses} />
+        </Route>
+        <Route path="/admin/reviews">
+          <ProtectedRoute component={LectureReviews} />
         </Route>
 
         <Route component={NotFound} />

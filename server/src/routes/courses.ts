@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, coursesTable, usersTable, enrollmentsTable, lessonsTable } from "@workspace/db";
-import { eq, sql, count, desc, or, and, ilike } from "drizzle-orm";
+import { db, coursesTable, usersTable, enrollmentsTable, lessonsTable, lessonCompletionsTable } from "@workspace/db";
+import { eq, sql, count, desc, or, and, ilike, isNotNull } from "drizzle-orm";
 import {
   ListCoursesQueryParams,
   CreateCourseBody,
@@ -118,7 +118,19 @@ router.get("/courses", async (req, res): Promise<void> => {
 });
 
 router.post("/courses", authenticate, authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
-  const parsed = CreateCourseBody.safeParse(req.body);
+  // Sanitize the request body to prevent strict Zod validation from failing on database null outputs
+  const bodyCopy = { ...req.body };
+  if (bodyCopy.teacherId === null || bodyCopy.teacherId === 0 || bodyCopy.teacherId === "0" || bodyCopy.teacherId === "") {
+    delete bodyCopy.teacherId;
+  }
+  if (bodyCopy.thumbnail === null) {
+    delete bodyCopy.thumbnail;
+  }
+  if (bodyCopy.syllabus === null) {
+    delete bodyCopy.syllabus;
+  }
+
+  const parsed = CreateCourseBody.safeParse(bodyCopy);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -137,10 +149,112 @@ router.post("/courses", authenticate, authorize("admin", "teacher"), async (req:
 
   if (req.user.role === "teacher") {
     insertData.teacherId = req.user.id;
+  } else if (req.body.teacherId === null || req.body.teacherId === 0 || req.body.teacherId === "0" || req.body.teacherId === "") {
+    insertData.teacherId = null;
   }
 
   const [course] = await db.insert(coursesTable).values(insertData).returning();
   res.status(201).json({ ...course, enrollmentCount: 0, lessonCount: 0, teacherName: req.user.role === "admin" ? null : req.user.name });
+});
+
+router.get("/courses/reviews", authenticate, authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
+  try {
+    const isTeacher = req.user.role === "teacher";
+    const teacherId = req.user.id;
+
+    let conditions = [isNotNull(lessonCompletionsTable.feedbackRating)];
+    if (isTeacher) {
+      conditions.push(eq(coursesTable.teacherId, teacherId));
+    }
+
+    const reviews = await db
+      .select({
+        reviewId: lessonCompletionsTable.id,
+        rating: lessonCompletionsTable.feedbackRating,
+        comment: lessonCompletionsTable.feedbackComment,
+        completedAt: lessonCompletionsTable.completedAt,
+        studentName: usersTable.name,
+        lessonTitle: lessonsTable.title,
+        courseTitle: coursesTable.title,
+        courseId: coursesTable.id,
+        teacherId: coursesTable.teacherId,
+      })
+      .from(lessonCompletionsTable)
+      .innerJoin(lessonsTable, eq(lessonCompletionsTable.lessonId, lessonsTable.id))
+      .innerJoin(coursesTable, eq(lessonsTable.courseId, coursesTable.id))
+      .innerJoin(usersTable, eq(lessonCompletionsTable.userId, usersTable.id))
+      .where(and(...conditions))
+      .orderBy(desc(lessonCompletionsTable.completedAt));
+
+    // Enrich with teacherName
+    const enriched = await Promise.all(reviews.map(async (review) => {
+      let teacherName = "Unassigned";
+      if (review.teacherId) {
+        const [teacher] = await db
+          .select({ name: usersTable.name })
+          .from(usersTable)
+          .where(eq(usersTable.id, review.teacherId));
+        if (teacher) {
+          teacherName = teacher.name;
+        }
+      }
+      return {
+        ...review,
+        teacherName,
+      };
+    }));
+
+    // Fetch all courses in the system (or assigned to this teacher)
+    let coursesQuery = db.select({ id: coursesTable.id, title: coursesTable.title }).from(coursesTable);
+    if (isTeacher) {
+      coursesQuery = coursesQuery.where(eq(coursesTable.teacherId, teacherId)) as any;
+    }
+    const allCoursesList = await coursesQuery;
+
+    // Fetch all teachers in the system
+    let allTeachersList: { id: number; name: string }[] = [];
+    if (isTeacher) {
+      allTeachersList = [{ id: teacherId, name: req.user.name }];
+    } else {
+      allTeachersList = await db
+        .select({ id: usersTable.id, name: usersTable.name })
+        .from(usersTable)
+        .where(eq(usersTable.role, "teacher"));
+    }
+
+    // Fetch all students enrolled in any course (or this teacher's courses)
+    let studentsQuery;
+    if (isTeacher) {
+      studentsQuery = db
+        .select({ id: usersTable.id, name: usersTable.name })
+        .from(usersTable)
+        .innerJoin(enrollmentsTable, eq(usersTable.id, enrollmentsTable.userId))
+        .innerJoin(coursesTable, eq(enrollmentsTable.courseId, coursesTable.id))
+        .where(and(eq(usersTable.role, "student"), eq(coursesTable.teacherId, teacherId)));
+    } else {
+      studentsQuery = db
+        .select({ id: usersTable.id, name: usersTable.name })
+        .from(usersTable)
+        .innerJoin(enrollmentsTable, eq(usersTable.id, enrollmentsTable.userId))
+        .where(eq(usersTable.role, "student"));
+    }
+
+    const rawStudents = await studentsQuery;
+    const studentMap = new Map();
+    for (const s of rawStudents) {
+      studentMap.set(s.id, s.name);
+    }
+    const allStudentsList = Array.from(studentMap.entries()).map(([id, name]) => ({ id, name }));
+
+    res.json({
+      reviews: enriched,
+      courses: allCoursesList,
+      teachers: allTeachersList,
+      students: allStudentsList
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to fetch reviews" });
+  }
 });
 
 router.get("/courses/:id", async (req, res): Promise<void> => {
@@ -191,15 +305,44 @@ router.put("/courses/:id", authenticate, authorize("admin", "teacher"), async (r
   const id = parseInt(raw, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
   
-  const parsed = UpdateCourseBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-
   const [existingCourse] = await db.select().from(coursesTable).where(eq(coursesTable.id, id));
   if (!existingCourse) { res.status(404).json({ error: "Not found" }); return; }
 
   if (req.user.role === "teacher" && existingCourse.teacherId !== req.user.id) {
     res.status(403).json({ error: "You do not have permission to modify this course" });
     return;
+  }
+
+  // Sanitize the request body and merge existing fields to enable robust partial updates
+  const bodyCopy = {
+    title: existingCourse.title,
+    description: existingCourse.description,
+    category: existingCourse.category,
+    duration: existingCourse.duration,
+    fee: existingCourse.fee,
+    thumbnail: existingCourse.thumbnail,
+    syllabus: existingCourse.syllabus,
+    teacherId: existingCourse.teacherId,
+    isFeatured: existingCourse.isFeatured,
+    isFree: existingCourse.isFree,
+    ...req.body
+  };
+
+  if (bodyCopy.teacherId === null || bodyCopy.teacherId === 0 || bodyCopy.teacherId === "0" || bodyCopy.teacherId === "") {
+    delete bodyCopy.teacherId;
+  }
+  if (bodyCopy.thumbnail === null) {
+    delete bodyCopy.thumbnail;
+  }
+  if (bodyCopy.syllabus === null) {
+    delete bodyCopy.syllabus;
+  }
+
+  const parsed = UpdateCourseBody.safeParse(bodyCopy);
+  if (!parsed.success) { 
+    console.error("[DEBUG UPDATE COURSE ERROR]", JSON.stringify(parsed.error.format(), null, 2));
+    res.status(400).json({ error: parsed.error.message }); 
+    return; 
   }
 
   const updateData: any = { ...parsed.data };
@@ -216,8 +359,15 @@ router.put("/courses/:id", authenticate, authorize("admin", "teacher"), async (r
     updateData.rejectionNote = req.body.rejectionNote;
   }
 
-  if (updateData.teacherId === 0) {
+  // Explicitly apply null overrides for fields cleared or unassigned by admin/teacher
+  if (req.body.teacherId === null || req.body.teacherId === 0 || req.body.teacherId === "0" || req.body.teacherId === "") {
     updateData.teacherId = null;
+  }
+  if (req.body.thumbnail === null || req.body.thumbnail === "") {
+    updateData.thumbnail = null;
+  }
+  if (req.body.syllabus === null || req.body.syllabus === "") {
+    updateData.syllabus = null;
   }
 
   if (req.body.minAttendancePercentage !== undefined) {

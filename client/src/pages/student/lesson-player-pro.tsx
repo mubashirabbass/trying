@@ -22,7 +22,7 @@ import {
   ChevronRight, ChevronLeft, Menu, X, Download, 
   BookOpen, Clock, Award, MessageSquare, ThumbsUp, 
   Pin, Send, Plus, Search, ShieldAlert, Edit2, 
-  Trash2, Lock
+  Trash2, Lock, Star
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -57,7 +57,7 @@ export default function LessonPlayerPro() {
   
   const lessonIdParam = lessonParams?.lessonId ? parseInt(lessonParams.lessonId) : 0;
 
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -84,6 +84,57 @@ export default function LessonPlayerPro() {
   const [playState, setPlayState] = useState<string>("unstarted");
   const playerRef = useRef<HTMLDivElement>(null);
   const progressInterval = useRef<any>(null);
+
+  // Feedback Modal States
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackRating, setFeedbackRating] = useState<number>(0);
+  const [feedbackHoverRating, setFeedbackHoverRating] = useState<number>(0);
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
+
+  const handleSubmitFeedback = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (feedbackRating < 1 || feedbackRating > 5) {
+      toast({
+        title: "Rating required",
+        description: "Please rate the lesson by selecting stars.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmittingFeedback(true);
+    try {
+      const response = await fetch(`/api/lessons/${currentLessonId}/feedback`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ rating: feedbackRating, comment: feedbackComment }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to submit feedback");
+      }
+
+      toast({
+        title: "Feedback Submitted!",
+        description: "Thank you for your feedback! The next lesson is now unlocked.",
+      });
+
+      setShowFeedbackModal(false);
+      queryClient.invalidateQueries();
+    } catch (error) {
+      toast({
+        title: "Submission failed",
+        description: "There was a problem submitting your feedback. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingFeedback(false);
+    }
+  };
 
   // Fetch course metadata
   const { data: course } = useGetCourse(courseId, {
@@ -254,7 +305,9 @@ export default function LessonPlayerPro() {
                   } else if (event.data === 0) {
                     setPlayState("ended");
                     stopProgressPolling();
-                    handleMarkComplete();
+                    if (!lesson?.isCompleted) {
+                      setShowFeedbackModal(true);
+                    }
                   }
                 }
               }
@@ -365,6 +418,70 @@ export default function LessonPlayerPro() {
     });
     return list;
   };
+
+  const getStudyMaterials = () => {
+    const list: any[] = [];
+    lessons?.forEach((les, index) => {
+      if (les.pdfUrl) {
+        list.push({
+          id: `pdf-${les.id}`,
+          title: `Lecture ${index + 1} Reference Handout`,
+          type: "PDF Document",
+          url: les.pdfUrl,
+          lessonId: les.id,
+          lessonName: les.title,
+          size: "2.1 MB"
+        });
+      }
+      if (les.resources) {
+        list.push({
+          id: `res-${les.id}`,
+          title: `Module ${index + 1} Additional References`,
+          type: "External Web Resource",
+          url: les.resources,
+          lessonId: les.id,
+          lessonName: les.title,
+          size: "Web Resource"
+        });
+      }
+      if (les.notes) {
+        list.push({
+          id: `note-${les.id}`,
+          title: `Lesson ${index + 1} Written Guide Notes`,
+          type: "Written Notes Handout",
+          content: les.notes,
+          lessonId: les.id,
+          lessonName: les.title,
+          size: "Text Note"
+        });
+      }
+    });
+    
+    if (list.length === 0) {
+      return [
+        {
+          id: "def-1",
+          title: "Course Overview Slides & Getting Started Guide",
+          type: "PDF Document",
+          url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+          lessonId: 0,
+          lessonName: "General Reference",
+          size: "1.6 MB"
+        },
+        {
+          id: "def-2",
+          title: "Curated Coursework Workbook & Exercise Sheets",
+          type: "PDF Document",
+          url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+          lessonId: 0,
+          lessonName: "General Reference",
+          size: "3.4 MB"
+        }
+      ];
+    }
+    return list;
+  };
+
 
   const isLessonLocked = (lessonToCheckId: number) => {
     const isStaff = user?.role === "admin" || user?.role === "teacher";
@@ -649,6 +766,12 @@ export default function LessonPlayerPro() {
                         controls
                         className="w-full h-full rounded-2xl"
                         controlsList="nodownload"
+                        onEnded={() => {
+                          setPlayState("ended");
+                          if (!lesson?.isCompleted) {
+                            setShowFeedbackModal(true);
+                          }
+                        }}
                       />
                     </div>
                   )}
@@ -678,10 +801,16 @@ export default function LessonPlayerPro() {
                   Overview
                 </TabsTrigger>
                 <TabsTrigger 
-                  value="resources"
+                  value="outline"
                   className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400 rounded-lg px-4 py-1.5 text-xs font-bold transition-all"
                 >
-                  Resources
+                  Course Outline
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="materials"
+                  className="data-[state=active]:bg-slate-800 data-[state=active]:text-white text-slate-400 rounded-lg px-4 py-1.5 text-xs font-bold transition-all"
+                >
+                  Study Materials
                 </TabsTrigger>
                 <TabsTrigger 
                   value="notes"
@@ -757,51 +886,120 @@ export default function LessonPlayerPro() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="resources" className="mt-0">
-                <div className="max-w-4xl space-y-4">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-300 mb-4">
-                      Downloadable Resources
-                    </h3>
-                    
-                    {lesson?.pdfUrl ? (
-                      <div className="space-y-3">
-                        <a
-                          href={lesson.pdfUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-4 p-4 border border-slate-800 rounded-xl bg-slate-900/20 hover:border-primary/50 hover:bg-primary/5 transition-all group"
-                        >
-                          <div className="h-12 w-12 rounded-lg bg-red-950/40 border border-red-800/30 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform">
-                            <FileText className="h-6 w-6" />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-bold text-slate-200 text-sm">Lesson Outline & Notes</p>
-                            <p className="text-[11px] text-slate-500">PDF Document</p>
-                          </div>
-                          <Download className="h-5 w-5 text-slate-500 group-hover:text-primary transition-colors" />
-                        </a>
+              <TabsContent value="outline" className="mt-0 animate-in fade-in duration-150">
+                <div className="max-w-4xl space-y-6">
+                  <div className="flex flex-col sm:flex-row gap-4 p-5 rounded-2xl border border-slate-800 bg-slate-900/30 backdrop-blur-sm shadow-xl justify-between items-start sm:items-center">
+                    <div className="flex gap-3 items-center">
+                      <div className="h-10 w-10 bg-red-950/40 border border-red-800/30 rounded-xl flex items-center justify-center text-red-500 shrink-0 shadow-sm">
+                        <FileText className="h-5 w-5" />
                       </div>
-                    ) : !(lesson as any)?.resources ? (
-                      <div className="text-center py-10 bg-slate-900/20 rounded-xl border border-dashed border-slate-800">
-                        <FileText className="h-10 w-10 text-slate-700 mx-auto mb-3" />
-                        <p className="text-slate-400 font-bold text-sm">No resources available</p>
-                        <p className="text-slate-500 text-xs mt-1">There are no downloadable materials attached to this lesson.</p>
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {(lesson as any)?.resources && (
-                    <div className="p-5 rounded-2xl border border-slate-800 bg-slate-900/30 backdrop-blur-sm shadow-xl space-y-3">
-                      <div className="flex items-center gap-2 text-indigo-400">
-                        <BookOpen className="h-4 w-4" />
-                        <h4 className="text-xs font-bold uppercase tracking-wider">Supplementary Resources & External Links</h4>
-                      </div>
-                      <div className="text-xs text-slate-300 leading-relaxed font-medium whitespace-pre-wrap">
-                        {(lesson as any).resources}
+                      <div>
+                        <h4 className="font-bold text-slate-200 text-xs leading-snug">Official Syllabus & Course Outline</h4>
+                        <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Format: PDF Document • Approved by Academic Board</p>
                       </div>
                     </div>
-                  )}
+                    <Button 
+                      onClick={() => {
+                        const link = course?.syllabus || "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
+                        window.open(link, "_blank");
+                      }}
+                      className="h-9 font-bold text-[11px] bg-slate-850 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-lg flex items-center gap-1.5 cursor-pointer shrink-0 self-stretch sm:self-auto justify-center"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Download Outline PDF
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="font-bold text-xs text-slate-400 uppercase tracking-wider">Curriculum Syllabus Map</h4>
+                    <div className="border border-slate-800 rounded-2xl max-h-60 overflow-y-auto divide-y divide-slate-800/60 p-1.5 bg-slate-900/20">
+                      {lessons?.map((les, idx) => {
+                        const isActive = les.id === currentLessonId;
+                        return (
+                          <div key={les.id} className={`p-3 rounded-xl transition-colors flex gap-3 text-xs leading-snug items-center ${isActive ? 'bg-slate-900/60 border border-slate-800' : 'hover:bg-slate-900/20'}`}>
+                            <span className={`font-black text-[10px] px-1.5 py-0.5 rounded shrink-0 ${isActive ? 'bg-primary/20 text-primary' : 'bg-slate-800 text-slate-400'}`}>
+                              L{idx + 1}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <span className={`font-bold text-xs block ${isActive ? 'text-white' : 'text-slate-300'}`}>{les.title}</span>
+                              {les.description && (
+                                <span className="text-[10px] text-slate-500 font-semibold mt-0.5 block leading-normal line-clamp-1">
+                                  {les.description}
+                                </span>
+                              )}
+                            </div>
+                            {les.isCompleted && (
+                              <Badge className="bg-emerald-950 text-emerald-400 border border-emerald-800/40 text-[9px] font-bold shrink-0">
+                                Completed
+                              </Badge>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="materials" className="mt-0 animate-in fade-in duration-150">
+                <div className="max-w-4xl space-y-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-sm font-bold text-slate-300">Study Materials & Lecture References</h3>
+                    <Badge variant="outline" className="border-slate-800 text-[10px] font-bold bg-slate-900 text-slate-400">
+                      {getStudyMaterials().length} Assets
+                    </Badge>
+                  </div>
+                  
+                  <div className="border border-slate-850 rounded-2xl divide-y divide-slate-850/60 bg-slate-900/10 overflow-hidden shadow-xl">
+                    {getStudyMaterials().map((m) => {
+                      const isCurrent = m.lessonId === currentLessonId;
+                      return (
+                        <div key={m.id} className={`p-4 transition-colors flex justify-between items-center gap-4 ${isCurrent ? 'bg-slate-900/40 border-y border-slate-800/50' : 'hover:bg-slate-900/10'}`}>
+                          <div className="flex gap-3 items-start min-w-0">
+                            <div className={`mt-0.5 h-8 w-8 rounded-lg flex items-center justify-center shrink-0 border shadow-sm ${
+                              m.type.includes("PDF") 
+                                ? "bg-red-950/40 border-red-800/40 text-red-500" 
+                                : "bg-blue-950/40 border-blue-800/40 text-blue-500"
+                            }`}>
+                              <FileText className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 space-y-0.5">
+                              <span className="font-bold text-slate-200 text-xs block leading-snug line-clamp-1">
+                                {m.title}
+                              </span>
+                              <span className="text-[9px] text-slate-500 font-semibold block uppercase tracking-wider">
+                                Topic: {m.lessonName} • {m.type} ({m.size})
+                              </span>
+                              {isCurrent && (
+                                <span className="inline-flex items-center gap-0.5 text-[8px] bg-primary/20 text-primary border border-primary/30 px-1 py-0.25 rounded font-black mt-1">
+                                  ★ Recommended for current lesson
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {m.content ? (
+                            <Button 
+                              onClick={() => {
+                                alert(`Written Handout Notes:\n\n${m.content}`);
+                              }}
+                              className="h-8 font-bold text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg shrink-0 cursor-pointer shadow-none border border-slate-700"
+                            >
+                              Read Handout
+                            </Button>
+                          ) : (
+                            <Button 
+                              onClick={() => {
+                                window.open(m.url, "_blank");
+                              }}
+                              className="h-8 font-bold text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg shrink-0 flex items-center gap-1 cursor-pointer border border-slate-700 shadow-none"
+                            >
+                              <Download className="h-3 w-3" /> Get File
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </TabsContent>
 
@@ -1132,6 +1330,20 @@ export default function LessonPlayerPro() {
             <p className="text-[10px] text-slate-400 font-semibold">
               {completedLessons} of {totalLessons} lessons completed
             </p>
+
+            {/* Download Course Outline Syllabus in Sidebar */}
+            <div className="pt-2.5 mt-1">
+              <Button
+                onClick={() => {
+                  const link = course?.syllabus || "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
+                  window.open(link, "_blank");
+                }}
+                className="w-full h-8 bg-slate-850 hover:bg-slate-800 text-slate-200 border border-slate-800 hover:border-slate-700 rounded-lg flex items-center justify-center gap-1.5 font-bold text-[10px] shadow-sm cursor-pointer transition-all"
+              >
+                <FileText className="h-3.5 w-3.5 text-red-500" />
+                Download Course Outline
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -1257,6 +1469,99 @@ export default function LessonPlayerPro() {
           </div>
         </ScrollArea>
       </div>
+      {/* Premium Non-Dismissible Lesson Feedback Modal */}
+      <Dialog open={showFeedbackModal} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-[450px] border-slate-800 bg-slate-900 text-slate-100 shadow-2xl rounded-3xl p-6 pointer-events-auto">
+          <DialogHeader className="flex flex-col items-center text-center space-y-3">
+            <div className="h-14 w-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 animate-pulse shadow-xl">
+              <Award className="h-7 w-7" />
+            </div>
+            <div>
+              <DialogTitle className="text-xl font-black text-slate-100">
+                Lecture Finished!
+              </DialogTitle>
+              <p className="text-xs text-slate-400 font-semibold mt-1">
+                Please leave your feedback to unlock the next lecture in the sequence.
+              </p>
+            </div>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmitFeedback} className="space-y-6 mt-4">
+            {/* Star Rating Section */}
+            <div className="flex flex-col items-center space-y-2">
+              <span className="text-[11px] uppercase tracking-wider font-extrabold text-slate-400">
+                Rate this Video Lesson
+              </span>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((star) => {
+                  const isFilled = star <= (feedbackHoverRating || feedbackRating);
+                  return (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setFeedbackRating(star)}
+                      onMouseEnter={() => setFeedbackHoverRating(star)}
+                      onMouseLeave={() => setFeedbackHoverRating(0)}
+                      className="p-1 transition-all duration-150 hover:scale-125 focus:outline-none"
+                    >
+                      <Star
+                        className={`h-9 w-9 transition-colors ${
+                          isFilled
+                            ? "fill-amber-400 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.3)]"
+                            : "text-slate-700 hover:text-slate-500"
+                        }`}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              {feedbackRating > 0 && (
+                <span className="text-xs font-bold text-amber-400 animate-in fade-in duration-200">
+                  {feedbackRating === 5 && "⭐ Outstanding / Clear Explanation!"}
+                  {feedbackRating === 4 && "👍 Very Informative & Helpful!"}
+                  {feedbackRating === 3 && "👌 Good Lesson / Well Explained."}
+                  {feedbackRating === 2 && "👉 Average / Could Be Better."}
+                  {feedbackRating === 1 && "⚠️ Needs Improvement."}
+                </span>
+              )}
+            </div>
+
+            {/* Comment Section */}
+            <div className="space-y-2">
+              <Label className="font-extrabold text-slate-350 text-xs">
+                Write your review / comments (Optional)
+              </Label>
+              <Textarea
+                value={feedbackComment}
+                onChange={(e) => setFeedbackComment(e.target.value)}
+                placeholder="What did you learn? Tell us what you liked or what could be improved..."
+                className="rounded-2xl border-slate-800 bg-slate-950 text-slate-100 text-xs focus-visible:ring-amber-500 focus-visible:ring-offset-slate-900 leading-relaxed font-semibold placeholder:text-slate-600"
+                rows={3}
+              />
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              disabled={feedbackRating === 0 || isSubmittingFeedback}
+              className={`w-full h-11 rounded-2xl font-black text-xs text-white transition-all ${
+                feedbackRating > 0
+                  ? "bg-amber-500 hover:bg-amber-600 shadow-xl shadow-amber-500/20 active:scale-95 animate-in fade-in zoom-in-95 duration-200"
+                  : "bg-slate-800 text-slate-500 cursor-not-allowed"
+              }`}
+            >
+              {isSubmittingFeedback ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-white" />
+                  Submitting Review...
+                </span>
+              ) : (
+                "Submit & Unlock Next Lecture"
+              )}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

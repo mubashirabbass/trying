@@ -138,10 +138,8 @@ router.get("/reports/students/:userId/progress", async (req: any, res): Promise<
 });
 
 // Admin-only reports below this line
-router.use(authorize("admin"));
-
 // 1. Branch Overview
-router.get("/reports/branch", async (req, res): Promise<void> => {
+router.get("/reports/branch", authorize("admin"), async (req, res): Promise<void> => {
   const branches = await db.select({
     id: branchesTable.id,
     name: branchesTable.name,
@@ -168,7 +166,7 @@ router.get("/reports/branch", async (req, res): Promise<void> => {
 });
 
 // 2. Student Progress
-router.get("/reports/students", async (req, res): Promise<void> => {
+router.get("/reports/students", authorize("admin"), async (req, res): Promise<void> => {
   const students = await db.select({
     id: usersTable.id,
     name: usersTable.name,
@@ -195,7 +193,7 @@ router.get("/reports/students", async (req, res): Promise<void> => {
 });
 
 // 3. Enrollments
-router.get("/reports/enrollments", async (req, res): Promise<void> => {
+router.get("/reports/enrollments", authorize("admin"), async (req, res): Promise<void> => {
   const courses = await db.select({
     id: coursesTable.id,
     title: coursesTable.title,
@@ -219,7 +217,7 @@ router.get("/reports/enrollments", async (req, res): Promise<void> => {
 });
 
 // 4. Revenue
-router.get("/reports/revenue", async (req, res): Promise<void> => {
+router.get("/reports/revenue", authorize("admin"), async (req, res): Promise<void> => {
   const methods = ["EasyPaisa", "JazzCash", "Bank Transfer", "Card"];
   
   const reportData = await Promise.all(methods.map(async (m) => {
@@ -244,7 +242,7 @@ router.get("/reports/revenue", async (req, res): Promise<void> => {
 });
 
 // 5. Full Student List
-router.get("/reports/full-list", async (req, res): Promise<void> => {
+router.get("/reports/full-list", authorize("admin"), async (req, res): Promise<void> => {
   const students = await db.select({
     id: usersTable.id,
     name: usersTable.name,
@@ -271,7 +269,7 @@ router.get("/reports/full-list", async (req, res): Promise<void> => {
 });
 
 // PDF Export
-router.post("/reports/export-pdf", async (req, res): Promise<void> => {
+router.post("/reports/export-pdf", authorize("admin"), async (req, res): Promise<void> => {
   const { title, headers, rows } = req.body;
   if (!title || !headers || !rows) { res.status(400).json({ error: "Missing data" }); return; }
 
@@ -289,7 +287,7 @@ router.post("/reports/export-pdf", async (req, res): Promise<void> => {
 });
 
 // Excel Export
-router.post("/reports/export-excel", async (req, res): Promise<void> => {
+router.post("/reports/export-excel", authorize("admin"), async (req, res): Promise<void> => {
   const { title, headers, rows } = req.body;
   if (!title || !headers || !rows) { res.status(400).json({ error: "Missing data" }); return; }
 

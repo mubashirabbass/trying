@@ -20,3 +20,4 @@ export * from "./faqs";
 export * from "./articles";
 export * from "./success-story-categories";
 export * from "./attendance";
+export * from "./live_classes";

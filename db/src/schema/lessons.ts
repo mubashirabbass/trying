@@ -35,6 +35,8 @@ export const lessonCompletionsTable = pgTable("lesson_completions", {
   watchedPercent: integer("watched_percent").notNull().default(0),
   isCompleted: boolean("is_completed").notNull().default(false),
   completedAt: timestamp("completed_at", { withTimezone: true }),
+  feedbackRating: integer("feedback_rating"),
+  feedbackComment: text("feedback_comment"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => {
   return {

@@ -178,9 +178,9 @@ router.post("/lessons/:id/progress", async (req: AuthRequest, res): Promise<void
   if (existing) {
     [completion] = await db.update(lessonCompletionsTable)
       .set({ 
-        isCompleted: parsed.data.isCompleted, 
+        isCompleted: existing.isCompleted, 
         watchedPercent: (parsed.data as any).watchedPercent ?? existing.watchedPercent,
-        completedAt: parsed.data.isCompleted && !existing.isCompleted ? new Date() : existing.completedAt
+        completedAt: existing.completedAt
       })
       .where(eq(lessonCompletionsTable.id, existing.id))
       .returning();
@@ -189,30 +189,76 @@ router.post("/lessons/:id/progress", async (req: AuthRequest, res): Promise<void
       .values({ 
         lessonId, 
         userId: userId, 
-        isCompleted: parsed.data.isCompleted, 
+        isCompleted: false, 
         watchedPercent: (parsed.data as any).watchedPercent ?? 0,
-        completedAt: parsed.data.isCompleted ? new Date() : null
+        completedAt: null
       })
       .returning();
   }
-  if (completion.isCompleted) {
-    const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId));
-    if (lesson) {
-      const allLessons = await db.select().from(lessonsTable).where(eq(lessonsTable.courseId, lesson.courseId));
-      const completed = await db.select().from(lessonCompletionsTable)
-        .where(and(
-          eq(lessonCompletionsTable.userId, userId),
-          eq(lessonCompletionsTable.isCompleted, true)
-        ));
-      
-      const courseLessonIds = new Set(allLessons.map(l => l.id));
-      const completedCount = completed.filter(c => courseLessonIds.has(c.lessonId)).length;
-      const progress = Math.min(100, Math.round((completedCount / allLessons.length) * 100));
 
-      await db.update(enrollmentsTable)
-        .set({ progress, updatedAt: new Date() })
-        .where(and(eq(enrollmentsTable.userId, userId), eq(enrollmentsTable.courseId, lesson.courseId)));
-    }
+  res.json(completion);
+});
+
+router.post("/lessons/:id/feedback", async (req: AuthRequest, res): Promise<void> => {
+  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const lessonId = parseInt(raw, 10);
+  if (isNaN(lessonId)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { rating, comment } = req.body;
+  if (rating === undefined || rating < 1 || rating > 5) {
+    res.status(400).json({ error: "Rating must be between 1 and 5 stars" });
+    return;
+  }
+
+  const [existing] = await db.select().from(lessonCompletionsTable)
+    .where(and(eq(lessonCompletionsTable.lessonId, lessonId), eq(lessonCompletionsTable.userId, userId)));
+
+  let completion;
+  if (existing) {
+    [completion] = await db.update(lessonCompletionsTable)
+      .set({ 
+        isCompleted: true, 
+        watchedPercent: 100,
+        completedAt: existing.completedAt || new Date(),
+        feedbackRating: Number(rating),
+        feedbackComment: comment || null
+      })
+      .where(eq(lessonCompletionsTable.id, existing.id))
+      .returning();
+  } else {
+    [completion] = await db.insert(lessonCompletionsTable)
+      .values({ 
+        lessonId, 
+        userId: userId, 
+        isCompleted: true, 
+        watchedPercent: 100,
+        completedAt: new Date(),
+        feedbackRating: Number(rating),
+        feedbackComment: comment || null
+      })
+      .returning();
+  }
+
+  // Update enrollment progress
+  const [lesson] = await db.select().from(lessonsTable).where(eq(lessonsTable.id, lessonId));
+  if (lesson) {
+    const allLessons = await db.select().from(lessonsTable).where(eq(lessonsTable.courseId, lesson.courseId));
+    const completed = await db.select().from(lessonCompletionsTable)
+      .where(and(
+        eq(lessonCompletionsTable.userId, userId),
+        eq(lessonCompletionsTable.isCompleted, true)
+      ));
+    
+    const courseLessonIds = new Set(allLessons.map(l => l.id));
+    const completedCount = completed.filter(c => courseLessonIds.has(c.lessonId)).length;
+    const progress = Math.min(100, Math.round((completedCount / allLessons.length) * 100));
+
+    await db.update(enrollmentsTable)
+      .set({ progress, updatedAt: new Date() })
+      .where(and(eq(enrollmentsTable.userId, userId), eq(enrollmentsTable.courseId, lesson.courseId)));
   }
 
   res.json(completion);

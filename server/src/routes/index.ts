@@ -104,6 +104,7 @@ import faqsRouter from "./faqs";
 import articlesRouter from "./articles";
 import usersRouter from "./users";
 import attendanceRouter from "./attendance";
+import liveClassesRouter from "./live-classes";
 
 router.use(healthRouter);
 router.use(authRouter);
@@ -132,5 +133,6 @@ router.use(settingsRouter);
 router.use(leaderboardRouter);
 router.use(sectionsRouter);
 router.use(reportsRouter);
+router.use(liveClassesRouter);
 
 export default router;
