@@ -81,7 +81,10 @@ export default function TeacherCourseBuilder() {
     description: "",
     videoUrl: "",
     pdfUrl: "",
-    sectionId: 0
+    sectionId: 0,
+    completionThreshold: "80",
+    notes: "",
+    resources: ""
   });
   const [isLessonDialogOpen, setIsLessonDialogOpen] = useState(false);
   const [activeSectionId, setActiveSectionId] = useState<number | null>(null);
@@ -141,20 +144,30 @@ export default function TeacherCourseBuilder() {
     if (!lessonData.title.trim() || !activeSectionId) return;
     
     try {
+      const payload: any = {
+        title: lessonData.title,
+        description: lessonData.description || undefined,
+        videoUrl: lessonData.videoUrl || undefined,
+        pdfUrl: lessonData.pdfUrl || undefined,
+        completionThreshold: Number(lessonData.completionThreshold) || 80,
+        notes: lessonData.notes || undefined,
+        resources: lessonData.resources || undefined,
+      };
+
       if (editingLessonId) {
         await updateLesson.mutateAsync({
           id: editingLessonId,
-          data: { ...lessonData, courseId, sectionId: activeSectionId }
+          data: { ...payload, courseId, sectionId: activeSectionId } as any
         });
         toast({ title: "Lesson updated" });
       } else {
         await createLesson.mutateAsync({
-          data: { ...lessonData, courseId, sectionId: activeSectionId, orderIndex: 0 }
+          data: { ...payload, courseId, sectionId: activeSectionId, orderIndex: 0 } as any
         });
         toast({ title: "Lesson created" });
       }
       queryClient.invalidateQueries({ queryKey: getListLessonsQueryKey({ courseId }) });
-      setLessonData({ title: "", description: "", videoUrl: "", pdfUrl: "", sectionId: 0 });
+      setLessonData({ title: "", description: "", videoUrl: "", pdfUrl: "", sectionId: 0, completionThreshold: "80", notes: "", resources: "" });
       setEditingLessonId(null);
       setIsLessonDialogOpen(false);
     } catch (error) {
@@ -375,7 +388,7 @@ export default function TeacherCourseBuilder() {
                   </div>
                   <AccordionContent className="p-4 pt-0">
                     <div className="space-y-2 mt-4">
-                      {lessons?.filter(l => l.sectionId === section.id).map(lesson => (
+                      {lessons?.filter(l => (l as any).sectionId === section.id).map(lesson => (
                         <div key={lesson.id} className="flex items-center gap-3 p-3 rounded-lg border bg-background hover:shadow-sm transition-shadow">
                           <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />
                           <div className="flex-1">
@@ -392,8 +405,11 @@ export default function TeacherCourseBuilder() {
                                 description: lesson.description ?? "",
                                 videoUrl: lesson.videoUrl ?? "",
                                 pdfUrl: lesson.pdfUrl ?? "",
-                                sectionId: section.id
-                              });
+                                sectionId: section.id,
+                                completionThreshold: ((lesson as any).completionThreshold ?? 80).toString(),
+                                notes: (lesson as any).notes ?? "",
+                                resources: (lesson as any).resources ?? ""
+                              } as any);
                               setEditingLessonId(lesson.id);
                               setActiveSectionId(section.id);
                               setIsLessonDialogOpen(true);
@@ -409,7 +425,7 @@ export default function TeacherCourseBuilder() {
                       <Button variant="ghost" className="w-full border-dashed border h-10 mt-2 text-muted-foreground hover:text-primary" onClick={() => {
                         setActiveSectionId(section.id);
                         setEditingLessonId(null);
-                        setLessonData({ title: "", description: "", videoUrl: "", pdfUrl: "", sectionId: section.id });
+                        setLessonData({ title: "", description: "", videoUrl: "", pdfUrl: "", sectionId: section.id, completionThreshold: "80", notes: "", resources: "" });
                         setIsLessonDialogOpen(true);
                       }}>
                         <Plus className="h-4 w-4 mr-2" />
@@ -595,6 +611,45 @@ export default function TeacherCourseBuilder() {
                     placeholder="https://..."
                   />
                 </div>
+              </div>
+            </div>
+            <div className="space-y-4 col-span-full">
+              <div className="space-y-2">
+                <Label htmlFor="lesson-threshold">Video Progress Completion Threshold (%)</Label>
+                <Input 
+                  id="lesson-threshold" 
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={(lessonData as any).completionThreshold} 
+                  onChange={(e) => setLessonData({...lessonData, completionThreshold: e.target.value})} 
+                  placeholder="e.g. 70"
+                />
+                <p className="text-[11px] text-muted-foreground">The percentage of the video the student must watch to mark complete.</p>
+              </div>
+            </div>
+            <div className="space-y-4 col-span-full">
+              <div className="space-y-2">
+                <Label htmlFor="lesson-notes">Lecture Notes / Written Materials</Label>
+                <Textarea 
+                  id="lesson-notes" 
+                  value={(lessonData as any).notes} 
+                  onChange={(e) => setLessonData({...lessonData, notes: e.target.value})} 
+                  placeholder="Write summary notes or materials for students..."
+                  rows={4}
+                />
+              </div>
+            </div>
+            <div className="space-y-4 col-span-full">
+              <div className="space-y-2">
+                <Label htmlFor="lesson-resources">Supplementary Resources & Links</Label>
+                <Textarea 
+                  id="lesson-resources" 
+                  value={(lessonData as any).resources} 
+                  onChange={(e) => setLessonData({...lessonData, resources: e.target.value})} 
+                  placeholder="Paste resource links or additional references..."
+                  rows={3}
+                />
               </div>
             </div>
           </div>

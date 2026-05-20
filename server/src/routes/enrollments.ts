@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, enrollmentsTable, coursesTable, usersTable } from "@workspace/db";
+import { db, enrollmentsTable, coursesTable, usersTable, paymentsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import {
   ListEnrollmentsQueryParams,
@@ -69,6 +69,18 @@ router.patch("/enrollments/:id", async (req: any, res): Promise<void> => {
     .returning();
 
   if (!updated) { res.status(404).json({ error: "Enrollment not found" }); return; }
+
+  // If approved and set to active, automatically verify the pending fee payment record as well!
+  if (status === "active") {
+    await db.update(paymentsTable)
+      .set({ status: "verified", notes: "Payment verified automatically via enrollment approval" })
+      .where(and(
+        eq(paymentsTable.userId, updated.userId),
+        eq(paymentsTable.courseId, updated.courseId),
+        eq(paymentsTable.status, "pending")
+      ));
+  }
+
   res.json(updated);
 });
 

@@ -45,7 +45,7 @@ export default function AdminCourseReview() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionNote, setRejectionNote] = useState("");
 
-  const { data: course, isLoading: courseLoading } = useGetCourse({ id: courseId });
+  const { data: course, isLoading: courseLoading } = useGetCourse(courseId);
   const { data: sections = [], isLoading: sectionsLoading } = useListSections({ courseId });
   
   const approveMutation = useUpdateCourse({

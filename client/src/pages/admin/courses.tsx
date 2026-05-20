@@ -6,9 +6,10 @@ import {
   getListCoursesQueryKey,
   useCreateCourse,
   useListUsers,
-  getListUsersQueryKey
+  getListUsersQueryKey,
+  useDeleteCourse
 } from "@workspace/api-client-react";
-import { Loader2, Plus, MoreHorizontal, CheckCircle, XCircle, Eye, ExternalLink } from "lucide-react";
+import { Loader2, Plus, MoreHorizontal, CheckCircle, XCircle, Eye, ExternalLink, Video } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,6 +30,7 @@ export default function AdminCourses() {
   const { data: courses, isLoading } = useListCourses({}, { query: { queryKey: getListCoursesQueryKey({}) } });
   const updateCourse = useUpdateCourse();
   const createCourse = useCreateCourse();
+  const deleteCourseMutation = useDeleteCourse();
 
   // Fetch teachers for selection
   const { data: teachers } = useListUsers(
@@ -52,6 +54,7 @@ export default function AdminCourses() {
   const [thumbnail, setThumbnail] = useState("");
   const [syllabus, setSyllabus] = useState("");
   const [teacherId, setTeacherId] = useState<string>("");
+  const [minAttendancePercentage, setMinAttendancePercentage] = useState("75");
 
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,8 +74,9 @@ export default function AdminCourses() {
           isFeatured,
           thumbnail: thumbnail || undefined,
           syllabus: syllabus || undefined,
-          teacherId: teacherId ? Number(teacherId) : undefined
-        }
+          teacherId: teacherId ? Number(teacherId) : undefined,
+          minAttendancePercentage: Number(minAttendancePercentage)
+        } as any
       });
       toast({ title: "Course created & published successfully!" });
       queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({}) });
@@ -88,6 +92,7 @@ export default function AdminCourses() {
       setThumbnail("");
       setSyllabus("");
       setTeacherId("");
+      setMinAttendancePercentage("75");
     } catch (error: any) {
       toast({ title: error?.response?.data?.message || "Failed to create course", variant: "destructive" });
     }
@@ -106,6 +111,18 @@ export default function AdminCourses() {
       setRejectionNote("");
     } catch (error) {
       toast({ title: "Error updating status", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteCourse = async (id: number) => {
+    if (window.confirm("Are you sure you want to delete this course? This action cannot be undone and will delete all associated lessons and assignments.")) {
+      try {
+        await deleteCourseMutation.mutateAsync({ id });
+        toast({ title: "Course Deleted", description: "The course has been successfully removed." });
+        queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({}) });
+      } catch (error) {
+        toast({ title: "Failed to delete course", variant: "destructive" });
+      }
     }
   };
 
@@ -199,8 +216,22 @@ export default function AdminCourses() {
                             </DropdownMenuItem>
                           </Link>
                         )}
-                        <DropdownMenuItem>Edit Metadata</DropdownMenuItem>
-                        <DropdownMenuItem className="text-red-600">Delete Course</DropdownMenuItem>
+                        <Link href={`/admin/courses/${course.id}/edit`}>
+                          <DropdownMenuItem className="cursor-pointer">
+                            <MoreHorizontal className="h-4 w-4 mr-2 text-gray-500" /> Edit Metadata
+                          </DropdownMenuItem>
+                        </Link>
+                        <Link href={`/admin/courses/${course.id}/content`}>
+                          <DropdownMenuItem className="cursor-pointer">
+                            <Video className="h-4 w-4 mr-2 text-blue-600" /> Manage Lectures
+                          </DropdownMenuItem>
+                        </Link>
+                        <DropdownMenuItem 
+                          className="text-red-600 cursor-pointer"
+                          onClick={() => handleDeleteCourse(course.id)}
+                        >
+                          <XCircle className="h-4 w-4 mr-2 text-red-600" /> Delete Course
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -294,6 +325,21 @@ export default function AdminCourses() {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="minAttendancePercentage">Min Attendance %</Label>
+                <Input
+                  id="minAttendancePercentage"
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="e.g. 75"
+                  value={minAttendancePercentage}
+                  onChange={(e) => setMinAttendancePercentage(e.target.value)}
+                />
+              </div>
+            </div>
+
             <div className="flex gap-6 items-center pt-2">
               <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700">
                 <input
@@ -342,14 +388,17 @@ export default function AdminCourses() {
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="syllabus">Syllabus / Course Outline</Label>
+              <Label htmlFor="syllabus">Course Outline / Syllabus</Label>
               <Textarea
                 id="syllabus"
-                placeholder="Enter syllabus details or curriculum outline..."
+                placeholder="Enter detailed course outline, topics covered, learning objectives, etc..."
                 value={syllabus}
                 onChange={(e) => setSyllabus(e.target.value)}
-                rows={3}
+                rows={5}
               />
+              <p className="text-xs text-gray-500">
+                Provide a comprehensive overview of what will be taught in this course.
+              </p>
             </div>
 
             <DialogFooter className="pt-4 border-t">

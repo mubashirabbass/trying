@@ -131,6 +131,10 @@ router.post("/courses", authenticate, authorize("admin", "teacher"), async (req:
     status: req.user.role === "admin" ? "live" : "draft"
   };
 
+  if (req.body.minAttendancePercentage !== undefined) {
+    insertData.minAttendancePercentage = Number(req.body.minAttendancePercentage);
+  }
+
   if (req.user.role === "teacher") {
     insertData.teacherId = req.user.id;
   }
@@ -198,7 +202,29 @@ router.put("/courses/:id", authenticate, authorize("admin", "teacher"), async (r
     return;
   }
 
-  const [course] = await db.update(coursesTable).set(parsed.data).where(eq(coursesTable.id, id)).returning();
+  const updateData: any = { ...parsed.data };
+  if (req.body.status) {
+    if (req.user.role === "admin") {
+      updateData.status = req.body.status;
+    } else {
+      if (req.body.status === "draft" || req.body.status === "pending") {
+        updateData.status = req.body.status;
+      }
+    }
+  }
+  if (req.body.rejectionNote !== undefined) {
+    updateData.rejectionNote = req.body.rejectionNote;
+  }
+
+  if (updateData.teacherId === 0) {
+    updateData.teacherId = null;
+  }
+
+  if (req.body.minAttendancePercentage !== undefined) {
+    updateData.minAttendancePercentage = Number(req.body.minAttendancePercentage);
+  }
+
+  const [course] = await db.update(coursesTable).set(updateData).where(eq(coursesTable.id, id)).returning();
   res.json({ ...course, enrollmentCount: 0, lessonCount: 0, teacherName: null });
 });
 

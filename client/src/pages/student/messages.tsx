@@ -11,9 +11,14 @@ import {
   Search,
   MessageCircle,
   MoreVertical,
-  BookOpen
+  BookOpen,
+  Plus
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useListCourses } from "@workspace/api-client-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -39,6 +44,7 @@ interface Message {
 export default function StudentMessages() {
   const { user, token } = useAuth();
   const { toast } = useToast();
+  const { data: courses } = useListCourses({ status: "live" });
   const [threads, setThreads] = useState<Thread[]>([]);
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -46,6 +52,9 @@ export default function StudentMessages() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isNewChatOpen, setIsNewChatOpen] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [creatingThread, setCreatingThread] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
@@ -76,6 +85,52 @@ export default function StudentMessages() {
     setSending(false);
   };
 
+  const handleCourseSelect = (val: string) => {
+    setSelectedCourseId(val);
+  };
+
+  const handleCreateThread = async () => {
+    if (!selectedCourseId || !courses) return;
+    const course = courses.find((c: any) => c.id.toString() === selectedCourseId);
+    if (!course || !course.teacherId) return;
+
+    setCreatingThread(true);
+    try {
+      const r = await fetch(`${BASE}/api/messages/threads`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          studentId: user?.id,
+          teacherId: course.teacherId,
+          courseId: course.id
+        })
+      });
+      if (r.ok) {
+        const newThread = await r.json();
+        const formattedThread = {
+          ...newThread,
+          teacherName: course.teacherName,
+          courseName: course.title,
+          lastMessageAt: new Date().toISOString()
+        };
+        setThreads(prev => {
+          if (prev.some(t => t.id === formattedThread.id)) return prev;
+          return [formattedThread, ...prev];
+        });
+        setSelectedThread(formattedThread);
+        setIsNewChatOpen(false);
+        setSelectedCourseId("");
+        toast({ title: "Conversation started", description: `You can now chat with ${course.teacherName}.` });
+      } else {
+        toast({ title: "Failed to start conversation", variant: "destructive" });
+      }
+    } catch (e) {
+      toast({ title: "Error starting chat", variant: "destructive" });
+    } finally {
+      setCreatingThread(false);
+    }
+  };
+
   const filteredThreads = threads.filter(t => 
     t.teacherName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.courseName?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -96,7 +151,17 @@ export default function StudentMessages() {
         <div className="flex flex-1 gap-6 min-h-0">
           {/* Thread list */}
           <div className="w-96 shrink-0 bg-white rounded-[32px] border-2 border-slate-100 flex flex-col overflow-hidden shadow-sm">
-            <div className="p-6 border-b border-slate-50">
+            <div className="p-6 border-b border-slate-50 flex flex-col gap-4">
+              <div className="flex justify-between items-center">
+                <p className="font-black text-slate-800 text-xs tracking-widest uppercase">Chats</p>
+                <Button 
+                  size="sm" 
+                  className="rounded-xl font-bold bg-primary text-white text-xs gap-1"
+                  onClick={() => setIsNewChatOpen(true)}
+                >
+                  <Plus className="h-3.5 w-3.5" /> New Message
+                </Button>
+              </div>
               <div className="relative">
                 <Search className="absolute left-4 top-3.5 h-4 w-4 text-slate-400" />
                 <Input 
@@ -250,6 +315,65 @@ export default function StudentMessages() {
           </div>
         </div>
       </div>
+
+      {/* New Message Dialog */}
+      <Dialog open={isNewChatOpen} onOpenChange={setIsNewChatOpen}>
+        <DialogContent className="sm:max-w-[450px] rounded-[32px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-slate-900">Message Instructor</DialogTitle>
+            <DialogDescription className="text-slate-500 font-medium">
+              Start a private conversation with a course instructor.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-6">
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold text-slate-700">Select Course / Instructor</Label>
+              <Select value={selectedCourseId} onValueChange={handleCourseSelect}>
+                <SelectTrigger className="w-full h-12 border-slate-200 rounded-2xl">
+                  <SelectValue placeholder="Choose a course..." />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl">
+                  {courses
+                    ?.filter((c: any) => c.teacherId && c.teacherName)
+                    .map((course: any) => (
+                      <SelectItem key={course.id} value={course.id.toString()}>
+                        {course.title} (by {course.teacherName})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedCourseId && (
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-sm">
+                  {courses?.find((c: any) => c.id.toString() === selectedCourseId)?.teacherName?.charAt(0) ?? "T"}
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Assigned Teacher</p>
+                  <p className="font-bold text-slate-800 text-sm">
+                    {courses?.find((c: any) => c.id.toString() === selectedCourseId)?.teacherName}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 flex gap-3">
+            <Button variant="ghost" onClick={() => setIsNewChatOpen(false)} className="flex-1 font-bold text-slate-600 rounded-xl">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateThread} 
+              disabled={!selectedCourseId || creatingThread} 
+              className="flex-1 bg-primary text-white font-bold h-12 rounded-xl shadow-lg shadow-primary/20"
+            >
+              {creatingThread ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "Start Chat"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

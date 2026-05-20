@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, certificatesTable, coursesTable, usersTable } from "@workspace/db";
+import { db, certificatesTable, coursesTable, usersTable, attendanceTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 import { ListCertificatesQueryParams, VerifyCertificateQueryParams } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
@@ -245,6 +245,31 @@ router.post("/admin/certificates/issue", authenticate, async (req: AuthRequest, 
   if (req.user?.role !== "admin") { res.status(403).json({ error: "Forbidden" }); return; }
   const { userId, courseId } = req.body;
   if (!userId || !courseId) { res.status(400).json({ error: "User ID and Course ID are required" }); return; }
+
+  // Check attendance logic
+  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId));
+  if (!course) { res.status(404).json({ error: "Course not found" }); return; }
+
+  const attendanceRecords = await db.select().from(attendanceTable)
+    .where(and(eq(attendanceTable.userId, userId), eq(attendanceTable.courseId, courseId)));
+  
+  if (attendanceRecords.length > 0) {
+    const totalClasses = attendanceRecords.length;
+    const presentClasses = attendanceRecords.filter(r => r.status === "present" || r.status === "late").length;
+    const attendancePercentage = (presentClasses / totalClasses) * 100;
+    
+    if (attendancePercentage < course.minAttendancePercentage) {
+      res.status(400).json({ 
+        error: `Cannot issue certificate. Student attendance is ${Math.round(attendancePercentage)}%, which is below the minimum requirement of ${course.minAttendancePercentage}%.` 
+      });
+      return;
+    }
+  } else if (course.minAttendancePercentage > 0) {
+      res.status(400).json({ 
+        error: `Cannot issue certificate. No attendance records found, but ${course.minAttendancePercentage}% is required.` 
+      });
+      return;
+  }
 
   const certNumber = `GC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
   

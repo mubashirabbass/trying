@@ -1,13 +1,28 @@
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { MapPin, Phone, Mail, Clock } from "lucide-react";
+import { MapPin, Phone, Mail, Clock, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
 export default function Contact() {
   const { toast } = useToast();
+  const [branches, setBranches] = useState<any[]>([]);
+  const [loadingBranches, setLoadingBranches] = useState(true);
+
+  useEffect(() => {
+    fetch(`${BASE_URL}/api/branches`)
+      .then(res => res.json())
+      .then(data => {
+        setBranches(data);
+        setLoadingBranches(false);
+      })
+      .catch(() => setLoadingBranches(false));
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,6 +151,41 @@ export default function Contact() {
             </form>
           </div>
 
+        </div>
+      </div>
+
+      {/* Sub Campuses Section */}
+      <div className="bg-slate-50 border-t border-slate-100 py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl font-black mb-4">We Are Also Available Here</h2>
+          <p className="text-gray-500 max-w-2xl mx-auto mb-12">
+            Visit any of our physical sub-campuses and physical incubators across Pakistan for in-person support, registration, and training.
+          </p>
+          
+          {loadingBranches ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : branches.length === 0 ? (
+            <div className="text-gray-400">No sub-campuses available at the moment.</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
+              {branches.map(branch => (
+                <div key={branch.id} className="bg-white p-6 rounded-2xl border-2 border-slate-100 hover:border-emerald-500 hover:shadow-lg transition-all flex items-start gap-4 group">
+                  <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                    <MapPin className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 text-lg mb-1">{branch.name}</h3>
+                    <p className="text-sm text-gray-500 leading-relaxed">{branch.address}, {branch.city}</p>
+                    <div className="flex items-center gap-2 mt-3 text-sm font-semibold text-emerald-600">
+                      <Phone className="h-4 w-4" /> {branch.phone}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>

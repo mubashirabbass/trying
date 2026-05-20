@@ -34,6 +34,7 @@ import {
   Compass,
   Sun,
   Moon,
+  CalendarRange
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -160,6 +161,7 @@ const ADMIN_NAV_GROUPS = [
       { name: "Success Stories", path: "/admin/success-stories", icon: Award },
       { name: "Home CMS", path: "/admin/home-cms", icon: LayoutDashboard },
       { name: "Testimonials", path: "/admin/testimonials", icon: Star },
+      { name: "Attendance", path: "/admin/attendance", icon: CalendarRange },
     ],
   },
   {
@@ -214,6 +216,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           { name: "Overview", path: "/dashboard", icon: LayoutDashboard },
           { name: "Browse Courses", path: "/dashboard/browse", icon: Compass },
           { name: "My Courses", path: "/dashboard/courses", icon: BookOpen },
+          { name: "Attendance", path: "/dashboard/attendance", icon: CalendarRange },
           { name: "Progress", path: "/dashboard/progress", icon: BarChart3 },
           { name: "Assignments", path: "/dashboard/assignments", icon: FileText },
           { name: "Quizzes", path: "/dashboard/quizzes", icon: CheckSquare },
@@ -228,6 +231,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         return [
           { name: "Overview", path: "/teacher", icon: LayoutDashboard },
           { name: "My Courses", path: "/teacher/courses", icon: BookOpen },
+          { name: "Attendance", path: "/teacher/attendance", icon: CalendarRange },
           { name: "Students", path: "/teacher/students", icon: Users },
           { name: "Assignments", path: "/teacher/assignments", icon: FileText },
           { name: "Quizzes", path: "/teacher/quizzes", icon: CheckSquare },

@@ -16,7 +16,8 @@ import {
   Clock,
   Layers,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Video
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -77,9 +78,13 @@ export default function AdminCourseEdit() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const submitData = {
+        ...formData,
+        teacherId: formData.teacherId === 0 ? null : formData.teacherId
+      };
       await updateMutation.mutateAsync({
         id: courseId,
-        data: formData as any
+        data: submitData as any
       });
       toast({ title: "Course Updated", description: "All changes have been saved successfully." });
       queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({}) });
@@ -122,6 +127,12 @@ export default function AdminCourseEdit() {
              }`}>
                Current Status: {formData.status}
              </Badge>
+             <Link href={`/admin/courses/${courseId}/content`}>
+               <Button variant="outline" className="font-bold">
+                 <Video className="h-4 w-4 mr-2" />
+                 Manage Lectures
+               </Button>
+             </Link>
           </div>
         </div>
       </div>
@@ -229,6 +240,30 @@ export default function AdminCourseEdit() {
                     />
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Syllabus / Course Outline */}
+          <Card className="border-none shadow-sm ring-1 ring-gray-100 rounded-[24px]">
+            <CardHeader>
+              <CardTitle className="text-lg font-black flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-primary" /> Course Outline & Syllabus
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="syllabus" className="font-bold">Detailed Syllabus</Label>
+                <Textarea 
+                  id="syllabus" 
+                  value={formData.syllabus} 
+                  onChange={e => setFormData(prev => ({ ...prev, syllabus: e.target.value }))}
+                  className="rounded-xl bg-slate-50 border-gray-100 focus:bg-white min-h-[200px] font-medium"
+                  placeholder="Enter comprehensive course outline, topics, learning objectives, prerequisites, etc..."
+                />
+                <p className="text-xs text-gray-500">
+                  This will be displayed on the course detail page for students.
+                </p>
               </div>
             </CardContent>
           </Card>

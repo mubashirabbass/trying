@@ -192,5 +192,4 @@ router.post("/auth/change-password", catchAsync(async (req: Request, res: Respon
   logger.info(`[Change Password] Password updated for user ${user.email}`);
   res.json({ message: "Password changed successfully" });
 }));
-
 export default router;

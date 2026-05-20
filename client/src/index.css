@@ -242,3 +242,36 @@
 .animate-blinking-pulse {
   animation: blinking-pulse 2s infinite;
 }
+
+@keyframes gradient-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-text-flow {
+  background: linear-gradient(135deg, #0f2c6f, #0ca678, #3b82f6, #0f2c6f);
+  background-size: 300% 300%;
+  animation: gradient-flow 6s ease infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@keyframes logo-pulse-glow {
+  0% { transform: scale(1) translateY(0px); box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2); }
+  50% { transform: scale(1.06) translateY(-2px); box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4); }
+  100% { transform: scale(1) translateY(0px); box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2); }
+}
+
+.animate-logo-pulse {
+  animation: logo-pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes rotate-circle {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-logo-circle {
+  animation: rotate-circle 12s linear infinite;
+}

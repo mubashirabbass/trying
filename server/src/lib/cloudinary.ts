@@ -20,15 +20,20 @@ export const uploadToCloudinary = async (
   resourceType: "image" | "raw" | "auto" = "auto"
 ): Promise<any> => {
   return new Promise((resolve, reject) => {
+    const options: any = {
+      folder: `edu-sphere/${folder}`,
+      resource_type: resourceType,
+    };
+
+    if (resourceType === "image") {
+      options.transformation = [
+        { width: 800, crop: "limit" },
+        { quality: "auto", fetch_format: "auto" }
+      ];
+    }
+
     const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder: `edu-sphere/${folder}`,
-        resource_type: resourceType,
-        transformation: [
-          { width: 800, crop: "limit" },
-          { quality: "auto", fetch_format: "auto" }
-        ]
-      },
+      options,
       (error: any, result: any) => {
         if (error) {
           logger.error("Cloudinary upload error:", error);

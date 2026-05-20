@@ -2,19 +2,67 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/AuthContext";
 import { Menu, X, BookOpen, Phone, Mail, Facebook, Instagram, Youtube, Linkedin, MessageSquare, MessageCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [location] = useLocation();
   const { user, logout } = useAuth();
 
+  // Typing Effect State for Logo Text on Home Page
+  const [typedTitle, setTypedTitle] = useState("");
+  const [typedSubtitle, setTypedSubtitle] = useState("");
+
+  useEffect(() => {
+    if (location !== "/") {
+      setTypedTitle("Global College");
+      setTypedSubtitle("Learning Management System");
+      return;
+    }
+
+    setTypedTitle("");
+    setTypedSubtitle("");
+
+    const titleText = "Global College";
+    const subtitleText = "Learning Management System";
+    
+    let titleIdx = 0;
+    let subtitleIdx = 0;
+    let titleTimer: NodeJS.Timeout;
+    let subtitleTimer: NodeJS.Timeout;
+
+    const typeTitle = () => {
+      if (titleIdx < titleText.length) {
+        setTypedTitle(titleText.slice(0, titleIdx + 1));
+        titleIdx++;
+        titleTimer = setTimeout(typeTitle, 100);
+      } else {
+        typeSubtitle();
+      }
+    };
+
+    const typeSubtitle = () => {
+      if (subtitleIdx < subtitleText.length) {
+        setTypedSubtitle(subtitleText.slice(0, subtitleIdx + 1));
+        subtitleIdx++;
+        subtitleTimer = setTimeout(typeSubtitle, 50);
+      }
+    };
+
+    titleTimer = setTimeout(typeTitle, 400);
+
+    return () => {
+      clearTimeout(titleTimer);
+      clearTimeout(subtitleTimer);
+    };
+  }, [location]);
+
   const navLinks = [
     { name: "Home", path: "/" },
+    { name: "Courses", path: "/courses" },
     { name: "Trainings", path: "/trainings" },
     { name: "Success Stories", path: "/success-stories" },
     { name: "Contact", path: "/contact" },
-    { name: "Resources", path: "/resources" },
     { name: "Incubators", path: "/incubators" },
     { name: "About", path: "/about" },
     { name: "Services", path: "/services" },
@@ -59,12 +107,22 @@ export function Navbar() {
 
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 shrink-0">
-              <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center shadow-sm shrink-0">
-                <BookOpen className="h-[18px] w-[18px] text-white" />
+              <div className={`h-9 w-9 rounded-lg bg-primary flex items-center justify-center shadow-sm shrink-0 ${location === "/" ? "animate-logo-pulse" : ""}`}>
+                <BookOpen className={`h-[18px] w-[18px] text-white ${location === "/" ? "animate-logo-circle" : ""}`} />
               </div>
-              <div className="hidden sm:block">
-                <span className="font-extrabold text-[16px] text-gray-900 leading-none block">Global College</span>
-                <span className="text-[9px] font-medium text-gray-400 leading-none block mt-0.5">Learning Management System</span>
+              <div className="hidden sm:block w-[180px] shrink-0">
+                <span className={`font-extrabold text-[16px] leading-none block ${location === "/" ? "animate-text-flow" : "text-gray-900"}`}>
+                  {typedTitle}
+                  {location === "/" && typedTitle.length < "Global College".length && (
+                    <span className="animate-pulse ml-0.5 font-normal text-gray-400">|</span>
+                  )}
+                </span>
+                <span className="text-[9px] font-medium text-gray-400 leading-none block mt-0.5">
+                  {typedSubtitle}
+                  {location === "/" && typedTitle.length === "Global College".length && typedSubtitle.length < "Learning Management System".length && (
+                    <span className="animate-pulse ml-0.5 text-gray-400">|</span>
+                  )}
+                </span>
               </div>
             </Link>
 

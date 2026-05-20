@@ -15,6 +15,8 @@ import { AuthRequest, authorize } from "../middleware/auth";
 import { encrypt, decrypt } from "../lib/crypto";
 import jwt from "jsonwebtoken";
 import { enrollmentsTable } from "@workspace/db";
+import { upload } from "../middleware/upload";
+import { uploadToCloudinary } from "../lib/cloudinary";
 
 const router: IRouter = Router();
 
@@ -65,6 +67,22 @@ router.post("/lessons", authorize("admin", "teacher"), async (req: AuthRequest, 
     data.encryptedYoutubeId = encrypt(data.videoUrl);
   }
 
+  // Extract custom fields bypassed in schema
+  if (req.body.completionThreshold !== undefined) {
+    data.completionThreshold = req.body.completionThreshold === "" || req.body.completionThreshold === null 
+      ? 80 
+      : Number(req.body.completionThreshold);
+  }
+  if (req.body.sectionId !== undefined) {
+    data.sectionId = req.body.sectionId === null || req.body.sectionId === "" ? null : Number(req.body.sectionId);
+  }
+  if (req.body.notes !== undefined) {
+    data.notes = req.body.notes || null;
+  }
+  if (req.body.resources !== undefined) {
+    data.resources = req.body.resources || null;
+  }
+
   const [lesson] = await db.insert(lessonsTable).values(data).returning();
   res.status(201).json({ ...lesson, isCompleted: false });
 });
@@ -100,6 +118,22 @@ router.put("/lessons/:id", authorize("admin", "teacher"), async (req: AuthReques
   const data: any = { ...parsed.data };
   if (data.videoUrl && (data.videoUrl.includes("youtube.com") || data.videoUrl.includes("youtu.be"))) {
     data.encryptedYoutubeId = encrypt(data.videoUrl);
+  }
+
+  // Extract custom fields bypassed in schema
+  if (req.body.completionThreshold !== undefined) {
+    data.completionThreshold = req.body.completionThreshold === "" || req.body.completionThreshold === null 
+      ? 80 
+      : Number(req.body.completionThreshold);
+  }
+  if (req.body.sectionId !== undefined) {
+    data.sectionId = req.body.sectionId === null || req.body.sectionId === "" ? null : Number(req.body.sectionId);
+  }
+  if (req.body.notes !== undefined) {
+    data.notes = req.body.notes || null;
+  }
+  if (req.body.resources !== undefined) {
+    data.resources = req.body.resources || null;
   }
 
   const [lesson] = await db.update(lessonsTable).set(data).where(eq(lessonsTable.id, id)).returning();
@@ -252,5 +286,33 @@ router.get("/lessons/:id/embed", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Invalid or expired token" });
   }
 });
+
+router.post(
+  "/lessons/upload-pdf",
+  authorize("admin", "teacher"),
+  upload.single("pdf"),
+  async (req: any, res): Promise<void> => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "PDF file is required" });
+        return;
+      }
+
+      if (req.file.mimetype !== "application/pdf") {
+        res.status(400).json({ error: "Only PDF files are allowed" });
+        return;
+      }
+
+      const result = await uploadToCloudinary(req.file.buffer, "lesson-pdfs", "raw");
+      res.status(201).json({
+        url: result.secure_url,
+        publicId: result.public_id,
+      });
+    } catch (error: any) {
+      console.error("PDF upload error:", error);
+      res.status(500).json({ error: error.message || "Failed to upload PDF" });
+    }
+  }
+);
 
 export default router;

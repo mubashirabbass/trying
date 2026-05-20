@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
-import { db, successStoryCategoriesTable, pool } from "@workspace/db";
+import { db, successStoryCategoriesTable, pool, usersTable } from "@workspace/db";
 import { CreateSuccessStoryCategoryBody } from "@workspace/api-zod";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { authenticate, authorize } from "../middleware/auth";
 
 const router: IRouter = Router();
@@ -10,6 +10,27 @@ const router: IRouter = Router();
 router.get("/success-story-categories", async (req, res) => {
   const categories = await db.select().from(successStoryCategoriesTable);
   res.json(categories);
+});
+
+router.get("/teachers/public", async (req, res) => {
+  try {
+    const teachers = await db.select({
+      id: usersTable.id,
+      name: usersTable.name,
+      avatar: usersTable.avatar,
+      designation: usersTable.designation,
+      experience: usersTable.experience,
+      specialization: usersTable.specialization,
+      qualification: usersTable.qualification,
+      email: usersTable.email
+    })
+    .from(usersTable)
+    .where(and(eq(usersTable.role, "teacher"), eq(usersTable.isActive, true)));
+
+    res.json(teachers);
+  } catch (err) {
+    res.status(500).json({ error: "Database error" });
+  }
 });
 
 router.post("/success-story-categories", authenticate, authorize("admin"), async (req, res) => {
@@ -82,6 +103,7 @@ import reportsRouter from "./reports";
 import faqsRouter from "./faqs";
 import articlesRouter from "./articles";
 import usersRouter from "./users";
+import attendanceRouter from "./attendance";
 
 router.use(healthRouter);
 router.use(authRouter);
@@ -92,6 +114,8 @@ router.use(branchesRouter);
 router.use(faqsRouter);
 router.use(articlesRouter);
 router.use(certificatesRouter);
+router.use(usersRouter);
+router.use(attendanceRouter);
 
 router.use(authenticate);
 router.use(lessonsRouter);
@@ -108,6 +132,5 @@ router.use(settingsRouter);
 router.use(leaderboardRouter);
 router.use(sectionsRouter);
 router.use(reportsRouter);
-router.use(usersRouter);
 
 export default router;

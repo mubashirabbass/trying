@@ -334,6 +334,23 @@ export default function Home() {
     }
   };
 
+  const coursesScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollCourses = (direction: "left" | "right") => {
+    if (coursesScrollRef.current) {
+      const { scrollLeft, clientWidth } = coursesScrollRef.current;
+      const scrollAmount = clientWidth > 600 ? 400 : 300;
+      const scrollTo = direction === "left" 
+        ? scrollLeft - scrollAmount 
+        : scrollLeft + scrollAmount;
+      
+      coursesScrollRef.current.scrollTo({
+        left: scrollTo,
+        behavior: "smooth"
+      });
+    }
+  };
+
   const displayCourses = (courses && courses.length > 0) ? courses : [
     {
       id: 1,
@@ -522,7 +539,7 @@ export default function Home() {
       </section>
 
       {/* ── Popular Courses ───────────────────────────────────────────────── */}
-      <section className="pt-12 pb-20 bg-gray-50 relative group">
+      <section className="pt-10 pb-12 bg-gray-50 relative overflow-hidden">
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-5xl font-black text-gray-900 mb-6">
@@ -533,23 +550,53 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {displayCourses.slice(0, 3).map((course: any) => {
+          <div className="relative group/courses max-w-7xl mx-auto">
+            {/* Scroll Buttons - Always Visible */}
+            <div className="absolute top-1/2 left-2 -translate-y-1/2 z-20">
+              <Button
+                onClick={() => scrollCourses("left")}
+                variant="outline"
+                size="icon"
+                className="h-14 w-14 rounded-full bg-white shadow-2xl border-gray-100 text-gray-400 hover:bg-primary hover:text-white transition-all active:scale-95 flex items-center justify-center border border-gray-200"
+              >
+                <ChevronLeft className="h-8 w-8" />
+              </Button>
+            </div>
+
+            <div className="absolute top-1/2 right-2 -translate-y-1/2 z-20">
+              <Button
+                onClick={() => scrollCourses("right")}
+                variant="outline"
+                size="icon"
+                className="h-14 w-14 rounded-full bg-white shadow-2xl border-gray-100 text-gray-400 hover:bg-primary hover:text-white transition-all active:scale-95 flex items-center justify-center border border-gray-200"
+              >
+                <ChevronRight className="h-8 w-8" />
+              </Button>
+            </div>
+
+            <div 
+              ref={coursesScrollRef}
+              className="flex gap-8 overflow-x-auto scroll-smooth snap-x snap-mandatory hide-scrollbar pb-8 pt-4 px-12"
+            >
+              {displayCourses.map((course: any) => {
                 const gradient =
                   CATEGORY_COLORS[course.category] || CATEGORY_COLORS.Default;
                 return (
-                  <div key={course.id} className="group">
+                  <div key={course.id} className="min-w-[280px] sm:min-w-[320px] md:min-w-[380px] snap-center">
                     <Card
-                      className="overflow-hidden h-full rounded-[2.5rem] border border-gray-100 bg-white shadow-sm hover:shadow-2xl hover:shadow-blue-900/10 transition-all duration-500 hover:-translate-y-2 group/card"
+                      className="overflow-hidden h-[580px] flex flex-col rounded-3xl border border-gray-100 bg-white shadow-sm hover:shadow-2xl hover:shadow-blue-900/10 transition-all duration-500 hover:-translate-y-2 group/card"
                     >
                       <div
-                        className={`h-56 bg-gradient-to-br ${gradient} relative flex items-center justify-center overflow-hidden`}
+                        className={`h-56 bg-gradient-to-br ${gradient} relative flex items-center justify-center overflow-hidden shrink-0`}
                       >
                         {/* Animated Background Element */}
                         <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/card:opacity-100 transition-opacity duration-500" />
                         
-                        <BookOpen className="h-20 w-20 text-white/30 group-hover/card:scale-110 transition-transform duration-500" />
+                        {course.thumbnail ? (
+                          <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover transition-transform duration-500 group-hover/card:scale-110" />
+                        ) : (
+                          <BookOpen className="h-20 w-20 text-white/30 group-hover/card:scale-110 transition-transform duration-500" />
+                        )}
                         
                         <div className="absolute top-6 left-6 flex flex-col gap-2">
                           <Badge className="bg-white/20 backdrop-blur-md text-white border-white/30 text-[10px] font-black uppercase tracking-widest px-3 py-1">
@@ -563,39 +610,43 @@ export default function Home() {
                         </div>
                       </div>
 
-                      <CardContent className="p-8">
-                        <h3 className="text-2xl font-black text-gray-900 mb-4 group-hover/card:text-blue-600 transition-colors line-clamp-2">
-                          {course.title}
-                        </h3>
-                        <p className="text-gray-500 font-medium line-clamp-2 mb-8 text-sm leading-relaxed">
-                          {course.description}
-                        </p>
-                        
-                        <div className="flex items-center justify-between pt-6 border-t border-gray-50">
-                          <div className="flex items-center gap-2 text-gray-400">
-                            <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center">
-                              <Clock className="h-4 w-4 text-blue-500" />
-                            </div>
-                            <span className="text-sm font-bold">{course.duration}</span>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-0.5">Investment</p>
-                            <p className="font-black text-xl text-gray-900">
-                              {course.isFree ? (
-                                <span className="text-emerald-600">Free</span>
-                              ) : (
-                                `Rs. ${course.fee?.toLocaleString()}`
-                              )}
-                            </p>
-                          </div>
+                      <CardContent className="p-8 flex-1 flex flex-col justify-between">
+                        <div>
+                          <h3 className="text-xl md:text-2xl font-black text-gray-900 mb-4 group-hover/card:text-blue-600 transition-colors line-clamp-2 h-[64px] overflow-hidden">
+                            {course.title}
+                          </h3>
+                          <p className="text-gray-500 font-medium line-clamp-2 mb-4 text-sm leading-relaxed h-[40px] overflow-hidden">
+                            {course.description}
+                          </p>
                         </div>
+                        
+                        <div>
+                          <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                            <div className="flex items-center gap-2 text-gray-400">
+                              <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center">
+                                <Clock className="h-4 w-4 text-blue-500" />
+                              </div>
+                              <span className="text-sm font-bold">{course.duration || "3 Months"}</span>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-0.5">Investment</p>
+                              <p className="font-black text-xl text-gray-900">
+                                {course.isFree ? (
+                                  <span className="text-emerald-600">Free</span>
+                                ) : (
+                                  `Rs. ${(course.fee || 0).toLocaleString()}`
+                                )}
+                              </p>
+                            </div>
+                          </div>
 
-                        <Link href={`/courses/${course.id}`}>
-                          <Button className="w-full mt-8 bg-slate-900 hover:bg-primary text-white h-14 text-base font-black rounded-2xl shadow-xl shadow-slate-200 transition-all group/btn border-0">
-                            View Details
-                            <ChevronRight className="ml-2 h-5 w-5 group-hover/btn:translate-x-1 transition-transform" />
-                          </Button>
-                        </Link>
+                          <Link href={`/courses/${course.id}`}>
+                            <Button className="w-full mt-4 bg-slate-900 hover:bg-primary text-white h-12 text-sm font-black rounded-2xl shadow-xl shadow-slate-200 transition-all group/btn border-0">
+                              View Details
+                              <ChevronRight className="ml-2 h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
+                            </Button>
+                          </Link>
+                        </div>
                       </CardContent>
                     </Card>
                   </div>
@@ -603,7 +654,7 @@ export default function Home() {
               })}
             </div>
           </div>
-          <div className="text-center mt-16">
+          <div className="text-center mt-8">
             <Link href="/courses">
               <Button
                 size="lg"
@@ -617,7 +668,7 @@ export default function Home() {
       </section>
 
       {/* ── Why Choose Us (Career Ecosystem Redesign) ───────────────────── */}
-      <section className="py-24 bg-white relative overflow-hidden">
+      <section className="py-16 bg-white relative overflow-hidden">
         {/* Background Accents */}
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-50 rounded-full blur-3xl -z-10" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-emerald-50 rounded-full blur-3xl -z-10" />
@@ -670,7 +721,7 @@ export default function Home() {
 
 
       {/* ── Physical Incubator Network ────────────────────────────────────── */}
-      <section className="py-24 bg-white relative overflow-hidden">
+      <section className="py-16 bg-white relative overflow-hidden">
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-[#1a47b8] mb-4">
@@ -791,7 +842,7 @@ export default function Home() {
       {/* ────────────────────────────────────────────────────────────────── */}
 
       {/* ── Edu-Sphere Achievers (Success Stories Carousel) ───────────────── */}
-      <section className="py-24 bg-slate-50 relative overflow-hidden">
+      <section className="py-16 bg-slate-50 relative overflow-hidden">
         <div className="absolute top-1/4 right-0 w-64 h-64 bg-blue-100/40 rounded-full blur-3xl -z-10" />
         <div className="absolute bottom-1/4 left-0 w-96 h-96 bg-emerald-100/40 rounded-full blur-3xl -z-10" />
 
@@ -995,7 +1046,7 @@ export default function Home() {
       </section>
 
       {/* ── Recent Articles (Blog Section) ─────────────────────────────────── */}
-      <section className="py-24 bg-white">
+      <section className="py-16 bg-white">
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="flex items-center justify-between mb-12">
             <h2 className="text-3xl md:text-4xl font-black text-gray-900">
@@ -1123,7 +1174,7 @@ export default function Home() {
       </section>
 
       {/* ── FAQ Section ──────────────────────────────────────────────────── */}
-      <section className="py-24 bg-gray-50/50">
+      <section className="py-16 bg-gray-50/50">
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
@@ -1195,7 +1246,7 @@ export default function Home() {
       </section>
 
       {/* ── Map Section ──────────────────────────────────────────────────── */}
-      <section className="py-24 bg-white">
+      <section className="py-16 bg-white">
         <div className="w-full px-4 md:px-10 lg:px-16">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             {/* Map Info */}
@@ -1275,7 +1326,7 @@ export default function Home() {
       </section>
 
       {/* ── Other Campuses Carousel ────────────────────────────────────────── */}
-      <section className="py-20 bg-slate-50 border-y border-gray-100 overflow-hidden">
+      <section className="py-14 bg-slate-50 border-y border-gray-100 overflow-hidden">
         <div className="w-full px-4 md:px-10 lg:px-16 mb-12">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
@@ -1389,7 +1440,7 @@ export default function Home() {
       </section>
 
       {/* ── CTA ──────────────────────────────────────────────────────────── */}
-      <section className="py-20 bg-gradient-to-r from-[#0f2c6f] to-[#1a47b8] text-white">
+      <section className="py-14 bg-gradient-to-r from-[#0f2c6f] to-[#1a47b8] text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-extrabold mb-4">
             Ready to Start Your Journey?

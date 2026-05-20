@@ -103,6 +103,22 @@ async function seed() {
     },
   ];
 
+  console.log("🏫 Seeding courses...");
+  for (const c of courses) {
+    await db.insert(coursesTable).values({
+      title: c.title,
+      slug: c.slug,
+      description: c.description,
+      category: c.category,
+      duration: c.duration,
+      fee: c.fee,
+      isFeatured: c.isFeatured,
+      isFree: c.fee === 0,
+      status: "live", // Seeded courses should be 'live' for exploration
+      teacherId: c.teacherId,
+    }).onConflictDoNothing();
+  }
+
   console.log("🏫 Seeding branches...");
   const [mainBranch] = await db.insert(branchesTable).values({
     name: "Global College of Computer Science, 18 Hazari",

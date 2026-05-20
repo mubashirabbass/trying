@@ -19,6 +19,7 @@ export const coursesTable = pgTable("courses", {
   rejectionNote: text("rejection_note"),
   isFeatured: boolean("is_featured").notNull().default(false),
   isFree: boolean("is_free").notNull().default(false),
+  minAttendancePercentage: real("min_attendance_percentage").notNull().default(75),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 }, (table) => {

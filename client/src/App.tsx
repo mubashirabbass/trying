@@ -26,11 +26,12 @@ import Feedback from "@/pages/feedback";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
 import PrivacyPolicy from "@/pages/privacy.tsx";
+import StudentAttendance from "@/pages/student/attendance";
 
 // Student Pages
 import StudentDashboard from "@/pages/student/dashboard";
-import StudentCourses from "@/pages/student/courses";
-import LessonPlayer from "@/pages/student/lesson-player";
+import StudentCourses from "@/pages/student/courses-pro";
+import LessonPlayer from "@/pages/student/lesson-player-pro";
 import StudentAssignments from "@/pages/student/assignments";
 import StudentQuizzes from "@/pages/student/quizzes";
 import StudentCertificates from "@/pages/student/certificates";
@@ -57,6 +58,9 @@ import TeacherProfile from "@/pages/teacher/profile";
 import TeacherStudents from "@/pages/teacher/students";
 import Branches from "@/pages/branches";
 
+// Shared Pages
+import AttendanceManager from "@/pages/shared/attendance-manager";
+
 // Admin Pages
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsers from "@/pages/admin/users";
@@ -76,6 +80,7 @@ import AdminStudentDetail from "@/pages/admin/student-detail";
 import AdminTeacherDetail from "@/pages/admin/teacher-detail";
 import AdminCourseReview from "@/pages/admin/course-review";
 import AdminCourseEdit from "@/pages/admin/course-edit";
+import AdminCourseContent from "@/pages/admin/course-content";
 import AdminForum from "@/pages/admin/forum";
 import AdminMessages from "@/pages/admin/messages";
 import AdminLeaderboard from "@/pages/admin/leaderboard";
@@ -177,6 +182,9 @@ function Router() {
         <Route path="/dashboard/browse">
           <ProtectedRoute component={StudentBrowse} />
         </Route>
+        <Route path="/dashboard/attendance">
+          <ProtectedRoute component={StudentAttendance} />
+        </Route>
 
         {/* Teacher Protected Routes */}
         <Route path="/teacher">
@@ -209,6 +217,9 @@ function Router() {
         <Route path="/teacher/forum">
           <ProtectedRoute component={StudentForum} />
         </Route>
+        <Route path="/teacher/attendance">
+          <ProtectedRoute component={AttendanceManager} />
+        </Route>
 
         {/* Admin Protected Routes */}
         <Route path="/admin">
@@ -228,6 +239,9 @@ function Router() {
         </Route>
         <Route path="/admin/courses/:id/edit">
           <ProtectedRoute component={AdminCourseEdit} />
+        </Route>
+        <Route path="/admin/courses/:id/content">
+          <ProtectedRoute component={AdminCourseContent} />
         </Route>
         <Route path="/admin/payments">
           <ProtectedRoute component={AdminPayments} />
@@ -279,6 +293,9 @@ function Router() {
         </Route>
         <Route path="/admin/faqs">
           <ProtectedRoute component={AdminFAQs} />
+        </Route>
+        <Route path="/admin/attendance">
+          <ProtectedRoute component={AttendanceManager} />
         </Route>
 
         <Route component={NotFound} />
