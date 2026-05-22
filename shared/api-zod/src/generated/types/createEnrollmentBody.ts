@@ -5,8 +5,10 @@
  * Global College LMS API
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateEnrollmentBodyPaymentStatus } from './createEnrollmentBodyPaymentStatus';
 
 export interface CreateEnrollmentBody {
   userId: number;
   courseId: number;
+  paymentStatus?: CreateEnrollmentBodyPaymentStatus;
 }

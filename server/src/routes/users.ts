@@ -54,7 +54,7 @@ router.post(
 router.get(
   "/users",
   authenticate,
-  authorize("admin"),
+  authorize("admin", "teacher"),
   validate(zod.object({ query: ListUsersQueryParams })),
   catchAsync(async (req: AuthRequest, res: Response) => {
     const { role, branchId, search } = req.query as any;

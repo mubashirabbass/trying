@@ -2278,6 +2278,10 @@ components:
           type: integer
         courseId:
           type: integer
+        paymentStatus:
+          type: string
+          enum: [pending, paid]
+          default: pending
       required: [userId, courseId]
 
     Assignment:

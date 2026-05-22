@@ -5,12 +5,13 @@ import {
   useGetStudentDashboard, 
   getGetStudentDashboardQueryKey, 
   useListCourses, 
-  useListEnrollments 
+  useListEnrollments,
+  useListPayments
 } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
   Loader2, Play, BookOpen, Clock, Calendar, CheckCircle2, 
-  Activity, Info, Bell, FileText, MessageSquare, Award, User, LogOut
+  Activity, Info, Bell, FileText, MessageSquare, Award, User, LogOut, AlertCircle, CreditCard
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,13 @@ export default function StudentDashboard() {
 
   // 3. Courses list to map teachers
   const { data: courses = [], isLoading: isCoursesLoading } = useListCourses();
+
+  // 4. Pending payments for this student
+  const { data: allPayments = [], isLoading: isPaymentsLoading } = useListPayments(
+    { userId: user?.id },
+    { query: { enabled: !!user?.id } }
+  );
+  const pendingPayments = allPayments.filter((p: any) => p.status === "pending");
 
   const fetchNotifications = async () => {
     if (!user?.id) return;
@@ -72,7 +80,7 @@ export default function StudentDashboard() {
     return () => clearInterval(interval);
   }, [user?.id]);
 
-  const isLoading = isDashboardLoading || isEnrollmentsLoading || isCoursesLoading;
+  const isLoading = isDashboardLoading || isEnrollmentsLoading || isCoursesLoading || isPaymentsLoading;
 
   if (isLoading) {
     return (
@@ -391,6 +399,43 @@ export default function StudentDashboard() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* PENDING FEE PAYMENTS ALERT */}
+            {pendingPayments.length > 0 && (
+              <Card className="border-2 border-amber-200 bg-amber-50/50 shadow-sm rounded-[1.25rem] overflow-hidden">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="h-12 w-12 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                      <CreditCard className="h-6 w-6 text-amber-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-bold text-amber-900 mb-1">Pending Fee Payment</h3>
+                      <p className="text-sm text-amber-800 mb-4">
+                        You have {pendingPayments.length} course{pendingPayments.length > 1 ? 's' : ''} awaiting fee payment. Upload your receipt to activate your enrollment.
+                      </p>
+                      <div className="space-y-2">
+                        {pendingPayments.map((payment: any) => {
+                          const course = courses.find(c => c.id === payment.courseId);
+                          return (
+                            <div key={payment.id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-amber-100">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-slate-800 text-sm truncate">{course?.title || `Course #${payment.courseId}`}</p>
+                                <p className="text-xs text-slate-500">Amount: Rs. {payment.amount?.toLocaleString() || 0}</p>
+                              </div>
+                              <Link href={`/dashboard/payment/${payment.courseId}`}>
+                                <Button className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-8 px-3 rounded-lg shrink-0">
+                                  Upload Receipt
+                                </Button>
+                              </Link>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* ENROLLED COURSES */}
             <section className="space-y-4">

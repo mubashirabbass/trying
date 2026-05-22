@@ -517,9 +517,12 @@ export const ListEnrollmentsResponse = zod.array(ListEnrollmentsResponseItem)
 /**
  * @summary Enroll student in course
  */
+export const createEnrollmentBodyPaymentStatusDefault = `pending`;
+
 export const CreateEnrollmentBody = zod.object({
   "userId": zod.number(),
-  "courseId": zod.number()
+  "courseId": zod.number(),
+  "paymentStatus": zod.enum(['pending', 'paid']).default(createEnrollmentBodyPaymentStatusDefault)
 })
 
 

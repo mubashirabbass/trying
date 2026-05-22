@@ -237,9 +237,18 @@ export interface Enrollment {
   enrolledAt: string;
 }
 
+export type CreateEnrollmentBodyPaymentStatus = typeof CreateEnrollmentBodyPaymentStatus[keyof typeof CreateEnrollmentBodyPaymentStatus];
+
+
+export const CreateEnrollmentBodyPaymentStatus = {
+  pending: 'pending',
+  paid: 'paid',
+} as const;
+
 export interface CreateEnrollmentBody {
   userId: number;
   courseId: number;
+  paymentStatus?: CreateEnrollmentBodyPaymentStatus;
 }
 
 export interface CreateAssignmentBody {

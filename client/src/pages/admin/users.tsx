@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Link, useLocation } from "wouter";
 import {
@@ -24,7 +24,7 @@ import {
   Loader2, UserPlus, CheckCircle2, XCircle, GraduationCap,
   CreditCard, Users, ClipboardList, Phone, Mail, Search, ExternalLink,
   Eye, FileText, ArrowRight, Table as TableIcon, Edit2, Key, Trash2,
-  MoreVertical, ShieldAlert, Plus, BookOpen, MapPin
+  MoreVertical, ShieldAlert, Plus, BookOpen, MapPin, AlertCircle, Clock
 } from "lucide-react";
 
 type Tab = "dashboard" | "reg" | "enroll_req" | "fee" | "manual" | "enrolled";
@@ -52,6 +52,7 @@ export default function AdminStudents() {
   const [manualStudentSearch, setManualStudentSearch] = useState("");
   const [selectedManualStudent, setSelectedManualStudent] = useState<any>(null);
   const [previewSlipUrl, setPreviewSlipUrl] = useState<string | null>(null);
+  const [manualPaymentStatus, setManualPaymentStatus] = useState<"pending" | "paid">("pending");
 
   // Original Dashboard Modals & Filters
   const [roleFilter, setRoleFilter] = useState<string>("student");
@@ -85,18 +86,37 @@ export default function AdminStudents() {
   const [educationFile, setEducationFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Queries
-  const { data: usersRaw = [], isLoading: usersLoading } = useListUsers({}, { query: { queryKey: getListUsersQueryKey({}) } });
-  const { data: enrollmentsRaw = [] } = useListEnrollments({}, { query: { queryKey: getListEnrollmentsQueryKey({}) } });
-  const { data: paymentsRaw = [] } = useListPayments({}, { query: { queryKey: getListPaymentsQueryKey({}) } });
-  const { data: coursesRaw = [] } = useListCourses({}, { query: { queryKey: getListCoursesQueryKey({}) } });
-  const { data: branchesResponse = [] } = useListBranches({ query: { queryKey: getListBranchesQueryKey() } });
+  // Queries with error handling
+  const { data: usersRaw = [], isLoading: usersLoading, error: usersError } = useListUsers({}, { query: { queryKey: getListUsersQueryKey({}) } });
+  const { data: enrollmentsRaw = [], error: enrollmentsError } = useListEnrollments({}, { query: { queryKey: getListEnrollmentsQueryKey({}) } });
+  const { data: paymentsRaw = [], error: paymentsError } = useListPayments({}, { query: { queryKey: getListPaymentsQueryKey({}) } });
+  const { data: coursesRaw = [], error: coursesError } = useListCourses({}, { query: { queryKey: getListCoursesQueryKey({}) } });
+  const { data: branchesResponse = [], error: branchesError } = useListBranches({ query: { queryKey: getListBranchesQueryKey() } });
 
+  // Safe data extraction with fallbacks
   const users = Array.isArray(usersRaw) ? usersRaw : [];
   const enrollments = Array.isArray(enrollmentsRaw) ? enrollmentsRaw : [];
   const payments = Array.isArray(paymentsRaw) ? paymentsRaw : [];
   const courses = Array.isArray(coursesRaw) ? coursesRaw : [];
   const branches = Array.isArray(branchesResponse) ? branchesResponse : [];
+
+  // Error handling
+  if (usersError || enrollmentsError || paymentsError || coursesError || branchesError) {
+    return (
+      <DashboardLayout>
+        <div className="flex justify-center items-center h-64">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 text-rose-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Error Loading Data</h2>
+            <p className="text-gray-500">Please refresh the page or try again later.</p>
+            <Button onClick={() => window.location.reload()} className="mt-4">
+              Refresh Page
+            </Button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   // Mutations
   const createUserMutation = useCreateUser();
@@ -149,13 +169,85 @@ export default function AdminStudents() {
     finally { setActioning(null); }
   };
 
+  // Disapprove / Revoke handlers
+  const disapproveStudent = async (userId: number, userName: string) => {
+    if (!confirm(`Disapprove and deactivate "${userName}"? Their account will be blocked and all active enrollments will be reverted to pending.`)) return;
+    setActioning(userId);
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      // Deactivate account
+      await fetch(`/api/users/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ isActive: false })
+      });
+      // Revert all active enrollments to pending
+      const userEnrollments = enrollments.filter((e: any) => e.userId === userId && e.status === "active");
+      for (const enr of userEnrollments) {
+        await fetch(`/api/enrollments/${enr.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+          body: JSON.stringify({ status: "pending" })
+        });
+      }
+      toast({ title: `⛔ ${userName} has been disapproved and deactivated.` });
+      invalidate();
+    } catch { toast({ title: "Failed to disapprove student", variant: "destructive" }); }
+    finally { setActioning(null); }
+  };
+
+  const disapproveEnrollment = async (enrollmentId: number, courseName: string, studentName: string) => {
+    if (!confirm(`Remove enrollment request for "${studentName}" in "${courseName}"?`)) return;
+    setActioning(enrollmentId);
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      await fetch(`/api/enrollments/${enrollmentId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      toast({ title: `Enrollment request removed for ${studentName}.` });
+      invalidate();
+    } catch { toast({ title: "Failed to remove enrollment", variant: "destructive" }); }
+    finally { setActioning(null); }
+  };
+
+  const unenrollStudent = async (enrollmentId: number, courseName: string, studentName: string) => {
+    if (!confirm(`Unenroll "${studentName}" from "${courseName}"? This will revert their enrollment to pending and require re-payment.`)) return;
+    setActioning(enrollmentId);
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      await fetch(`/api/enrollments/${enrollmentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ status: "pending" })
+      });
+      toast({ title: `${studentName} has been unenrolled from ${courseName}.` });
+      invalidate();
+    } catch { toast({ title: "Failed to unenroll student", variant: "destructive" }); }
+    finally { setActioning(null); }
+  };
+
   const enrollManually = async () => {
     if (!manualUserId || !manualCourseId) return;
     try {
-      await createEnrollment.mutateAsync({ data: { userId: Number(manualUserId), courseId: Number(manualCourseId) } });
-      toast({ title: "✅ Enrollment Request created! Student can now submit their fee slip." });
-      setManualUserId(""); setManualCourseId("");
-      setSelectedManualStudent(null); setManualStudentSearch("");
+      await createEnrollment.mutateAsync({ 
+        data: { 
+          userId: Number(manualUserId), 
+          courseId: Number(manualCourseId),
+          paymentStatus: manualPaymentStatus
+        } 
+      });
+      
+      const message = manualPaymentStatus === "paid" 
+        ? "✅ Student enrolled successfully! Course is now active for learning."
+        : "✅ Enrollment Request created! Student can now submit their fee slip.";
+      
+      toast({ title: message });
+      setManualUserId(""); 
+      setManualCourseId("");
+      setSelectedManualStudent(null); 
+      setManualStudentSearch("");
+      setManualPaymentStatus("pending");
       invalidate();
     } catch { toast({ title: "Enrollment failed", variant: "destructive" }); }
   };
@@ -624,6 +716,12 @@ export default function AdminStudents() {
                             }} className="text-xs font-bold gap-2"><Key className="h-3.5 w-3.5" /> Reset Password</DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => setUserToDelete(user)} className="text-xs font-bold text-rose-600 hover:bg-rose-50 gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete Permanently</DropdownMenuItem>
+                            {user.isActive && (
+                              <DropdownMenuItem onClick={() => disapproveStudent(user.id, user.name)} className="text-xs font-bold text-amber-600 hover:bg-amber-50 gap-2"><XCircle className="h-3.5 w-3.5" /> Disapprove & Deactivate</DropdownMenuItem>
+                            )}
+                            {!user.isActive && (
+                              <DropdownMenuItem onClick={() => approveReg(user.id)} className="text-xs font-bold text-emerald-600 hover:bg-emerald-50 gap-2"><CheckCircle2 className="h-3.5 w-3.5" /> Re-Approve Account</DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -772,9 +870,17 @@ export default function AdminStudents() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-center py-2">
-                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-[10px] font-black hover:bg-slate-900 hover:text-white border-slate-200" onClick={() => setLocation(`/admin/users/${u.id}`)}>
-                                View Profile <ExternalLink className="h-3 w-3 ml-1" />
-                              </Button>
+                              <div className="flex items-center justify-center gap-1.5">
+                                <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-[10px] font-black hover:bg-slate-900 hover:text-white border-slate-200" onClick={() => setLocation(`/admin/users/${u.id}`)}>
+                                  View <ExternalLink className="h-3 w-3 ml-1" />
+                                </Button>
+                                {pending.map((e: any) => (
+                                  <Button key={e.id} size="sm" variant="outline" className="rounded-lg h-7 px-2 text-[10px] font-bold text-rose-600 border-rose-200 hover:bg-rose-50" disabled={actioning === e.id} onClick={() => disapproveEnrollment(e.id, e.courseName || `Course #${e.courseId}`, u.name)}>
+                                    {actioning === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3 mr-1" />}
+                                    Disapprove
+                                  </Button>
+                                ))}
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -856,9 +962,17 @@ export default function AdminStudents() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-center py-2">
-                              <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-[10px] font-black hover:bg-slate-900 hover:text-white border-slate-200" onClick={() => setLocation(`/admin/users/${u.id}`)}>
-                                View Profile <ExternalLink className="h-3 w-3 ml-1" />
-                              </Button>
+                              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-[10px] font-black hover:bg-slate-900 hover:text-white border-slate-200" onClick={() => setLocation(`/admin/users/${u.id}`)}>
+                                  View <ExternalLink className="h-3 w-3 ml-1" />
+                                </Button>
+                                {activeEnrollments.map((e: any) => (
+                                  <Button key={e.id} size="sm" variant="outline" className="rounded-lg h-7 px-2 text-[10px] font-bold text-rose-600 border-rose-200 hover:bg-rose-50" disabled={actioning === e.id} onClick={() => unenrollStudent(e.id, e.courseName || `Course #${e.courseId}`, u.name)}>
+                                    {actioning === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3 mr-1" />}
+                                    Unenroll
+                                  </Button>
+                                ))}
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -902,7 +1016,7 @@ export default function AdminStudents() {
                     onChange={e => {
                       setManualStudentSearch(e.target.value);
                       // Clear selected student when search changes
-                      if (selectedManualStudent && e.target.value !== selectedManualStudent.name) {
+                      if (selectedManualStudent && e.target.value !== (selectedManualStudent.name || "")) {
                         setSelectedManualStudent(null);
                         setManualUserId("");
                       }
@@ -911,41 +1025,58 @@ export default function AdminStudents() {
                 </div>
 
                 {/* Search Results */}
-                {manualStudentSearch.trim().length >= 2 && !selectedManualStudent && (() => {
-                  const q = manualStudentSearch.trim().toLowerCase();
-                  const results = users.filter((u: any) => {
-                    if (u.role !== "student") return false;
-                    return (
-                      u.name?.toLowerCase().includes(q) ||
-                      u.cnic?.toLowerCase().includes(q) ||
-                      String(u.id) === q.replace(/^#?stu-?/i, "")
-                    );
-                  }).slice(0, 8);
+                {manualStudentSearch.trim().length >= 2 && !selectedManualStudent && (
+                  <div className="mt-1 border border-slate-200 rounded-xl overflow-hidden shadow-lg">
+                    {(() => {
+                      try {
+                        const q = manualStudentSearch.trim().toLowerCase();
+                        if (!users || users.length === 0) {
+                          return (
+                            <div className="p-4 text-center text-sm text-slate-500">
+                              <Loader2 className="h-5 w-5 mx-auto mb-1 text-slate-300 animate-spin" />
+                              Loading students...
+                            </div>
+                          );
+                        }
 
-                  return (
-                    <div className="mt-1 border border-slate-200 rounded-xl overflow-hidden shadow-lg">
-                      {results.length === 0 ? (
-                        <div className="p-4 text-center text-sm text-slate-500">
-                          <AlertCircle className="h-5 w-5 mx-auto mb-1 text-slate-300" />
-                          No students found matching "{manualStudentSearch}"
-                        </div>
-                      ) : (
-                        results.map((u: any) => (
+                        const results = users
+                          .filter((u: any) => {
+                            if (!u || u.role !== "student") return false;
+                            if (!u.name && !u.cnic && !u.id) return false;
+                            
+                            const nameMatch = u.name ? u.name.toLowerCase().includes(q) : false;
+                            const cnicMatch = u.cnic ? u.cnic.toLowerCase().includes(q) : false;
+                            const idMatch = String(u.id) === q.replace(/^#?stu-?/i, "");
+                            
+                            return nameMatch || cnicMatch || idMatch;
+                          })
+                          .slice(0, 8);
+
+                        if (results.length === 0) {
+                          return (
+                            <div className="p-4 text-center text-sm text-slate-500">
+                              <AlertCircle className="h-5 w-5 mx-auto mb-1 text-slate-300" />
+                              No students found matching "{manualStudentSearch}"
+                            </div>
+                          );
+                        }
+
+                        return results.map((u: any) => (
                           <div
                             key={u.id}
                             onClick={() => {
                               setSelectedManualStudent(u);
                               setManualUserId(String(u.id));
-                              setManualStudentSearch(u.name);
+                              setManualStudentSearch(u.name || "");
                             }}
                             className="flex items-center gap-4 p-3 hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 transition-colors"
                           >
                             <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-sm shrink-0">
-                              {u.name.charAt(0).toUpperCase()}
+                              {(u.name || "?").charAt(0).toUpperCase()}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="font-bold text-sm text-slate-900 truncate">{u.name}</p>
-                              <p className="text-xs text-slate-500 font-mono truncate">{u.email}</p>
+                              <p className="font-bold text-sm text-slate-900 truncate">{u.name || "Unknown"}</p>
+                              <p className="text-xs text-slate-500 font-mono truncate">{u.email || "No email"}</p>
                             </div>
                             <div className="text-right shrink-0">
                               <p className="text-[10px] font-black text-slate-400 uppercase">ID</p>
@@ -958,21 +1089,29 @@ export default function AdminStudents() {
                               </div>
                             )}
                           </div>
-                        ))
-                      )}
-                    </div>
-                  );
-                })()}
+                        ));
+                      } catch (error) {
+                        console.error('Search error:', error);
+                        return (
+                          <div className="p-4 text-center text-sm text-rose-500">
+                            <AlertCircle className="h-5 w-5 mx-auto mb-1" />
+                            Error searching students
+                          </div>
+                        );
+                      }
+                    })()}
+                  </div>
+                )}
 
                 {/* Selected Student Card */}
                 {selectedManualStudent && (
                   <div className="mt-2 p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-4">
                     <div className="h-12 w-12 rounded-full bg-emerald-600 flex items-center justify-center text-white font-black text-lg shrink-0">
-                      {selectedManualStudent.name.charAt(0).toUpperCase()}
+                      {(selectedManualStudent.name || "?").charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-black text-slate-900">{selectedManualStudent.name}</p>
-                      <p className="text-xs text-slate-600 font-mono">{selectedManualStudent.email}</p>
+                      <p className="font-black text-slate-900">{selectedManualStudent.name || "Unknown Student"}</p>
+                      <p className="text-xs text-slate-600 font-mono">{selectedManualStudent.email || "No email"}</p>
                       {selectedManualStudent.cnic && (
                         <p className="text-xs text-slate-500 font-mono mt-0.5">CNIC: {selectedManualStudent.cnic}</p>
                       )}
@@ -1011,6 +1150,42 @@ export default function AdminStudents() {
                 </Select>
               </div>
 
+              {/* Payment Status Selection */}
+              <div className="space-y-2">
+                <Label className="text-xs font-black text-slate-500 uppercase tracking-wider">Step 3 — Payment Status</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setManualPaymentStatus("pending")}
+                    disabled={!selectedManualStudent || !manualCourseId}
+                    className={`p-4 rounded-xl border-2 transition-all font-bold text-sm flex flex-col items-center gap-2 ${
+                      manualPaymentStatus === "pending"
+                        ? "border-amber-500 bg-amber-50 text-amber-700"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-amber-200 hover:bg-amber-50/30"
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <Clock className="h-5 w-5" />
+                    <span>Pending Payment</span>
+                    <span className="text-[10px] font-normal text-slate-500">Student uploads receipt</span>
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setManualPaymentStatus("paid")}
+                    disabled={!selectedManualStudent || !manualCourseId}
+                    className={`p-4 rounded-xl border-2 transition-all font-bold text-sm flex flex-col items-center gap-2 ${
+                      manualPaymentStatus === "paid"
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-emerald-200 hover:bg-emerald-50/30"
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    <CheckCircle2 className="h-5 w-5" />
+                    <span>Mark as Paid</span>
+                    <span className="text-[10px] font-normal text-slate-500">Activate immediately</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Enroll Button */}
               <Button
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold h-12 text-sm transition-colors shadow-md shadow-emerald-900/20"
@@ -1019,11 +1194,15 @@ export default function AdminStudents() {
               >
                 {createEnrollment.isPending
                   ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Processing Enrollment...</>
-                  : <><GraduationCap className="h-4 w-4 mr-2" /> Enroll Student &amp; Create Request</>}
+                  : manualPaymentStatus === "paid"
+                  ? <><CheckCircle2 className="h-4 w-4 mr-2" /> Enroll &amp; Activate Course</>
+                  : <><GraduationCap className="h-4 w-4 mr-2" /> Enroll &amp; Request Payment</>}
               </Button>
 
               <p className="text-[10px] text-slate-400 text-center">
-                This creates an enrollment request. The student must still submit their payment slip to activate the course.
+                {manualPaymentStatus === "paid" 
+                  ? "Student can start learning immediately. No payment verification needed."
+                  : "Student will receive a payment request and must submit their fee slip for approval."}
               </p>
             </CardContent>
           </Card>

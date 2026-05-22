@@ -27,6 +27,7 @@ export * from './createAssignmentBody';
 export * from './createBranchBody';
 export * from './createCourseBody';
 export * from './createEnrollmentBody';
+export * from './createEnrollmentBodyPaymentStatus';
 export * from './createForumPostBody';
 export * from './createForumReplyBody';
 export * from './createLessonBody';

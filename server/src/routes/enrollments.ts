@@ -38,7 +38,7 @@ router.get("/enrollments", async (req, res): Promise<void> => {
 router.post("/enrollments", async (req: any, res): Promise<void> => {
   const parsed = CreateEnrollmentBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
-  const { userId, courseId } = parsed.data;
+  const { userId, courseId, paymentStatus = "pending" } = parsed.data;
 
   const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId));
   if (!course) { res.status(404).json({ error: "Course not found" }); return; }
@@ -47,11 +47,40 @@ router.post("/enrollments", async (req: any, res): Promise<void> => {
     .where(and(eq(enrollmentsTable.userId, userId), eq(enrollmentsTable.courseId, courseId)));
   if (existing) { res.status(409).json({ error: "Already enrolled" }); return; }
 
-  // Always create enrollment as "pending" so it flows through the full pipeline:
-  // Enrollment Requests → Fee Payment (admin verifies slip) → Enrolled Students
-  const status = "pending";
+  // Set enrollment status based on payment status
+  // If payment is marked as "paid", enrollment is immediately "active"
+  // If payment is "pending", enrollment stays "pending" until payment is verified
+  const status = paymentStatus === "paid" ? "active" : "pending";
 
   const [enrollment] = await db.insert(enrollmentsTable).values({ userId, courseId, status }).returning();
+  
+  // Create payment record
+  const [existingPayment] = await db.select().from(paymentsTable)
+    .where(and(eq(paymentsTable.userId, userId), eq(paymentsTable.courseId, courseId)));
+  
+  if (!existingPayment) {
+    const paymentRecordStatus = paymentStatus === "paid" ? "verified" : "pending";
+    const paymentNotes = paymentStatus === "paid" 
+      ? "Payment verified by admin during manual enrollment"
+      : "Fee payment pending - student must upload receipt";
+    
+    await db.insert(paymentsTable).values({
+      userId,
+      courseId,
+      amount: course.price || 0,
+      method: "manual_enrollment",
+      status: paymentRecordStatus,
+      notes: paymentNotes
+    });
+  }
+
+  // If payment is marked as paid, activate the student account
+  if (paymentStatus === "paid") {
+    await db.update(usersTable)
+      .set({ isActive: true })
+      .where(eq(usersTable.id, userId));
+  }
+  
   res.status(201).json({ ...enrollment, courseName: course.title, userName: null });
 });
 
