@@ -18,6 +18,10 @@ export const messagesTable = pgTable("messages", {
   threadId: integer("thread_id").notNull().references(() => messageThreadsTable.id, { onDelete: "cascade" }),
   senderId: integer("sender_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   body: text("body").notNull(),
+  attachmentUrl: text("attachment_url"),
+  attachmentType: text("attachment_type"),
+  attachmentName: text("attachment_name"),
+  attachmentSize: integer("attachment_size"),
   isRead: boolean("is_read").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -13,7 +13,10 @@ import {
   Search,
   MessageCircle,
   MoreVertical,
-  GraduationCap
+  Image as ImageIcon,
+  Mic,
+  Square,
+  X
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -25,9 +28,10 @@ import {
   DialogFooter 
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { useListUsers, getListUsersQueryKey } from "@workspace/api-client-react";
+import { PaginationControls, getTotalPages, paginateItems } from "@/components/PaginationControls";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+const THREAD_PAGE_SIZE = 8;
 
 interface Thread { 
   id: number; 
@@ -42,10 +46,20 @@ interface Message {
   id: number; 
   senderId: number; 
   body: string; 
+  attachmentUrl?: string | null;
+  attachmentType?: "image" | "audio" | null;
+  attachmentName?: string | null;
+  attachmentSize?: number | null;
   senderName?: string; 
   senderRole?: string; 
   createdAt: string; 
   isRead: boolean; 
+}
+
+interface PendingMedia {
+  file: File;
+  type: "image" | "audio";
+  previewUrl: string;
 }
 
 export default function TeacherMessages() {
@@ -60,14 +74,17 @@ export default function TeacherMessages() {
   const [newStudentId, setNewStudentId] = useState("");
   const [newOpen, setNewOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [pendingMedia, setPendingMedia] = useState<PendingMedia | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [threadPage, setThreadPage] = useState(1);
+  const [students, setStudents] = useState<any[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
-  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
-
-  const { data: students } = useListUsers(
-    { role: "student" as const },
-    { query: { queryKey: getListUsersQueryKey({ role: "student" as const }) } }
-  );
+  const authHeaders = { Authorization: `Bearer ${token}` };
+  const headers = { ...authHeaders, "Content-Type": "application/json" };
 
   const fetchThreads = async () => {
     const r = await fetch(`${BASE}/api/messages/threads?userId=${user?.id}`, { headers });
@@ -81,18 +98,120 @@ export default function TeacherMessages() {
   };
 
   useEffect(() => { fetchThreads(); }, []);
+  useEffect(() => {
+    if (!user?.id || !token) return;
+    fetch(`${BASE}/api/dashboard/teacher/students?userId=${user.id}`, { headers })
+      .then((res) => res.ok ? res.json() : [])
+      .then((rows) => {
+        const unique = new Map<number, any>();
+        (Array.isArray(rows) ? rows : []).forEach((student: any) => {
+          if (!unique.has(student.id)) unique.set(student.id, student);
+        });
+        setStudents(Array.from(unique.values()));
+      })
+      .catch(() => setStudents([]));
+  }, [user?.id, token]);
   useEffect(() => { if (selectedThread) fetchMessages(selectedThread.id); }, [selectedThread]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => () => {
+    if (pendingMedia?.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
+    recorderRef.current?.stream.getTracks().forEach((track) => track.stop());
+  }, [pendingMedia?.previewUrl]);
+
+  const clearPendingMedia = () => {
+    if (pendingMedia?.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
+    setPendingMedia(null);
+  };
+
+  const handleImagePick = (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please choose an image file", variant: "destructive" });
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast({ title: "Image must be under 8MB", variant: "destructive" });
+      return;
+    }
+    clearPendingMedia();
+    setPendingMedia({ file, type: "image", previewUrl: URL.createObjectURL(file) });
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: blob.type });
+        clearPendingMedia();
+        setPendingMedia({ file, type: "audio", previewUrl: URL.createObjectURL(blob) });
+        stream.getTracks().forEach((track) => track.stop());
+      };
+      recorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+    } catch {
+      toast({ title: "Microphone permission is needed to record voice notes", variant: "destructive" });
+    }
+  };
+
+  const stopRecording = () => {
+    recorderRef.current?.stop();
+    setIsRecording(false);
+  };
+
+  const uploadPendingMedia = async () => {
+    if (!pendingMedia) return null;
+    const formData = new FormData();
+    formData.append("media", pendingMedia.file);
+    const r = await fetch(`${BASE}/api/messages/upload`, {
+      method: "POST",
+      headers: authHeaders,
+      body: formData,
+    });
+    if (!r.ok) {
+      const error = await r.json().catch(() => null);
+      throw new Error(error?.error || error?.message || "Media upload failed");
+    }
+    return r.json();
+  };
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!body.trim() || !selectedThread) return;
+    if ((!body.trim() && !pendingMedia) || !selectedThread) return;
     setSending(true);
-    const r = await fetch(`${BASE}/api/messages/threads/${selectedThread.id}/messages`, {
-      method: "POST", headers, body: JSON.stringify({ senderId: user?.id, body }),
-    });
-    if (r.ok) { setBody(""); fetchMessages(selectedThread.id); }
-    setSending(false);
+    try {
+      const media = await uploadPendingMedia();
+      const r = await fetch(`${BASE}/api/messages/threads/${selectedThread.id}/messages`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          senderId: user?.id,
+          body,
+          attachmentUrl: media?.url,
+          attachmentType: media?.type,
+          attachmentName: media?.name,
+          attachmentSize: media?.size,
+        }),
+      });
+      if (r.ok) {
+        setBody("");
+        clearPendingMedia();
+        fetchMessages(selectedThread.id);
+        fetchThreads();
+      } else {
+        toast({ title: "Message could not be sent", variant: "destructive" });
+      }
+    } catch (error: any) {
+      toast({ title: error?.message || "Media upload failed", variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
   };
 
   const startThread = async () => {
@@ -107,6 +226,16 @@ export default function TeacherMessages() {
     t.studentName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.courseName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const visibleThreads = paginateItems(filteredThreads, threadPage, THREAD_PAGE_SIZE);
+  const totalThreadPages = getTotalPages(filteredThreads.length, THREAD_PAGE_SIZE);
+
+  useEffect(() => {
+    setThreadPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (threadPage > totalThreadPages) setThreadPage(totalThreadPages);
+  }, [threadPage, totalThreadPages]);
 
   return (
     <DashboardLayout>
@@ -182,7 +311,7 @@ export default function TeacherMessages() {
                 </div>
               ) : (
                 <div className="p-2 space-y-1">
-                  {filteredThreads.map((t) => {
+                  {visibleThreads.map((t) => {
                     const otherName = t.studentName;
                     const isSelected = selectedThread?.id === t.id;
                     return (
@@ -214,6 +343,13 @@ export default function TeacherMessages() {
                       </button>
                     );
                   })}
+                  <PaginationControls
+                    page={threadPage}
+                    pageSize={THREAD_PAGE_SIZE}
+                    totalItems={filteredThreads.length}
+                    onPageChange={setThreadPage}
+                    label="chats"
+                  />
                 </div>
               )}
             </div>
@@ -268,12 +404,24 @@ export default function TeacherMessages() {
                           </span>
                         )}
                         <div className={`
-                          max-w-[80%] px-5 py-3.5 rounded-[22px] text-sm font-medium shadow-sm leading-relaxed
+                          max-w-[80%] px-5 py-3.5 rounded-[22px] text-sm font-medium shadow-sm leading-relaxed space-y-3
                           ${isMe 
                             ? "bg-slate-900 text-white rounded-tr-none" 
                             : "bg-white text-slate-800 border-2 border-slate-50 rounded-tl-none"}
                         `}>
-                          {msg.body}
+                          {msg.attachmentUrl && msg.attachmentType === "image" && (
+                            <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                              <img
+                                src={msg.attachmentUrl}
+                                alt={msg.attachmentName || "Message image"}
+                                className="max-h-72 w-full max-w-sm rounded-2xl object-cover"
+                              />
+                            </a>
+                          )}
+                          {msg.attachmentUrl && msg.attachmentType === "audio" && (
+                            <audio controls src={msg.attachmentUrl} className="w-64 max-w-full" />
+                          )}
+                          {msg.body && <p>{msg.body}</p>}
                         </div>
                         <span className="text-[10px] font-bold text-slate-400 mt-2 mx-1">
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -286,7 +434,50 @@ export default function TeacherMessages() {
 
                 {/* Message Input */}
                 <div className="p-8 border-t border-slate-50 bg-white shrink-0">
-                  <form onSubmit={sendMessage} className="flex gap-4 items-center">
+                  {pendingMedia && (
+                    <div className="mb-4 flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                      {pendingMedia.type === "image" ? (
+                        <img src={pendingMedia.previewUrl} alt="Selected image" className="h-16 w-16 rounded-xl object-cover" />
+                      ) : (
+                        <audio controls src={pendingMedia.previewUrl} className="h-10 max-w-xs" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold text-slate-800">{pendingMedia.file.name}</p>
+                        <p className="text-xs font-medium text-slate-400">{Math.ceil(pendingMedia.file.size / 1024)} KB</p>
+                      </div>
+                      <Button type="button" variant="ghost" size="icon" onClick={clearPendingMedia} className="rounded-xl text-slate-400">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                  <form onSubmit={sendMessage} className="flex gap-3 items-center">
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) => handleImagePick(e.target.files?.[0] || null)}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => imageInputRef.current?.click()}
+                      disabled={sending || isRecording}
+                      className="h-14 w-14 rounded-2xl bg-slate-50 text-slate-500 hover:text-primary"
+                    >
+                      <ImageIcon className="h-5 w-5" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={isRecording ? stopRecording : startRecording}
+                      disabled={sending}
+                      className={`h-14 w-14 rounded-2xl ${isRecording ? "bg-rose-50 text-rose-600" : "bg-slate-50 text-slate-500 hover:text-primary"}`}
+                    >
+                      {isRecording ? <Square className="h-5 w-5 fill-current" /> : <Mic className="h-5 w-5" />}
+                    </Button>
                     <div className="flex-1 relative">
                       <Input
                         value={body}
@@ -298,7 +489,7 @@ export default function TeacherMessages() {
                     </div>
                     <Button 
                       type="submit" 
-                      disabled={!body.trim() || sending}
+                      disabled={(!body.trim() && !pendingMedia) || sending || isRecording}
                       className="h-14 w-14 rounded-2xl shadow-xl shadow-primary/20 shrink-0"
                     >
                       {sending ? <Loader2 className="h-6 w-6 animate-spin" /> : <Send className="h-6 w-6" />}

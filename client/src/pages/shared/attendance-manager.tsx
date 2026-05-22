@@ -4,15 +4,13 @@ import { useAuth } from "@/lib/AuthContext";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
+  BarChart3,
+  BookOpen,
   CalendarDays,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Clock,
-  Copy,
-  Download,
+  GraduationCap,
   Loader2,
-  RotateCcw,
   Save,
   Search,
   ShieldAlert,
@@ -25,6 +23,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -89,25 +89,7 @@ const statusOptions: Array<{
 
 const todayString = () => new Date().toISOString().split("T")[0];
 
-const shiftDate = (value: string, days: number) => {
-  const date = new Date(`${value}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  return date.toISOString().split("T")[0];
-};
-
 const asArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? value : []);
-
-const csvCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
-
-const downloadFile = (fileName: string, content: string) => {
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  link.click();
-  URL.revokeObjectURL(url);
-};
 
 export default function AttendanceManager() {
   const { token, user } = useAuth();
@@ -282,6 +264,30 @@ export default function AttendanceManager() {
     [courseMinimum, studentStats, students],
   );
 
+  const allVisiblePresent = filteredStudents.length > 0 && filteredStudents.every((student) => (attendanceState[student.userId] || "present") === "present");
+
+  const atRiskStudents = useMemo(
+    () =>
+      students
+        .map((student) => ({
+          ...student,
+          stats: studentStats[student.userId] || { present: 0, total: 0, percentage: 0, absent: 0 },
+        }))
+        .filter((student) => student.stats.total > 0 && student.stats.percentage < courseMinimum)
+        .sort((a, b) => a.stats.percentage - b.stats.percentage)
+        .slice(0, 5),
+    [courseMinimum, studentStats, students],
+  );
+
+  const courseAverage = useMemo(() => {
+    const trackedStudents = students
+      .map((student) => studentStats[student.userId])
+      .filter((stats): stats is { present: number; total: number; percentage: number; absent: number } => !!stats && stats.total > 0);
+
+    if (!trackedStudents.length) return 0;
+    return Math.round(trackedStudents.reduce((total, stats) => total + stats.percentage, 0) / trackedStudents.length);
+  }, [studentStats, students]);
+
   const hasUnsavedChanges = useMemo(() => {
     if (!students.length) return false;
     if (!loadingRecords && existingRecords.length === 0) return true;
@@ -341,60 +347,6 @@ export default function AttendanceManager() {
     });
   };
 
-  const resetToSaved = () => {
-    const nextAttendance: Record<number, AttendanceStatus> = {};
-    const nextNotes: Record<number, string> = {};
-
-    students.forEach((student) => {
-      const record = existingRecords.find((item) => item.userId === student.userId);
-      nextAttendance[student.userId] = record?.status || "present";
-      nextNotes[student.userId] = record?.notes || "";
-    });
-
-    setAttendanceState(nextAttendance);
-    setNotesState(nextNotes);
-  };
-
-  const copyAbsentees = async () => {
-    const absentStudents = students.filter((student) => attendanceState[student.userId] === "absent");
-    const text = absentStudents.length
-      ? absentStudents.map((student, index) => `${index + 1}. ${student.name} (${student.email})`).join("\n")
-      : "No absent students marked.";
-
-    try {
-      await navigator.clipboard.writeText(text);
-      toast({ title: "Absentee list copied" });
-    } catch {
-      toast({ title: "Could not copy absentee list", variant: "destructive" });
-    }
-  };
-
-  const exportCsv = () => {
-    if (!students.length) return;
-
-    const rows = [
-      ["Course", "Date", "Student", "Email", "Today Status", "Course Attendance %", "Present Count", "Total Classes", "Notes"],
-      ...students.map((student) => {
-        const stats = studentStats[student.userId] || { present: 0, total: 0, percentage: 0 };
-        return [
-          selectedCourseInfo?.title || selectedCourse,
-          selectedDate,
-          student.name,
-          student.email,
-          attendanceState[student.userId] || "present",
-          `${stats.percentage}%`,
-          stats.present,
-          stats.total,
-          notesState[student.userId] || "",
-        ];
-      }),
-    ];
-
-    const csv = rows.map((row) => row.map(csvCell).join(",")).join("\n");
-    const cleanCourseName = (selectedCourseInfo?.title || "attendance").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase();
-    downloadFile(`${cleanCourseName}-${selectedDate}-attendance.csv`, csv);
-  };
-
   const handleSave = () => {
     if (!selectedCourse || !selectedDate || !students.length) return;
 
@@ -413,65 +365,206 @@ export default function AttendanceManager() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="rounded-md border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-600">
-                {user?.role === "admin" ? "Admin View" : "Teacher Portal"}
-              </Badge>
-              {hasUnsavedChanges && (
-                <Badge className="rounded-md bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-100">
-                  Unsaved changes
-                </Badge>
-              )}
+        <Tabs defaultValue="dashboard" className="space-y-6">
+          <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="rounded-md border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-600">
+                    {user?.role === "admin" ? "Admin Attendance" : "Teacher Attendance"}
+                  </Badge>
+                  <Badge variant="outline" className="rounded-md border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-600">
+                    Course-wise
+                  </Badge>
+                  {hasUnsavedChanges && (
+                    <Badge className="rounded-md bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-100">
+                      Unsaved changes
+                    </Badge>
+                  )}
+                </div>
+                <div className="mt-3 flex flex-col gap-1 md:flex-row md:items-end md:gap-3">
+                  <h1 className="text-2xl font-black text-slate-950">Attendance Workspace</h1>
+                  <p className="truncate text-sm font-semibold text-slate-500">
+                    {selectedCourseInfo?.title || "Select a course to begin"}
+                  </p>
+                </div>
+              </div>
+
+              <TabsList className="h-auto w-full justify-start rounded-md bg-slate-100 p-1 md:w-auto">
+                <TabsTrigger value="dashboard" className="h-10 flex-1 rounded-md px-4 text-xs font-black uppercase tracking-wide md:flex-none">
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  Dashboard
+                </TabsTrigger>
+                <TabsTrigger value="manage" className="h-10 flex-1 rounded-md px-4 text-xs font-black uppercase tracking-wide md:flex-none">
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Manage Attendance
+                </TabsTrigger>
+              </TabsList>
             </div>
-            <h1 className="mt-2 text-2xl font-black text-slate-950">Attendance</h1>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Mark attendance, add quick notes, and review daily class participation.
-            </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" className="h-10 rounded-lg" onClick={resetToSaved} disabled={!students.length || saveMutation.isPending}>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              Reset
-            </Button>
-            <Button variant="outline" className="h-10 rounded-lg" onClick={copyAbsentees} disabled={!students.length}>
-              <Copy className="mr-2 h-4 w-4" />
-              Copy Absentees
-            </Button>
-            <Button variant="outline" className="h-10 rounded-lg" onClick={exportCsv} disabled={!students.length}>
-              <Download className="mr-2 h-4 w-4" />
-              Export CSV
-            </Button>
-            <Button variant="outline" className="h-10 rounded-lg" onClick={() => setSelectedDate(shiftDate(selectedDate, -1))}>
-              <ChevronLeft className="mr-1 h-4 w-4" />
-              Previous
-            </Button>
-            <Button variant="outline" className="h-10 rounded-lg" onClick={() => setSelectedDate(todayString())}>
-              Today
-            </Button>
-            <Button variant="outline" className="h-10 rounded-lg" onClick={() => setSelectedDate(shiftDate(selectedDate, 1))}>
-              Next
-              <ChevronRight className="ml-1 h-4 w-4" />
-            </Button>
-            <Button className="h-10 rounded-lg font-bold" onClick={handleSave} disabled={!students.length || saveMutation.isPending}>
-              {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-              {existingRecords.length > 0 ? "Update Attendance" : "Save Attendance"}
-            </Button>
-          </div>
-        </div>
+          <TabsContent value="dashboard" className="mt-0 space-y-6">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+              <Card className="rounded-lg border-slate-200 shadow-sm">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase text-slate-500">Enrolled Students</p>
+                    <p className="mt-1 text-2xl font-black text-slate-950">{summary.total}</p>
+                  </div>
+                  <Users className="h-8 w-8 text-slate-300" />
+                </CardContent>
+              </Card>
 
-        <Card className="rounded-lg border-slate-200 shadow-sm">
-          <CardContent className="p-4 md:p-5">
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_220px]">
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-wide text-slate-500">Course</label>
+              <Card className="rounded-lg border-slate-200 shadow-sm">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase text-slate-500">Session Rate</p>
+                    <p className="mt-1 text-2xl font-black text-slate-950">{summary.percentage}%</p>
+                  </div>
+                  <UserCheck className="h-8 w-8 text-emerald-500" />
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-lg border-slate-200 shadow-sm">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase text-slate-500">Course Average</p>
+                    <p className="mt-1 text-2xl font-black text-slate-950">{courseAverage}%</p>
+                  </div>
+                  <BarChart3 className="h-8 w-8 text-slate-300" />
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-lg border-slate-200 shadow-sm">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase text-slate-500">At Risk</p>
+                    <p className="mt-1 text-2xl font-black text-slate-950">{atRiskCount}</p>
+                  </div>
+                  <ShieldAlert className="h-8 w-8 text-red-500" />
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-lg border-slate-200 shadow-sm">
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase text-slate-500">Class Days</p>
+                    <p className="mt-1 text-2xl font-black text-slate-950">{recordedClassDays}</p>
+                  </div>
+                  <CalendarDays className="h-8 w-8 text-slate-300" />
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
+              <Card className="rounded-lg border-slate-200 shadow-sm">
+                <CardHeader className="border-b border-slate-100 p-4">
+                  <CardTitle className="text-base font-black text-slate-950">Course Snapshot</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 p-4 md:grid-cols-3">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-wide text-slate-500">Course</p>
+                    <p className="mt-2 line-clamp-2 text-sm font-black text-slate-950">{selectedCourseInfo?.title || "No course selected"}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">{selectedCourseInfo?.category || "Course category not set"}</p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-wide text-slate-500">Session Date</p>
+                    <p className="mt-2 text-sm font-black text-slate-950">{selectedDate}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">{existingRecords.length > 0 ? "Attendance recorded" : "Ready for attendance"}</p>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-black uppercase tracking-wide text-slate-500">Policy</p>
+                    <p className="mt-2 text-sm font-black text-slate-950">{courseMinimum}% minimum</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500">Certificate eligibility rule</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-lg border-slate-200 shadow-sm">
+                <CardHeader className="border-b border-slate-100 p-4">
+                  <CardTitle className="text-base font-black text-slate-950">Status Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 p-4">
+                  {statusOptions.map((option) => {
+                    const Icon = option.icon;
+                    const count = summary[option.value];
+                    const width = summary.total > 0 ? Math.round((count / summary.total) * 100) : 0;
+
+                    return (
+                      <div key={option.value} className="space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`grid h-8 w-8 place-items-center rounded-lg border ${option.softClass}`}>
+                              <Icon className="h-4 w-4" />
+                            </span>
+                            <span className="text-sm font-black text-slate-800">{option.label}</span>
+                          </div>
+                          <span className="text-sm font-black text-slate-950">{count}</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                          <div className="h-full rounded-full bg-slate-900" style={{ width: `${width}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="rounded-lg border-slate-200 shadow-sm">
+              <CardHeader className="border-b border-slate-100 p-4">
+                <CardTitle className="text-base font-black text-slate-950">Attendance Watchlist</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                {loadingHistory ? (
+                  <div className="flex min-h-32 items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : atRiskStudents.length ? (
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                    {atRiskStudents.map((student) => (
+                      <div key={student.userId} className="rounded-lg border border-red-100 bg-red-50 p-4">
+                        <p className="truncate text-sm font-black text-red-950">{student.name}</p>
+                        <p className="mt-1 truncate text-xs font-semibold text-red-700">{student.email}</p>
+                        <p className="mt-3 text-lg font-black text-red-700">{student.stats.percentage}%</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-red-500">
+                          {student.stats.present}/{student.stats.total} counted present
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed border-slate-200 text-sm font-semibold text-slate-500">
+                    No students are below the course attendance requirement.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="manage" className="mt-0 space-y-6">
+            <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+              <div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h2 className="text-base font-black text-slate-950">Manage Attendance</h2>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">Select the course and class date, then mark the session roster.</p>
+                </div>
+                <Button className="h-11 rounded-lg px-5 font-bold" onClick={handleSave} disabled={!students.length || saveMutation.isPending}>
+                  {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  {existingRecords.length > 0 ? "Update Session" : "Save Session"}
+                </Button>
+              </div>
+
+              <div className="grid gap-4 p-5 lg:grid-cols-[minmax(0,1.2fr)_240px_220px]">
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-wide text-slate-500">Course</label>
+              <div className="relative">
+                <BookOpen className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <select
                   value={selectedCourse}
                   onChange={(event) => setSelectedCourse(event.target.value)}
                   disabled={loadingCourses || coursesFailed}
-                  className="flex h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pl-10 text-sm font-semibold text-slate-900 shadow-sm outline-none focus:ring-1 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="">{loadingCourses ? "Loading courses..." : "Select a course"}</option>
                   {courses.map((course) => (
@@ -480,29 +573,37 @@ export default function AttendanceManager() {
                     </option>
                   ))}
                 </select>
-                {coursesFailed && (
-                  <p className="text-xs font-semibold text-red-600">Courses could not be loaded. Please refresh after the server is ready.</p>
-                )}
-                {selectedCourseInfo?.category && (
-                  <p className="text-xs font-semibold text-slate-500">{selectedCourseInfo.category}</p>
-                )}
               </div>
+              {coursesFailed && (
+                <p className="text-xs font-semibold text-red-600">Courses could not be loaded. Please refresh after the server is ready.</p>
+              )}
+            </div>
 
-              <div className="space-y-2">
-                <label className="text-xs font-black uppercase tracking-wide text-slate-500">Class Date</label>
-                <div className="relative">
-                  <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(event) => setSelectedDate(event.target.value)}
-                    className="h-11 rounded-lg border-slate-200 pl-10 font-semibold"
-                  />
-                </div>
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-wide text-slate-500">Class Date</label>
+              <div className="relative">
+                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(event) => setSelectedDate(event.target.value)}
+                  className="h-11 rounded-lg border-slate-200 pl-10 font-semibold"
+                />
               </div>
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+              <p className="text-xs font-black uppercase tracking-wide text-slate-500">Course Policy</p>
+              <div className="mt-2 flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-slate-500" />
+                <p className="text-sm font-black text-slate-950">{courseMinimum}% minimum attendance</p>
+              </div>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                {selectedCourseInfo?.category || "Applies to certificate eligibility"}
+              </p>
+            </div>
+          </div>
+        </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
           <Card className="rounded-lg border-slate-200 shadow-sm">
@@ -518,9 +619,9 @@ export default function AttendanceManager() {
           <Card className="rounded-lg border-slate-200 shadow-sm">
             <CardContent className="flex items-center justify-between p-4">
               <div>
-                <p className="text-xs font-bold uppercase text-slate-500">Attendance</p>
+                <p className="text-xs font-bold uppercase text-slate-500">Session Rate</p>
                 <p className="mt-1 text-2xl font-black text-slate-950">{summary.percentage}%</p>
-                <p className="mt-1 text-[10px] font-bold uppercase text-slate-400">Min {courseMinimum}%</p>
+                <p className="mt-1 text-[10px] font-bold uppercase text-slate-400">Present + late</p>
               </div>
               <UserCheck className="h-8 w-8 text-emerald-500" />
             </CardContent>
@@ -556,13 +657,22 @@ export default function AttendanceManager() {
         <Card className="rounded-lg border-slate-200 shadow-sm">
           <CardHeader className="gap-4 border-b border-slate-100 p-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <CardTitle className="text-base font-black text-slate-950">Class Roster</CardTitle>
+              <CardTitle className="text-base font-black text-slate-950">Session Roster</CardTitle>
               <p className="mt-1 text-xs font-medium text-slate-500">
                 {filteredStudents.length} visible of {students.length} enrolled students
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-black uppercase tracking-wide text-slate-700 shadow-sm">
+                <Checkbox
+                  checked={allVisiblePresent}
+                  onCheckedChange={(checked) => setVisibleStatus(checked ? "present" : "absent")}
+                  disabled={!filteredStudents.length}
+                  className="h-4 w-4 rounded border-slate-300"
+                />
+                Select all present
+              </label>
               {statusOptions.map((option) => (
                 <Button
                   key={option.value}
@@ -630,9 +740,20 @@ export default function AttendanceManager() {
                 <table className="w-full min-w-[1180px] border-collapse bg-white">
                   <thead className="bg-slate-50">
                     <tr className="border-b border-slate-200 text-left">
-                      <th className="w-[28%] p-3 text-xs font-black uppercase tracking-wide text-slate-500">Student</th>
+                      <th className="w-[10%] p-3 text-xs font-black uppercase tracking-wide text-slate-500">
+                        <label className="flex items-center gap-2">
+                          <Checkbox
+                            checked={allVisiblePresent}
+                            onCheckedChange={(checked) => setVisibleStatus(checked ? "present" : "absent")}
+                            disabled={!filteredStudents.length}
+                            className="h-4 w-4 rounded border-slate-300"
+                          />
+                          Present
+                        </label>
+                      </th>
+                      <th className="w-[24%] p-3 text-xs font-black uppercase tracking-wide text-slate-500">Student</th>
                       <th className="w-[16%] p-3 text-xs font-black uppercase tracking-wide text-slate-500">Course Standing</th>
-                      <th className="w-[32%] p-3 text-xs font-black uppercase tracking-wide text-slate-500">Today Status</th>
+                      <th className="w-[28%] p-3 text-xs font-black uppercase tracking-wide text-slate-500">Session Status</th>
                       <th className="p-3 text-xs font-black uppercase tracking-wide text-slate-500">Note</th>
                     </tr>
                   </thead>
@@ -644,6 +765,16 @@ export default function AttendanceManager() {
 
                       return (
                         <tr key={student.userId} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/70">
+                          <td className="p-3 align-top">
+                            <label className="flex h-10 items-center gap-2 text-xs font-bold text-slate-600">
+                              <Checkbox
+                                checked={activeStatus === "present"}
+                                onCheckedChange={(checked) => setStatus(student.userId, checked ? "present" : "absent")}
+                                className="h-4 w-4 rounded border-slate-300"
+                              />
+                              Present
+                            </label>
+                          </td>
                           <td className="p-3 align-top">
                             <div className="flex items-start gap-3">
                               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-sm font-black text-white">
@@ -690,11 +821,11 @@ export default function AttendanceManager() {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className={`h-9 rounded-lg border text-xs font-bold ${isActive ? option.activeClass : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
+                                    className={`h-8 w-full min-w-0 justify-center rounded-lg border px-1.5 text-[11px] font-bold ${isActive ? option.activeClass : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
                                     onClick={() => setStatus(student.userId, option.value)}
                                   >
-                                    <Icon className="mr-1 h-3.5 w-3.5" />
-                                    {option.label}
+                                    <Icon className="mr-1 h-3 w-3 shrink-0" />
+                                    <span className="whitespace-nowrap">{option.label}</span>
                                   </Button>
                                 );
                               })}
@@ -717,6 +848,8 @@ export default function AttendanceManager() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );

@@ -18,12 +18,13 @@ import {
   Users,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { PaginationControls, getTotalPages, paginateItems } from "@/components/PaginationControls";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -39,6 +40,7 @@ type TeacherStudent = {
 
 type ProgressFilter = "all" | "excellent" | "steady" | "needs-attention";
 type ViewMode = "cards" | "table";
+const PAGE_SIZE = 10;
 
 const asArray = <T,>(value: unknown): T[] => (Array.isArray(value) ? value : []);
 const safeText = (value: unknown) => String(value ?? "");
@@ -74,6 +76,7 @@ export default function TeacherStudents() {
   const [courseFilter, setCourseFilter] = useState("all");
   const [progressFilter, setProgressFilter] = useState<ProgressFilter>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [page, setPage] = useState(1);
 
   const {
     data: students = [],
@@ -136,6 +139,17 @@ export default function TeacherStudents() {
       needsAttention,
     };
   }, [courses.length, students]);
+
+  const visibleStudents = useMemo(() => paginateItems(filteredStudents, page, PAGE_SIZE), [filteredStudents, page]);
+  const totalPages = getTotalPages(filteredStudents.length, PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [courseFilter, progressFilter, search, viewMode]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const exportCsv = () => {
     const rows = [
@@ -268,14 +282,21 @@ export default function TeacherStudents() {
             </CardContent>
           </Card>
         ) : viewMode === "table" ? (
-          <StudentTable students={filteredStudents} />
+          <StudentTable students={visibleStudents} />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredStudents.map((student) => (
+            {visibleStudents.map((student) => (
               <StudentCard key={`${student.id}-${student.courseId}`} student={student} />
             ))}
           </div>
         )}
+        <PaginationControls
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalItems={filteredStudents.length}
+          onPageChange={setPage}
+          label="students"
+        />
       </div>
     </DashboardLayout>
   );

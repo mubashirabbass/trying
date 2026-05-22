@@ -7,11 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { 
-  Newspaper, Loader2, Plus, Trash2, Pencil, 
-  Save, CheckCircle2, XCircle, FileText, Star, User as UserIcon
+  Newspaper, Loader2, Trash2, Pencil, 
+  Save, CheckCircle2, XCircle, FileText, Star, User as UserIcon, Upload, Image as ImageIcon,
+  Search, Eye, EyeOff, Plus
 } from "lucide-react";
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
@@ -21,6 +23,11 @@ export default function AdminArticles() {
   const { user } = useAuth();
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("manage");
+  const [currentPage, setCurrentPage] = useState(1);
+  const articlesPerPage = 8;
   
   // Article form state
   const [articleForm, setArticleForm] = useState({
@@ -36,6 +43,25 @@ export default function AdminArticles() {
   });
   
   const [isEditingArticle, setIsEditingArticle] = useState(false);
+
+  const filteredArticles = articles.filter((article) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+
+    return (
+      article.title?.toLowerCase().includes(query) ||
+      article.excerpt?.toLowerCase().includes(query) ||
+      article.category?.toLowerCase().includes(query) ||
+      article.author?.toLowerCase().includes(query)
+    );
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredArticles.length / articlesPerPage));
+  const paginatedArticles = filteredArticles.slice((currentPage - 1) * articlesPerPage, currentPage * articlesPerPage);
+  const pageStart = filteredArticles.length ? (currentPage - 1) * articlesPerPage + 1 : 0;
+  const pageEnd = Math.min(currentPage * articlesPerPage, filteredArticles.length);
+
+  const visibleArticleCount = articles.filter((article) => article.isPublished).length;
 
   const fetchArticles = async () => {
     setLoading(true);
@@ -56,6 +82,63 @@ export default function AdminArticles() {
   useEffect(() => {
     fetchArticles();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
+
+  const resetArticleForm = () => {
+    setArticleForm({
+      id: null,
+      title: "",
+      excerpt: "",
+      content: "",
+      category: "General",
+      imageUrl: "",
+      isPublished: user?.role === "teacher",
+      isFeatured: false,
+      readTime: "5 min read"
+    });
+  };
+
+  useEffect(() => {
+    if (!isEditingArticle && user?.role === "teacher") {
+      setArticleForm((current) => ({ ...current, isPublished: true }));
+    }
+  }, [isEditingArticle, user?.role]);
+
+  const handleImageUpload = async (file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please choose an image file", variant: "destructive" });
+      return;
+    }
+
+    const body = new FormData();
+    body.append("image", file);
+
+    try {
+      setIsUploadingImage(true);
+      const res = await fetch(`${BASE_URL}/api/articles/upload-image`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        body,
+      });
+      const uploaded = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(uploaded.error || uploaded.message || "Image upload failed");
+
+      setArticleForm((current) => ({ ...current, imageUrl: uploaded.url }));
+      toast({ title: "Article cover uploaded" });
+    } catch (error: any) {
+      toast({ title: error.message || "Image upload failed", variant: "destructive" });
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   const handleSaveArticle = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,17 +172,8 @@ export default function AdminArticles() {
       if (res.ok) {
         toast({ title: isEditingArticle ? "Article updated successfully!" : "Article published successfully!" });
         setIsEditingArticle(false);
-        setArticleForm({ 
-          id: null, 
-          title: "", 
-          excerpt: "", 
-          content: "", 
-          category: "General", 
-          imageUrl: "", 
-          isPublished: false, 
-          isFeatured: false,
-          readTime: "5 min read"
-        });
+        resetArticleForm();
+        setActiveTab("manage");
         fetchArticles();
       } else {
         const errorData = await res.json();
@@ -129,6 +203,52 @@ export default function AdminArticles() {
     }
   };
 
+  const handleEditArticle = (article: any) => {
+    setArticleForm(article);
+    setIsEditingArticle(true);
+    setActiveTab("write");
+  };
+
+  const handleNewArticle = () => {
+    setIsEditingArticle(false);
+    resetArticleForm();
+    setActiveTab("write");
+  };
+
+  const handleTogglePublish = async (article: any) => {
+    const nextPublishedState = !article.isPublished;
+
+    try {
+      const res = await fetch(`${BASE_URL}/api/articles/${article.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({
+          title: article.title,
+          excerpt: article.excerpt,
+          content: article.content,
+          category: article.category,
+          imageUrl: article.imageUrl,
+          isPublished: nextPublishedState,
+          isFeatured: article.isFeatured,
+          readTime: article.readTime || "5 min read",
+        }),
+      });
+
+      if (res.ok) {
+        toast({ title: nextPublishedState ? "Article is now visible" : "Article hidden from public site" });
+        fetchArticles();
+      } else {
+        const errorData = await res.json();
+        toast({ title: "Could not update visibility", description: errorData.error || "Permission denied.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Could not update visibility", variant: "destructive" });
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="flex flex-col gap-6">
@@ -139,7 +259,7 @@ export default function AdminArticles() {
               {user?.role === "admin" ? "Articles & News Manager" : "Teacher's Article Studio"}
             </h1>
             <p className="text-slate-500 font-medium mt-1">
-              Create, edit, and publish blogs, announcements, or news updates for your student community.
+              Create, edit, hide, show, and publish articles for the public website.
             </p>
           </div>
           <div className="h-12 w-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 flex items-center justify-center">
@@ -147,31 +267,69 @@ export default function AdminArticles() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* List */}
-          <div className="lg:col-span-2 space-y-4">
-            <Card className="border-none shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 rounded-[32px] overflow-hidden">
-              <CardHeader className="bg-slate-50/50 dark:bg-slate-900/30 border-b border-slate-100 dark:border-slate-850">
-                <CardTitle className="text-xl font-bold">All Articles & Blogs</CardTitle>
-                <CardDescription>
-                  {user?.role === "admin" 
-                    ? "Manage all catalog articles, feature up to 3 on the home page, and review submissions." 
-                    : "Create professional articles. You can view all blogs and update or delete your own entries."}
-                </CardDescription>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-2 shadow-sm dark:border-slate-800 dark:bg-slate-950 md:flex-row md:items-center md:justify-between">
+            <TabsList className="h-auto justify-start rounded-xl bg-slate-100 p-1 dark:bg-slate-900">
+              <TabsTrigger value="manage" className="h-10 rounded-lg px-4 text-xs font-black uppercase tracking-wide">
+                <Newspaper className="mr-2 h-4 w-4" />
+                Published Articles
+              </TabsTrigger>
+              <TabsTrigger value="write" className="h-10 rounded-lg px-4 text-xs font-black uppercase tracking-wide">
+                <Plus className="mr-2 h-4 w-4" />
+                Write Article
+              </TabsTrigger>
+            </TabsList>
+
+            <div className="flex items-center gap-2 px-2">
+              <Badge className="rounded-lg bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700 hover:bg-emerald-50">
+                {visibleArticleCount} visible
+              </Badge>
+              <Badge variant="outline" className="rounded-lg px-3 py-1 text-xs font-black">
+                {articles.length} total
+              </Badge>
+            </div>
+          </div>
+
+          <TabsContent value="manage" className="mt-0">
+            <Card className="overflow-hidden rounded-[28px] border-none shadow-sm ring-1 ring-slate-100 dark:ring-slate-800">
+              <CardHeader className="gap-4 border-b border-slate-100 bg-slate-50/50 dark:border-slate-850 dark:bg-slate-900/30 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <CardTitle className="text-xl font-bold">Published Articles</CardTitle>
+                  <CardDescription>
+                    Search articles and manage public visibility, edits, and deletion.
+                  </CardDescription>
+                </div>
+                <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+                  <div className="relative min-w-0 sm:w-80">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder="Search title, author, category..."
+                      className="h-10 rounded-xl bg-white pl-10 text-sm"
+                    />
+                  </div>
+                  <Button type="button" onClick={handleNewArticle} className="h-10 rounded-xl font-bold">
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Article
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
                 {loading ? (
                   <div className="p-12 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></div>
                 ) : articles.length === 0 ? (
                   <div className="p-12 text-center text-slate-400 font-medium">No articles yet. Create one!</div>
+                ) : filteredArticles.length === 0 ? (
+                  <div className="p-12 text-center text-slate-400 font-medium">No articles match your search.</div>
                 ) : (
                   <div className="divide-y divide-slate-50 dark:divide-slate-850">
-                    {articles.map(art => {
+                    {paginatedArticles.map(art => {
                       const isOwner = art.author === user?.name;
-                      const canManage = user?.role === "admin" || isOwner;
+                      const canManage = user?.role === "admin" || user?.role === "teacher";
                       
                       return (
-                        <div key={art.id} className="p-6 hover:bg-slate-50/40 dark:hover:bg-slate-900/10 transition-colors flex items-center justify-between group">
+                        <div key={art.id} className="p-6 hover:bg-slate-50/40 dark:hover:bg-slate-900/10 transition-colors flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between group">
                           <div className="flex items-center gap-4 min-w-0 mr-4">
                             <div className="h-16 w-16 rounded-2xl bg-slate-100 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-850 overflow-hidden shrink-0">
                               {art.imageUrl ? (
@@ -203,7 +361,7 @@ export default function AdminArticles() {
                                   <UserIcon className="h-3 w-3 mr-1" /> {art.author}
                                 </span>
                                 <span className="text-[10px] text-slate-400 font-medium">
-                                  • {art.readTime || "5 min read"}
+                                  - {art.readTime || "5 min read"}
                                 </span>
                                 {art.isPublished ? (
                                   <span className="flex items-center text-[10px] font-black text-emerald-500 uppercase">
@@ -217,24 +375,35 @@ export default function AdminArticles() {
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          <div className="flex flex-wrap items-center gap-2 shrink-0">
                             {canManage ? (
                               <>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={() => { setArticleForm(art); setIsEditingArticle(true); }} 
-                                  className="rounded-xl hover:bg-primary/10 hover:text-primary h-9 w-9"
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleTogglePublish(art)}
+                                  className={`h-9 rounded-xl text-xs font-bold ${art.isPublished ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100" : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"}`}
                                 >
-                                  <Pencil className="h-4 w-4" />
+                                  {art.isPublished ? <EyeOff className="mr-1.5 h-3.5 w-3.5" /> : <Eye className="mr-1.5 h-3.5 w-3.5" />}
+                                  {art.isPublished ? "Hide" : "Show"}
                                 </Button>
                                 <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={() => handleDeleteArticle(art.id)} 
-                                  className="rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600 h-9 w-9"
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleEditArticle(art)} 
+                                  className="h-9 rounded-xl text-xs font-bold"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                                  Edit
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleDeleteArticle(art.id)} 
+                                  className="h-9 rounded-xl border-rose-100 text-xs font-bold text-rose-600 hover:bg-rose-50"
+                                >
+                                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                                  Delete
                                 </Button>
                               </>
                             ) : (
@@ -249,127 +418,184 @@ export default function AdminArticles() {
                   </div>
                 )}
               </CardContent>
+              {!loading && filteredArticles.length > 0 && (
+                <div className="flex flex-col gap-3 border-t border-slate-100 bg-white px-6 py-4 dark:border-slate-850 dark:bg-slate-950 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs font-bold text-slate-500">
+                    Showing {pageStart}-{pageEnd} of {filteredArticles.length} articles
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 rounded-xl text-xs font-bold"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                    >
+                      Previous
+                    </Button>
+                    <span className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-black text-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                      Page {currentPage} / {totalPages}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 rounded-xl text-xs font-bold"
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
             </Card>
-          </div>
+          </TabsContent>
 
-          {/* Form */}
-          <div>
-            <Card className="border-none shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 rounded-[32px] sticky top-6">
+          <TabsContent value="write" className="mt-0">
+            <Card className="border-none shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 rounded-[32px] overflow-hidden">
               <CardHeader className="bg-slate-50/50 dark:bg-slate-900/30 border-b border-slate-100 dark:border-slate-850">
                 <CardTitle className="text-xl font-bold">{isEditingArticle ? "Edit Article" : "Write Article"}</CardTitle>
-                <CardDescription>Share stories, knowledge, and course announcements.</CardDescription>
+                <CardDescription>
+                  {user?.role === "teacher" ? "Published articles appear on the public website and resources page." : "Share stories, knowledge, and course announcements."}
+                </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
-                <form onSubmit={handleSaveArticle} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="font-bold">Title</Label>
-                    <Input 
-                      required 
-                      value={articleForm.title} 
-                      onChange={e => setArticleForm({...articleForm, title: e.target.value})} 
-                      placeholder="Headline / Blog Title..." 
-                      className="rounded-xl" 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-bold">Excerpt</Label>
-                    <Textarea 
-                      required 
-                      value={articleForm.excerpt} 
-                      onChange={e => setArticleForm({...articleForm, excerpt: e.target.value})} 
-                      placeholder="Short catchy summary (shown in cards)..." 
-                      className="rounded-xl h-20 resize-none" 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="font-bold">Content</Label>
-                    <Textarea 
-                      required 
-                      value={articleForm.content} 
-                      onChange={e => setArticleForm({...articleForm, content: e.target.value})} 
-                      placeholder="Type the full body details here..." 
-                      className="rounded-xl h-36 resize-y" 
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
+                <form onSubmit={handleSaveArticle} className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="font-bold">Category</Label>
+                      <Label className="font-bold">Title</Label>
                       <Input 
-                        required
-                        value={articleForm.category} 
-                        onChange={e => setArticleForm({...articleForm, category: e.target.value})} 
+                        required 
+                        value={articleForm.title} 
+                        onChange={e => setArticleForm({...articleForm, title: e.target.value})} 
+                        placeholder="Headline / Blog Title..." 
                         className="rounded-xl" 
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="font-bold">Image URL</Label>
-                      <Input 
-                        value={articleForm.imageUrl} 
-                        onChange={e => setArticleForm({...articleForm, imageUrl: e.target.value})} 
-                        placeholder="https://..." 
-                        className="rounded-xl" 
+                      <Label className="font-bold">Excerpt</Label>
+                      <Textarea 
+                        required 
+                        value={articleForm.excerpt} 
+                        onChange={e => setArticleForm({...articleForm, excerpt: e.target.value})} 
+                        placeholder="Short catchy summary (shown in cards)..." 
+                        className="rounded-xl h-24 resize-none" 
                       />
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl">
-                    <div className="space-y-0.5">
-                      <Label className="font-bold">Publish Instantly?</Label>
-                      <p className="text-[10px] text-slate-400">Available to student portal if toggled live.</p>
+                    <div className="space-y-2">
+                      <Label className="font-bold">Content</Label>
+                      <Textarea 
+                        required 
+                        value={articleForm.content} 
+                        onChange={e => setArticleForm({...articleForm, content: e.target.value})} 
+                        placeholder="Type the full body details here..." 
+                        className="rounded-xl min-h-[360px] resize-y" 
+                      />
                     </div>
-                    <Switch 
-                      checked={articleForm.isPublished} 
-                      onCheckedChange={val => setArticleForm({...articleForm, isPublished: val})} 
-                    />
                   </div>
 
-                  {user?.role === "admin" && (
-                    <div className="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-2xl">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                    <Label className="font-bold">Cover Image</Label>
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/50">
+                      {articleForm.imageUrl ? (
+                        <div className="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800">
+                          <img src={articleForm.imageUrl} alt="Article cover preview" className="h-32 w-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="mb-3 flex h-24 items-center justify-center rounded-xl bg-white text-slate-300 ring-1 ring-slate-100 dark:bg-slate-950 dark:ring-slate-800">
+                          <ImageIcon className="h-8 w-8" />
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={articleForm.imageUrl}
+                          onChange={e => setArticleForm({...articleForm, imageUrl: e.target.value})}
+                          placeholder="Paste image URL or upload"
+                          className="rounded-xl bg-white text-xs"
+                        />
+                        <label className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                          {isUploadingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                          {isUploadingImage ? "Uploading" : "Upload"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={isUploadingImage}
+                            onChange={(e) => handleImageUpload(e.target.files?.[0] || null)}
+                          />
+                        </label>
+                      </div>
+                      <p className="mt-2 text-[10px] font-medium text-slate-400">JPEG, PNG, or WEBP cover image. It will be used on public article cards.</p>
+                    </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1">
+                      <div className="space-y-2">
+                        <Label className="font-bold">Category</Label>
+                        <Input 
+                          required
+                          value={articleForm.category} 
+                          onChange={e => setArticleForm({...articleForm, category: e.target.value})} 
+                          className="rounded-xl" 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="font-bold">Read Time</Label>
+                        <Input value="Auto calculated on save" readOnly className="rounded-xl bg-slate-50 text-xs font-semibold text-slate-500" />
+                      </div>
+                    </div>
+                  
+                    <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl">
                       <div className="space-y-0.5">
-                        <Label className="font-bold text-amber-900 dark:text-amber-300">Feature on Home Page?</Label>
-                        <p className="text-[10px] text-amber-600/80">Pins this article to the website homepage (Max 3).</p>
+                        <Label className="font-bold">Publish Instantly?</Label>
+                        <p className="text-[10px] text-slate-400">Published articles appear on the public resources page and homepage recent articles.</p>
                       </div>
                       <Switch 
-                        checked={articleForm.isFeatured} 
-                        onCheckedChange={val => setArticleForm({...articleForm, isFeatured: val})} 
+                        checked={articleForm.isPublished} 
+                        onCheckedChange={val => setArticleForm({...articleForm, isPublished: val})} 
                       />
                     </div>
-                  )}
 
-                  <div className="flex gap-2 pt-4">
-                    <Button type="submit" className="flex-1 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 shadow-md">
-                      <Save className="h-4 w-4 mr-2" /> {isEditingArticle ? "Update" : "Publish"}
-                    </Button>
-                    {isEditingArticle && (
+                    {user?.role === "admin" && (
+                      <div className="flex items-center justify-between p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-2xl">
+                        <div className="space-y-0.5">
+                          <Label className="font-bold text-amber-900 dark:text-amber-300">Feature on Home Page?</Label>
+                          <p className="text-[10px] text-amber-600/80">Pins this article to the website homepage.</p>
+                        </div>
+                        <Switch 
+                          checked={articleForm.isFeatured} 
+                          onCheckedChange={val => setArticleForm({...articleForm, isFeatured: val})} 
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-2">
+                      <Button type="submit" className="flex-1 rounded-xl font-bold bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 shadow-md" disabled={isUploadingImage}>
+                        <Save className="h-4 w-4 mr-2" /> {isEditingArticle ? "Update" : articleForm.isPublished ? "Publish Article" : "Save Draft"}
+                      </Button>
                       <Button 
                         type="button" 
                         variant="ghost" 
                         onClick={() => { 
                           setIsEditingArticle(false); 
-                          setArticleForm({
-                            id: null, 
-                            title: "", 
-                            excerpt: "", 
-                            content: "", 
-                            category: "General", 
-                            imageUrl: "", 
-                            isPublished: false, 
-                            isFeatured: false,
-                            readTime: "5 min read"
-                          }); 
+                          resetArticleForm(); 
                         }} 
                         className="rounded-xl"
                       >
-                        Cancel
+                        {isEditingArticle ? "Cancel" : "Clear"}
                       </Button>
-                    )}
+                    </div>
                   </div>
                 </form>
               </CardContent>
             </Card>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
 }
+

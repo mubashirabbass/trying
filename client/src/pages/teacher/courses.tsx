@@ -1,13 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { 
   useListCourses, 
   getListCoursesQueryKey,
-  useCreateCourse,
-  useUpdateCourse
+  useDeleteCourse
 } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { Loader2, Plus, BookOpen, Clock, Users, Edit, GraduationCap, Sparkles, BookOpenCheck } from "lucide-react";
+import { Loader2, Plus, BookOpen, Clock, Users, Edit, GraduationCap, Sparkles, BookOpenCheck, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -19,28 +18,31 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/AuthContext";
+import { PaginationControls, getTotalPages, paginateItems } from "@/components/PaginationControls";
+
+const PAGE_SIZE = 6;
 
 export default function TeacherCourses() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
   const { data: courses, isLoading } = useListCourses(
-    { teacherId: user?.id ?? undefined },
+    { teacherId: user?.id ?? undefined, limit: 100 } as any,
     { 
       query: { 
-        queryKey: getListCoursesQueryKey({ teacherId: user?.id ?? undefined }),
+        queryKey: getListCoursesQueryKey({ teacherId: user?.id ?? undefined } as any),
         enabled: !!user?.id
       } 
     }
   );
 
-  const createCourse = useCreateCourse();
-  const updateCourse = useUpdateCourse();
+  const deleteCourse = useDeleteCourse();
 
   // Dialog State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<any>(null); // null means create mode
+  const [courseToDelete, setCourseToDelete] = useState<any>(null);
 
   // Form fields
   const [title, setTitle] = useState("");
@@ -52,6 +54,14 @@ export default function TeacherCourses() {
   const [thumbnail, setThumbnail] = useState("");
   const [syllabus, setSyllabus] = useState("");
   const [minAttendancePercentage, setMinAttendancePercentage] = useState("75");
+  const [savingCourse, setSavingCourse] = useState(false);
+  const [page, setPage] = useState(1);
+
+  const visibleCourses = paginateItems(courses ?? [], page, PAGE_SIZE);
+  const totalPages = getTotalPages(courses?.length ?? 0, PAGE_SIZE);
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const openCreateDialog = () => {
     setEditingCourse(null);
@@ -83,50 +93,81 @@ export default function TeacherCourses() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !description || !category || !duration) {
+    if (!title.trim() || !description.trim() || !category || !duration.trim()) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
       return;
     }
 
+    const coursePayload = {
+      title: title.trim(),
+      description: description.trim(),
+      category,
+      duration: duration.trim(),
+      fee: isFree ? 0 : Number(fee) || 0,
+      isFree,
+      thumbnail: thumbnail.trim() || undefined,
+      syllabus: syllabus.trim() || undefined,
+      minAttendancePercentage: Number(minAttendancePercentage) || 75,
+    };
+
+    setSavingCourse(true);
     try {
       if (editingCourse) {
         // Edit mode
-        await updateCourse.mutateAsync({
-          id: editingCourse.id,
-          data: {
-            title,
-            description,
-            category,
-            duration,
-            fee: isFree ? 0 : Number(fee),
-            isFree,
-            thumbnail: thumbnail || null,
-            syllabus: syllabus || null,
-            minAttendancePercentage: Number(minAttendancePercentage),
-          } as any
+        const response = await fetch(`/api/courses/${editingCourse.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            ...coursePayload,
+            thumbnail: coursePayload.thumbnail ?? null,
+            syllabus: coursePayload.syllabus ?? null,
+          }),
         });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to update course");
+        }
         toast({ title: "Course details updated successfully!" });
       } else {
         // Create mode
-        await createCourse.mutateAsync({
-          data: {
-            title,
-            description,
-            category,
-            duration,
-            fee: isFree ? 0 : Number(fee),
-            isFree,
-            thumbnail: thumbnail || undefined,
-            syllabus: syllabus || undefined,
-            minAttendancePercentage: Number(minAttendancePercentage),
-          } as any
+        const response = await fetch("/api/courses", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(coursePayload),
         });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to create course");
+        }
         toast({ title: "Course created successfully as draft!" });
       }
       queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({ teacherId: user?.id ?? undefined }) });
       setIsDialogOpen(false);
     } catch (error: any) {
-      toast({ title: "Failed to save course details", variant: "destructive" });
+      const message = error?.data?.error || error?.message || "Failed to save course details";
+      toast({ title: message, variant: "destructive" });
+    } finally {
+      setSavingCourse(false);
+    }
+  };
+
+  const handleDeleteCourse = async () => {
+    if (!courseToDelete) return;
+
+    try {
+      await deleteCourse.mutateAsync({ id: courseToDelete.id });
+      toast({ title: "Course deleted successfully" });
+      queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({ teacherId: user?.id ?? undefined }) });
+      setCourseToDelete(null);
+    } catch (error: any) {
+      const message = error?.data?.error || error?.message || "Failed to delete course";
+      toast({ title: message, variant: "destructive" });
     }
   };
 
@@ -167,7 +208,7 @@ export default function TeacherCourses() {
 
       {/* Courses List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {courses?.map((course) => (
+        {visibleCourses.map((course) => (
           <Card key={course.id} className="flex flex-col hover:shadow-lg transition-all duration-300 border-slate-200/80">
             <CardHeader className="relative pb-4">
               {course.thumbnail ? (
@@ -215,17 +256,25 @@ export default function TeacherCourses() {
                 </div>
               )}
             </CardContent>
-            <CardFooter className="pt-4 border-t gap-2 flex-col sm:flex-row bg-slate-50/50 rounded-b-lg">
+            <CardFooter className="pt-4 border-t grid grid-cols-2 gap-2 bg-slate-50/50 rounded-b-lg">
               <Button 
                 variant="outline" 
                 size="sm"
-                className="w-full gap-1.5 text-xs font-semibold"
+                className="w-full min-w-0 gap-1.5 text-xs font-semibold"
                 onClick={() => openEditDialog(course)}
               >
                 <Edit className="h-3.5 w-3.5" /> Edit Details
               </Button>
-              <Link href={`/teacher/courses/${course.id}`} className="w-full">
-                <Button size="sm" className="w-full gap-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full min-w-0 gap-1.5 text-xs font-semibold border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                onClick={() => setCourseToDelete(course)}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </Button>
+              <Link href={`/teacher/courses/${course.id}`} className="col-span-2 w-full">
+                <Button size="sm" className="w-full min-w-0 gap-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white">
                   <Sparkles className="h-3.5 w-3.5" /> Curriculum Builder
                 </Button>
               </Link>
@@ -246,6 +295,13 @@ export default function TeacherCourses() {
           </div>
         )}
       </div>
+      <PaginationControls
+        page={page}
+        pageSize={PAGE_SIZE}
+        totalItems={courses?.length ?? 0}
+        onPageChange={setPage}
+        label="courses"
+      />
 
       {/* Udemy-style Course designer dialog (Create & Edit) */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -381,11 +437,44 @@ export default function TeacherCourses() {
               <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-primary text-white">
-                {editingCourse ? "Save Changes" : "Create & Start Building"}
+              <Button type="submit" className="bg-primary text-white" disabled={savingCourse}>
+                {savingCourse ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : editingCourse ? "Save Changes" : "Create & Start Building"}
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!courseToDelete} onOpenChange={(open) => !open && setCourseToDelete(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-900">Delete Course</DialogTitle>
+            <DialogDescription>
+              This will remove the course and its related curriculum records. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl border border-rose-100 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
+            {courseToDelete?.title}
+          </div>
+          <DialogFooter className="pt-4">
+            <Button type="button" variant="outline" onClick={() => setCourseToDelete(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDeleteCourse}
+              disabled={deleteCourse.isPending}
+            >
+              {deleteCourse.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Delete Course
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

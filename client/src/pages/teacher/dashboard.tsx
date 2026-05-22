@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useAuth } from "@/lib/AuthContext";
-import { useGetTeacherDashboard, getGetTeacherDashboardQueryKey, useListCourses } from "@workspace/api-client-react";
+import { useGetTeacherDashboard, getGetTeacherDashboardQueryKey, useListCourses, getListCoursesQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Loader2, BookOpen, Clock, Bell, FileText, MessageSquare,
@@ -24,7 +24,10 @@ export default function TeacherDashboard() {
     { query: { enabled: !!user?.id, queryKey: getGetTeacherDashboardQueryKey({ userId: user?.id || 0 }) } }
   );
 
-  const { data: courses = [], isLoading: isCoursesLoading } = useListCourses();
+  const { data: courses = [], isLoading: isCoursesLoading } = useListCourses(
+    { teacherId: user?.id ?? undefined, limit: 20 } as any,
+    { query: { queryKey: getListCoursesQueryKey({ teacherId: user?.id ?? undefined } as any), enabled: !!user?.id } }
+  );
   const teacherCourses = courses.filter((c: any) => c.teacherId === user?.id || c.teacherName === user?.name);
 
   const fetchNotifications = async () => {

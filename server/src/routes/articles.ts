@@ -3,8 +3,31 @@ import { db } from "@workspace/db";
 import { articlesTable } from "@workspace/db";
 import { eq, desc, asc, and } from "drizzle-orm";
 import { authenticate, authorize, AuthRequest } from "../middleware/auth";
+import { catchAsync } from "../middleware/error";
+import { AppError } from "../lib/auth";
+import { upload } from "../middleware/upload";
+import { uploadToCloudinary } from "../lib/cloudinary";
 
 const router: IRouter = Router();
+
+// Admin/Teacher: upload article cover image
+router.post(
+  "/articles/upload-image",
+  authenticate,
+  authorize("admin", "teacher"),
+  upload.single("image"),
+  catchAsync(async (req: any, res) => {
+    if (!req.file) {
+      throw new AppError("Article cover image is required", 400);
+    }
+    if (!req.file.mimetype.startsWith("image/")) {
+      throw new AppError("Only image files are allowed", 400);
+    }
+
+    const result = await uploadToCloudinary(req.file.buffer, "article-covers", "image");
+    res.status(201).json({ url: result.secure_url, publicId: result.public_id });
+  })
+);
 
 // Public: list published articles
 router.get("/articles", async (req, res): Promise<void> => {
@@ -34,7 +57,6 @@ router.get("/articles/:slug", async (req, res): Promise<void> => {
 // Admin/Teacher: list ALL articles (incl. drafts)
 router.get("/admin/articles", authenticate, authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
   try {
-    // Both admin and teacher see all articles, but can only manage what they own (managed in endpoints below)
     const articles = await db
       .select()
       .from(articlesTable)
@@ -84,12 +106,6 @@ router.put("/articles/:id", authenticate, authorize("admin", "teacher"), async (
     const [existing] = await db.select().from(articlesTable).where(eq(articlesTable.id, id));
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }
     
-    // Check permission: teachers can only edit their own articles (matching by name or title)
-    if (req.user.role === "teacher" && existing.author !== req.user.name) {
-      res.status(403).json({ error: "You do not have permission to modify this article" });
-      return;
-    }
-    
     const { title, excerpt, content, author, category, imageUrl, isPublished, isFeatured, readTime } = req.body;
     
     const updateData: any = {
@@ -128,12 +144,6 @@ router.delete("/articles/:id", authenticate, authorize("admin", "teacher"), asyn
     
     const [existing] = await db.select().from(articlesTable).where(eq(articlesTable.id, id));
     if (!existing) { res.status(404).json({ error: "Not found" }); return; }
-    
-    // Check permission: teachers can only delete their own articles
-    if (req.user.role === "teacher" && existing.author !== req.user.name) {
-      res.status(403).json({ error: "You do not have permission to delete this article" });
-      return;
-    }
     
     await db.delete(articlesTable).where(eq(articlesTable.id, id));
     res.sendStatus(204);

@@ -48,10 +48,13 @@ export default function StudentForum() {
   const [newPost, setNewPost] = useState({ title: "", body: "" });
   const [replyBody, setReplyBody] = useState("");
 
-  const { data: enrollments } = useListEnrollments();
+  const isFaculty = user?.role === 'teacher' || user?.role === 'admin';
+  const { data: enrollments } = useListEnrollments(
+    undefined,
+    { query: { enabled: !isFaculty } }
+  );
   const { data: allCourses } = useListCourses();
   
-  const isFaculty = user?.role === 'teacher' || user?.role === 'admin';
   const coursesToDisplay = isFaculty ? allCourses : enrollments?.map(e => ({ id: e.courseId, title: e.courseName }));
   const { data: posts, isLoading: postsLoading } = useListForumPosts(
     selectedCourseId as number,
@@ -127,8 +130,12 @@ export default function StudentForum() {
         <div className="lg:w-72 shrink-0">
           <div className="sticky top-8 space-y-6">
             <div>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Forum</h1>
-              <p className="text-sm text-slate-500 font-medium">Collaborate with your peers</p>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2">
+                {isFaculty ? "Course Discussions" : "Forum"}
+              </h1>
+              <p className="text-sm text-slate-500 font-medium">
+                {isFaculty ? "Join any course forum and start discussions" : "Collaborate with your peers"}
+              </p>
             </div>
             
             <div className="space-y-1">
@@ -161,7 +168,11 @@ export default function StudentForum() {
                 <MessageSquare className="h-10 w-10" />
               </div>
               <h3 className="text-2xl font-black text-slate-900 mb-2">Join the Conversation</h3>
-              <p className="text-slate-500 font-medium max-w-sm">Select a course from the sidebar to view active discussions and ask questions.</p>
+                <p className="text-slate-500 font-medium max-w-sm">
+                  {isFaculty
+                    ? "Select any course forum to post announcements, answer questions, or start a discussion."
+                    : "Select a course from the sidebar to view active discussions and ask questions."}
+                </p>
             </div>
           ) : selectedPostId && selectedPost ? (
             <div className="flex flex-col h-full bg-white rounded-[32px] border-2 border-slate-100 overflow-hidden shadow-sm">
@@ -254,12 +265,12 @@ export default function StudentForum() {
                 <Dialog open={isNewPostOpen} onOpenChange={setIsNewPostOpen}>
                   <DialogTrigger asChild>
                     <Button className="rounded-2xl font-bold shadow-lg shadow-primary/20">
-                      <Plus className="h-4 w-4 mr-2" /> Start Discussion
+                      <Plus className="h-4 w-4 mr-2" /> {isFaculty ? "Add Post" : "Start Discussion"}
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[550px] rounded-[32px]">
                     <DialogHeader>
-                      <DialogTitle className="text-2xl font-black">New Discussion</DialogTitle>
+                      <DialogTitle className="text-2xl font-black">{isFaculty ? "Add Forum Post" : "New Discussion"}</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleCreatePost} className="space-y-6 py-4">
                       <div className="space-y-3">
@@ -279,13 +290,13 @@ export default function StudentForum() {
                           rows={6}
                           value={newPost.body} 
                           onChange={(e) => setNewPost({...newPost, body: e.target.value})} 
-                          placeholder="Provide details for your peers and instructors..."
+                          placeholder={isFaculty ? "Write a course update, prompt, answer, or discussion starter..." : "Provide details for your peers and instructors..."}
                           className="rounded-xl border-slate-200"
                         />
                       </div>
                       <DialogFooter>
                         <Button type="submit" className="w-full h-12 font-bold text-lg" disabled={createPostMutation.isPending}>
-                          {createPostMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : "Post to Forum"}
+                          {createPostMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : isFaculty ? "Publish Post" : "Post to Forum"}
                         </Button>
                       </DialogFooter>
                     </form>

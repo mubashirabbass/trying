@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, coursesTable, usersTable, enrollmentsTable, lessonsTable, lessonCompletionsTable } from "@workspace/db";
+import { db, coursesTable, usersTable, enrollmentsTable, lessonsTable, lessonCompletionsTable, sectionsTable, attendanceTable } from "@workspace/db";
 import { eq, sql, count, desc, or, and, ilike, isNotNull } from "drizzle-orm";
 import {
   ListCoursesQueryParams,
@@ -13,6 +13,24 @@ import { authenticate, authorize, AuthRequest } from "../middleware/auth";
 import { verifyToken } from "../lib/auth";
 
 const router: IRouter = Router();
+
+const makeSlug = (title: string) => {
+  const slug = title.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^\w-]+/g, "");
+  return slug || `course-${Date.now()}`;
+};
+
+const makeUniqueSlug = async (title: string) => {
+  const baseSlug = makeSlug(title);
+  let slug = baseSlug;
+  let suffix = 2;
+
+  while (true) {
+    const [existing] = await db.select({ id: coursesTable.id }).from(coursesTable).where(eq(coursesTable.slug, slug)).limit(1);
+    if (!existing) return slug;
+    slug = `${baseSlug}-${suffix}`;
+    suffix += 1;
+  }
+};
 
 router.get("/courses/stats", async (req, res): Promise<void> => {
   const coursesCount = await db.select({ count: count() }).from(coursesTable);
@@ -135,7 +153,7 @@ router.post("/courses", authenticate, authorize("admin", "teacher"), async (req:
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const slug = parsed.data.title.toLowerCase().replace(/ /g, "-").replace(/[^\w-]+/g, "");
+  const slug = await makeUniqueSlug(parsed.data.title);
   
   let insertData: any = {
     ...parsed.data,
@@ -153,8 +171,13 @@ router.post("/courses", authenticate, authorize("admin", "teacher"), async (req:
     insertData.teacherId = null;
   }
 
-  const [course] = await db.insert(coursesTable).values(insertData).returning();
-  res.status(201).json({ ...course, enrollmentCount: 0, lessonCount: 0, teacherName: req.user.role === "admin" ? null : req.user.name });
+  try {
+    const [course] = await db.insert(coursesTable).values(insertData).returning();
+    res.status(201).json({ ...course, enrollmentCount: 0, lessonCount: 0, teacherName: req.user.role === "admin" ? null : req.user.name });
+  } catch (err: any) {
+    console.error("[CREATE COURSE ERROR]", err);
+    res.status(500).json({ error: err?.message || "Failed to create course" });
+  }
 });
 
 router.get("/courses/reviews", authenticate, authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
@@ -391,6 +414,8 @@ router.delete("/courses/:id", authenticate, authorize("admin", "teacher"), async
     return;
   }
 
+  await db.delete(attendanceTable).where(eq(attendanceTable.courseId, id));
+  await db.delete(sectionsTable).where(eq(sectionsTable.courseId, id));
   await db.delete(coursesTable).where(eq(coursesTable.id, id));
   res.sendStatus(204);
 });

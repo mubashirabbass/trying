@@ -52,3 +52,24 @@ export const assignmentPdfUpload = multer({
     }
   },
 });
+
+export const MESSAGE_MEDIA_MAX_BYTES = 8 * 1024 * 1024;
+
+export const messageMediaUpload = multer({
+  storage,
+  limits: {
+    fileSize: MESSAGE_MEDIA_MAX_BYTES,
+  },
+  fileFilter: (_req: any, file: any, cb: any) => {
+    const mimeType = String(file.mimetype || "").toLowerCase().split(";", 1)[0];
+    const isImage = ["image/jpeg", "image/png", "image/webp"].includes(mimeType);
+    const isAudio = mimeType.startsWith("audio/");
+    const isRecordedAudioContainer = ["video/webm", "video/mp4", "application/octet-stream"].includes(mimeType);
+
+    if (isImage || isAudio || isRecordedAudioContainer) {
+      cb(null, true);
+    } else {
+      cb(new AppError("Only image files and voice notes are allowed.", 400), false);
+    }
+  },
+});

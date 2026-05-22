@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { useListCourses, getListCoursesQueryKey, useListUsers, getListUsersQueryKey } from "@workspace/api-client-react";
+import { useListCourses, getListCoursesQueryKey } from "@workspace/api-client-react";
 import {
   Loader2, Plus, Calendar, Link2, Target, CheckCircle, Trash2,
   Video, Clock, Users, BookOpen, ExternalLink, Copy, RefreshCw
@@ -16,6 +16,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/AuthContext";
+import { PaginationControls, getTotalPages, paginateItems } from "@/components/PaginationControls";
+
+const PAGE_SIZE = 10;
 
 const ensureAbsoluteUrl = (url: string) => {
   if (!url) return "";
@@ -38,9 +41,13 @@ export default function TeacherLiveClasses() {
   const [scheduledAt, setScheduledAt] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [students, setStudents] = useState<any[]>([]);
 
-  const { data: courses } = useListCourses({}, { query: { queryKey: getListCoursesQueryKey({}) } });
-  const { data: students } = useListUsers({ role: "student" }, { query: { queryKey: getListUsersQueryKey({ role: "student" }) } });
+  const { data: courses } = useListCourses(
+    { teacherId: user?.id ?? undefined, limit: 100 } as any,
+    { query: { queryKey: getListCoursesQueryKey({ teacherId: user?.id ?? undefined } as any), enabled: !!user?.id } }
+  );
 
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
@@ -54,6 +61,20 @@ export default function TeacherLiveClasses() {
   };
 
   useEffect(() => { fetchLiveClasses(); }, []);
+
+  useEffect(() => {
+    if (!user?.id || !token) return;
+    fetch(`/api/dashboard/teacher/students?userId=${user.id}`, { headers })
+      .then((res) => res.ok ? res.json() : [])
+      .then((rows) => {
+        const unique = new Map<number, any>();
+        (Array.isArray(rows) ? rows : []).forEach((student: any) => {
+          if (!unique.has(student.id)) unique.set(student.id, student);
+        });
+        setStudents(Array.from(unique.values()));
+      })
+      .catch(() => setStudents([]));
+  }, [user?.id, token]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,8 +142,14 @@ export default function TeacherLiveClasses() {
 
   // Only show classes created by this teacher (or all for admin)
   const myClasses = classes.filter(c => c.createdBy === user?.id || !c.createdBy);
+  const visibleClasses = paginateItems(myClasses, page, PAGE_SIZE);
+  const totalPages = getTotalPages(myClasses.length, PAGE_SIZE);
   const activeClasses = myClasses.filter(c => !c.isCompleted).length;
   const expiredClasses = myClasses.filter(c => c.isCompleted).length;
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   return (
     <DashboardLayout>
@@ -200,7 +227,7 @@ export default function TeacherLiveClasses() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {myClasses.map((c) => {
+                  {visibleClasses.map((c) => {
                     const scheduledDate = new Date(c.scheduledAt);
                     const isPast = scheduledDate < new Date();
                     const isExpired = c.isCompleted || isPast;
@@ -268,6 +295,13 @@ export default function TeacherLiveClasses() {
               </Table>
             </div>
           )}
+          <PaginationControls
+            page={page}
+            pageSize={PAGE_SIZE}
+            totalItems={myClasses.length}
+            onPageChange={setPage}
+            label="sessions"
+          />
         </CardContent>
       </Card>
 

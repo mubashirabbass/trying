@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import {
   useListSubmissions, useGradeAssignment, getListSubmissionsQueryKey,
-  useListCourses, useListAssignments
+  useListCourses, useListAssignments, getListCoursesQueryKey
 } from "@workspace/api-client-react";
 import {
   Loader2, CheckCircle2, Clock, Eye, ExternalLink, Search,
@@ -19,6 +19,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/AuthContext";
+import { PaginationControls, getTotalPages, paginateItems } from "@/components/PaginationControls";
+
+const PAGE_SIZE = 8;
 
 export default function TeacherGrading() {
   const { user } = useAuth();
@@ -28,15 +31,20 @@ export default function TeacherGrading() {
   const [selectedCourse, setSelectedCourse] = useState<string>("none");
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
-  const { data: allCourses = [] } = useListCourses();
+  const { data: allCourses = [] } = useListCourses(
+    { teacherId: user?.id ?? undefined, limit: 100 } as any,
+    { query: { queryKey: getListCoursesQueryKey({ teacherId: user?.id ?? undefined } as any), enabled: !!user?.id } }
+  );
   const courses = allCourses.filter((c: any) => c.teacherId === user?.id || c.teacherName === user?.name);
 
   const courseId = selectedCourse !== "none" ? Number(selectedCourse) : undefined;
 
-  const { data: submissions = [], isLoading: submissionsLoading } = useListSubmissions({
-    courseId: courseId
-  });
+  const { data: submissions = [], isLoading: submissionsLoading } = useListSubmissions(
+    { courseId },
+    { query: { queryKey: getListSubmissionsQueryKey({ courseId }), enabled: !!courseId } }
+  );
 
   const { data: assignments = [] } = useListAssignments({
     courseId: courseId
@@ -58,6 +66,16 @@ export default function TeacherGrading() {
     .filter((s: any) => !courseId || teacherAssignmentIds.includes(s.assignmentId))
     .filter((s: any) => statusFilter === "all" || s.status === statusFilter)
     .filter((s: any) => !search || s.userName?.toLowerCase().includes(search.toLowerCase()) || s.assignmentTitle?.toLowerCase().includes(search.toLowerCase()));
+  const visibleSubmissions = paginateItems(filteredSubmissions, page, PAGE_SIZE);
+  const totalPages = getTotalPages(filteredSubmissions.length, PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedCourse, statusFilter, search]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const pendingCount = filteredSubmissions.filter((s: any) => s.status === "submitted").length;
   const gradedCount = filteredSubmissions.filter((s: any) => s.status === "graded").length;
@@ -228,7 +246,7 @@ export default function TeacherGrading() {
 
       {/* Assignment Submissions - Row-wise Cards */}
       <div className="space-y-4">
-        {filteredSubmissions.map((sub: any) => {
+        {visibleSubmissions.map((sub: any) => {
           const isLate = sub.dueDate && new Date(sub.submittedAt) > new Date(sub.dueDate);
           const isGraded = sub.status === "graded";
           
@@ -371,6 +389,13 @@ export default function TeacherGrading() {
           </Card>
         )}
       </div>
+      <PaginationControls
+        page={page}
+        pageSize={PAGE_SIZE}
+        totalItems={filteredSubmissions.length}
+        onPageChange={setPage}
+        label="submissions"
+      />
 
       {/* Grade Dialog */}
       <Dialog open={isGradeOpen} onOpenChange={setIsGradeOpen}>

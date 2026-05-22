@@ -1061,8 +1061,7 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             {articles.length > 0 ? (() => {
-              const featured = articles.filter((a: any) => a.isFeatured);
-              const display = featured.length > 0 ? featured.slice(0, 3) : articles.slice(0, 3);
+              const display = articles.slice(0, 3);
               return display.map((article: any) => (
               <Card key={article.id} className="overflow-hidden border-gray-100 shadow-lg hover:shadow-2xl transition-all duration-500 rounded-3xl border-0 shadow-sm ring-1 ring-gray-100 flex flex-col h-full group">
                 <div className={`h-52 bg-slate-900 relative overflow-hidden flex items-center justify-center`}>

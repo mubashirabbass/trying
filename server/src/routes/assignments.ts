@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, assignmentsTable, assignmentSubmissionsTable, usersTable, coursesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { notificationTriggers } from "../lib/notifications";
 import {
   ListAssignmentsQueryParams,
@@ -14,11 +14,20 @@ import { AuthRequest, authorize } from "../middleware/auth";
 
 const router: IRouter = Router();
 
-router.get("/assignments", async (req, res): Promise<void> => {
+router.get("/assignments", async (req: AuthRequest, res): Promise<void> => {
   const params = ListAssignmentsQueryParams.safeParse(req.query);
   let assignments;
   if (params.success && params.data.courseId) {
     assignments = await db.select().from(assignmentsTable).where(eq(assignmentsTable.courseId, Number(params.data.courseId)));
+  } else if (req.user?.role === "teacher") {
+    const teacherCourses = await db
+      .select({ id: coursesTable.id })
+      .from(coursesTable)
+      .where(eq(coursesTable.teacherId, req.user.id));
+    const courseIds = teacherCourses.map((course) => course.id);
+    assignments = courseIds.length
+      ? await db.select().from(assignmentsTable).where(inArray(assignmentsTable.courseId, courseIds))
+      : [];
   } else {
     assignments = await db.select().from(assignmentsTable);
   }
@@ -102,7 +111,7 @@ router.get("/assignments/submissions/me", async (req: AuthRequest, res): Promise
   res.json(submissions);
 });
 
-router.get("/assignments/submissions", async (req, res): Promise<void> => {
+router.get("/assignments/submissions", async (req: AuthRequest, res): Promise<void> => {
   const { assignmentId, courseId } = req.query;
 
   let query = db
@@ -129,6 +138,17 @@ router.get("/assignments/submissions", async (req, res): Promise<void> => {
     query = query.where(eq(assignmentSubmissionsTable.assignmentId, Number(assignmentId)));
   } else if (courseId) {
     query = query.where(eq(assignmentsTable.courseId, Number(courseId)));
+  } else if (req.user?.role === "teacher") {
+    const teacherCourses = await db
+      .select({ id: coursesTable.id })
+      .from(coursesTable)
+      .where(eq(coursesTable.teacherId, req.user.id));
+    const courseIds = teacherCourses.map((course) => course.id);
+    if (courseIds.length === 0) {
+      res.json([]);
+      return;
+    }
+    query = query.where(inArray(assignmentsTable.courseId, courseIds));
   }
 
   const submissions = await query;

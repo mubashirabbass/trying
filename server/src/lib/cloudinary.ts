@@ -17,7 +17,7 @@ cloudinary.config({
 export const uploadToCloudinary = async (
   fileBuffer: Buffer, 
   folder: string,
-  resourceType: "image" | "raw" | "auto" = "auto",
+  resourceType: "image" | "raw" | "video" | "auto" = "auto",
   uploadOptions: Record<string, any> = {}
 ): Promise<any> => {
   return new Promise((resolve, reject) => {

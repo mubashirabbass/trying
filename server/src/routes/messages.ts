@@ -1,8 +1,12 @@
 import { Router, type IRouter } from "express";
 import { db, messageThreadsTable, messagesTable, usersTable, coursesTable } from "@workspace/db";
 import { eq, or, desc } from "drizzle-orm";
+import { messageMediaUpload } from "../middleware/upload";
+import { uploadToCloudinary } from "../lib/cloudinary";
 
 const router: IRouter = Router();
+
+const allowedAttachmentTypes = new Set(["image", "audio"]);
 
 router.get("/messages/threads", async (req, res): Promise<void> => {
   const userId = req.query.userId ? Number(req.query.userId) : null;
@@ -46,11 +50,41 @@ router.get("/messages/threads", async (req, res): Promise<void> => {
       ...t, 
       studentName: student?.name, 
       teacherName: teacher?.name,
-      lastMessagePreview: lastMsg?.body,
+      lastMessagePreview: lastMsg?.body || (lastMsg?.attachmentType === "image" ? "Image" : lastMsg?.attachmentType === "audio" ? "Voice note" : ""),
       messageCount: allMsgs.length
     };
   }));
   res.json(threadsWithDetails);
+});
+
+router.post("/messages/upload", messageMediaUpload.single("media"), async (req: any, res): Promise<void> => {
+  if (!req.file) {
+    res.status(400).json({ error: "Media file is required" });
+    return;
+  }
+
+  const mimeType = String(req.file.mimetype || "").toLowerCase().split(";", 1)[0];
+  const isImage = ["image/jpeg", "image/png", "image/webp"].includes(mimeType);
+  const isAudio = mimeType.startsWith("audio/") || ["video/webm", "video/mp4", "application/octet-stream"].includes(mimeType);
+  if (!isImage && !isAudio) {
+    res.status(400).json({ error: "Only images and voice notes are allowed" });
+    return;
+  }
+
+  const result = await uploadToCloudinary(
+    req.file.buffer,
+    isImage ? "message-images" : "message-voice-notes",
+    isImage ? "image" : "video"
+  );
+
+  res.status(201).json({
+    url: result.secure_url,
+    publicId: result.public_id,
+    type: isImage ? "image" : "audio",
+    mimeType: req.file.mimetype,
+    name: req.file.originalname,
+    size: req.file.size,
+  });
 });
 
 router.post("/messages/threads", async (req, res): Promise<void> => {
@@ -71,6 +105,10 @@ router.get("/messages/threads/:threadId", async (req, res): Promise<void> => {
     threadId: messagesTable.threadId,
     senderId: messagesTable.senderId,
     body: messagesTable.body,
+    attachmentUrl: messagesTable.attachmentUrl,
+    attachmentType: messagesTable.attachmentType,
+    attachmentName: messagesTable.attachmentName,
+    attachmentSize: messagesTable.attachmentSize,
     isRead: messagesTable.isRead,
     createdAt: messagesTable.createdAt,
     senderName: usersTable.name,
@@ -84,9 +122,25 @@ router.get("/messages/threads/:threadId", async (req, res): Promise<void> => {
 
 router.post("/messages/threads/:threadId/messages", async (req, res): Promise<void> => {
   const threadId = Number(req.params.threadId);
-  const { senderId, body } = req.body;
-  if (!senderId || !body) { res.status(400).json({ error: "Missing fields" }); return; }
-  const [row] = await db.insert(messagesTable).values({ threadId, senderId: Number(senderId), body }).returning();
+  const { senderId, body, attachmentUrl, attachmentType, attachmentName, attachmentSize } = req.body;
+  const cleanBody = typeof body === "string" ? body.trim() : "";
+  const cleanAttachmentUrl = typeof attachmentUrl === "string" ? attachmentUrl.trim() : "";
+  const cleanAttachmentType = typeof attachmentType === "string" ? attachmentType : null;
+  if (!senderId || (!cleanBody && !cleanAttachmentUrl)) { res.status(400).json({ error: "Missing fields" }); return; }
+  if (cleanAttachmentUrl && (!cleanAttachmentType || !allowedAttachmentTypes.has(cleanAttachmentType))) {
+    res.status(400).json({ error: "Invalid attachment type" });
+    return;
+  }
+
+  const [row] = await db.insert(messagesTable).values({
+    threadId,
+    senderId: Number(senderId),
+    body: cleanBody,
+    attachmentUrl: cleanAttachmentUrl || null,
+    attachmentType: cleanAttachmentUrl ? cleanAttachmentType : null,
+    attachmentName: cleanAttachmentUrl && typeof attachmentName === "string" ? attachmentName : null,
+    attachmentSize: cleanAttachmentUrl && attachmentSize ? Number(attachmentSize) : null,
+  }).returning();
   await db.update(messageThreadsTable).set({ lastMessageAt: new Date() }).where(eq(messageThreadsTable.id, threadId));
   
   // Trigger notification for recipient

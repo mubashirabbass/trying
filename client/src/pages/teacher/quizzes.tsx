@@ -1,5 +1,5 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { useListQuizzes, useListCourses } from "@workspace/api-client-react";
+import { useListQuizzes, useListCourses, getListCoursesQueryKey } from "@workspace/api-client-react";
 import { 
   Loader2, 
   HelpCircle, 
@@ -14,17 +14,38 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
+import { useAuth } from "@/lib/AuthContext";
+import { PaginationControls, getTotalPages, paginateItems } from "@/components/PaginationControls";
+
+const PAGE_SIZE = 6;
 
 export default function TeacherQuizzes() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const [courseFilter, setCourseFilter] = useState("all");
+  const [page, setPage] = useState(1);
 
-  const { data: courses } = useListCourses();
+  const { data: courses } = useListCourses(
+    { teacherId: user?.id ?? undefined, limit: 100 } as any,
+    { query: { queryKey: getListCoursesQueryKey({ teacherId: user?.id ?? undefined } as any), enabled: !!user?.id } }
+  );
   const { data: quizzes, isLoading } = useListQuizzes({
     courseId: courseFilter === "all" ? undefined : Number(courseFilter)
   });
+  const courseIds = new Set((courses ?? []).map((course: any) => course.id));
+  const teacherQuizzes = (quizzes ?? []).filter((quiz: any) => courseFilter !== "all" || courseIds.has(quiz.courseId));
+  const visibleQuizzes = paginateItems(teacherQuizzes, page, PAGE_SIZE);
+  const totalPages = getTotalPages(teacherQuizzes.length, PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [courseFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   if (isLoading) {
     return (
@@ -60,7 +81,7 @@ export default function TeacherQuizzes() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {quizzes?.map((quiz) => {
+        {visibleQuizzes.map((quiz) => {
           const course = courses?.find(c => c.id === quiz.courseId);
           return (
             <Card key={quiz.id} className="border-2 border-slate-100 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-500/5 transition-all rounded-[28px] bg-white group overflow-hidden">
@@ -72,7 +93,7 @@ export default function TeacherQuizzes() {
                   </div>
                   <div className="flex gap-2">
                     <Badge variant="outline" className="font-black text-[10px] uppercase bg-white">
-                      {quiz.questions.length} Qs
+                      {(quiz.questions ?? []).length} Qs
                     </Badge>
                     <Badge className="bg-indigo-50 text-indigo-700 border-indigo-100 font-black text-[10px] uppercase">
                       {quiz.totalMarks} Marks
@@ -98,7 +119,7 @@ export default function TeacherQuizzes() {
 
                 <div className="border-t border-slate-50 pt-4 flex justify-between items-center">
                   <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
-                    {quiz.questions.length} questions
+                    {(quiz.questions ?? []).length} questions
                   </div>
                   <Button
                     variant="ghost"
@@ -114,7 +135,7 @@ export default function TeacherQuizzes() {
           );
         })}
 
-        {quizzes?.length === 0 && (
+        {teacherQuizzes.length === 0 && (
           <div className="col-span-full py-24 text-center bg-slate-50 rounded-[40px] border-2 border-dashed border-slate-200">
             <div className="h-20 w-20 rounded-[30px] bg-white shadow-sm flex items-center justify-center mx-auto mb-6 text-slate-200">
               <HelpCircle className="h-10 w-10" />
@@ -129,6 +150,13 @@ export default function TeacherQuizzes() {
           </div>
         )}
       </div>
+      <PaginationControls
+        page={page}
+        pageSize={PAGE_SIZE}
+        totalItems={teacherQuizzes.length}
+        onPageChange={setPage}
+        label="quizzes"
+      />
     </DashboardLayout>
   );
 }

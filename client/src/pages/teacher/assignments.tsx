@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { useListAssignments, useListCourses, useCreateAssignment, useUpdateAssignment, useDeleteAssignment, getListAssignmentsQueryKey } from "@workspace/api-client-react";
+import { useListAssignments, useListCourses, useCreateAssignment, useUpdateAssignment, useDeleteAssignment, getListAssignmentsQueryKey, getListCoursesQueryKey } from "@workspace/api-client-react";
 import {
   Loader2, ClipboardList, Calendar, Plus, Pencil, Trash2,
   FileText, Upload, BookOpen, Clock, Target
@@ -17,9 +17,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/AuthContext";
 import { Link } from "wouter";
+import { PaginationControls, getTotalPages, paginateItems } from "@/components/PaginationControls";
 
 const MAX_ASSIGNMENT_PDF_BYTES = 5 * 1024 * 1024;
 const MAX_ASSIGNMENT_PDF_MB = Math.floor(MAX_ASSIGNMENT_PDF_BYTES / 1024 / 1024);
+const PAGE_SIZE = 8;
 
 export default function TeacherAssignments() {
   const { user, token } = useAuth();
@@ -34,8 +36,12 @@ export default function TeacherAssignments() {
     title: "", description: "", dueDate: "", totalMarks: "100",
     courseId: "", fileUrl: ""
   });
+  const [page, setPage] = useState(1);
 
-  const { data: allCourses = [], isLoading: coursesLoading } = useListCourses();
+  const { data: allCourses = [], isLoading: coursesLoading } = useListCourses(
+    { teacherId: user?.id ?? undefined, limit: 100 } as any,
+    { query: { queryKey: getListCoursesQueryKey({ teacherId: user?.id ?? undefined } as any), enabled: !!user?.id } }
+  );
   // Only show teacher's own courses
   const courses = allCourses.filter((c: any) => c.teacherId === user?.id || c.teacherName === user?.name);
 
@@ -48,6 +54,16 @@ export default function TeacherAssignments() {
   const myAssignments = (assignments as any[]).filter((a: any) =>
     courseFilter !== "all" || teacherCourseIds.includes(a.courseId)
   );
+  const visibleAssignments = paginateItems(myAssignments, page, PAGE_SIZE);
+  const totalPages = getTotalPages(myAssignments.length, PAGE_SIZE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [courseFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const createAssignment = useCreateAssignment();
   const updateAssignment = useUpdateAssignment();
@@ -236,7 +252,7 @@ export default function TeacherAssignments() {
         </div>
       ) : (
         <div className="space-y-4">
-          {myAssignments.map((assignment: any) => {
+          {visibleAssignments.map((assignment: any) => {
             const course = courses.find((c: any) => c.id === assignment.courseId);
             const isOverdue = assignment.dueDate && new Date(assignment.dueDate) < new Date();
             return (
@@ -298,6 +314,13 @@ export default function TeacherAssignments() {
           })}
         </div>
       )}
+      <PaginationControls
+        page={page}
+        pageSize={PAGE_SIZE}
+        totalItems={myAssignments.length}
+        onPageChange={setPage}
+        label="assignments"
+      />
 
       {/* Create / Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
