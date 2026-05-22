@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useParams, Link, useLocation } from "wouter";
 import { 
@@ -32,6 +33,7 @@ import {
   Eye,
   File,
   Edit2,
+  Key,
   Plus,
   GraduationCap
 } from "lucide-react";
@@ -88,6 +90,9 @@ export default function AdminStudentDetail() {
 
   const [, setLocation] = useLocation();
   const [editOpen, setEditOpen] = useState(false);
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
   const [actioning, setActioning] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -153,7 +158,7 @@ export default function AdminStudentDetail() {
         }
       }
 
-      queryClient.invalidateQueries({ queryKey: getUserQueryKey(studentId) });
+      queryClient.invalidateQueries({ queryKey: getGetUserQueryKey(studentId) });
       queryClient.invalidateQueries({ queryKey: ['identity-verification', studentId] });
     } catch (err: any) {
       toast({ title: "Failed to approve student", description: err.message, variant: "destructive" });
@@ -176,7 +181,7 @@ export default function AdminStudentDetail() {
       });
       if (!res.ok) throw new Error("Deactivation failed");
       toast({ title: "Student Account Deactivated", description: "The account is now inactive." });
-      queryClient.invalidateQueries({ queryKey: getUserQueryKey(studentId) });
+      queryClient.invalidateQueries({ queryKey: getGetUserQueryKey(studentId) });
     } catch (err: any) {
       toast({ title: "Failed to deactivate student", description: err.message, variant: "destructive" });
     } finally {
@@ -200,6 +205,37 @@ export default function AdminStudentDetail() {
       toast({ title: "Failed to reject registration", description: err.message, variant: "destructive" });
     } finally {
       setActioning(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      toast({ title: "Password must be at least 6 characters", variant: "destructive" });
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const res = await fetch(`/api/users/${studentId}/reset-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ password: newPassword })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error?.message || data?.message || "Reset failed");
+      }
+      toast({ title: "✅ Password Reset Successfully!", description: `Password for ${student?.name} has been updated.` });
+      setResetPasswordOpen(false);
+      setNewPassword("");
+    } catch (err: any) {
+      toast({ title: "Failed to reset password", description: err.message, variant: "destructive" });
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -328,9 +364,12 @@ export default function AdminStudentDetail() {
               </p>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Button variant="outline" className="rounded-xl font-bold h-10 border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm" onClick={initEditForm}>
               <Edit2 className="h-4 w-4 mr-2 text-slate-500" /> Edit Profile
+            </Button>
+            <Button variant="outline" className="rounded-xl font-bold h-10 border-amber-200 text-amber-700 hover:bg-amber-50 shadow-sm" onClick={() => { setNewPassword(""); setResetPasswordOpen(true); }}>
+              <Key className="h-4 w-4 mr-2 text-amber-500" /> Reset Password
             </Button>
             {student.isActive ? (
               <Button 
@@ -902,6 +941,45 @@ export default function AdminStudentDetail() {
                     Save Profile Changes
                   </>
                 )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordOpen} onOpenChange={(open) => { setResetPasswordOpen(open); if (!open) setNewPassword(""); }}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-black">
+              <Key className="h-5 w-5 text-amber-600" />
+              Reset Student Password
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Set a new password for <strong>{student?.name}</strong>. They will need to use this new password to login.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleResetPassword} className="space-y-4 py-2">
+            <div className="bg-amber-50 text-amber-800 border border-amber-200 p-3 rounded-xl text-xs leading-relaxed flex gap-2">
+              <ShieldCheck className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+              Make sure to share the new password securely with the student. Passwords are stored encrypted and cannot be retrieved.
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-bold text-slate-600">New Password</Label>
+              <Input
+                required
+                type="password"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                placeholder="Enter new password (min. 6 characters)"
+                className="rounded-xl"
+                minLength={6}
+              />
+            </div>
+            <DialogFooter className="pt-2 flex gap-2">
+              <Button type="button" variant="outline" className="rounded-xl text-xs flex-1" onClick={() => setResetPasswordOpen(false)} disabled={resetLoading}>Cancel</Button>
+              <Button type="submit" className="rounded-xl text-xs flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold" disabled={resetLoading}>
+                {resetLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Resetting...</> : <><Key className="h-3.5 w-3.5 mr-1.5" /> Reset Password</>}
               </Button>
             </DialogFooter>
           </form>

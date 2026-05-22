@@ -32,6 +32,7 @@ export const LoginResponse = zod.object({
   "role": zod.enum(['student', 'teacher', 'admin']),
   "phone": zod.string().optional(),
   "cnic": zod.string().optional(),
+  "dob": zod.string().optional(),
   "avatar": zod.string().optional(),
   "isActive": zod.boolean(),
   "createdAt": zod.string(),
@@ -95,6 +96,7 @@ export const GetMeResponse = zod.object({
   "role": zod.enum(['student', 'teacher', 'admin']),
   "phone": zod.string().optional(),
   "cnic": zod.string().optional(),
+  "dob": zod.string().optional(),
   "avatar": zod.string().optional(),
   "isActive": zod.boolean(),
   "createdAt": zod.string(),
@@ -902,6 +904,7 @@ export const ListUsersResponseItem = zod.object({
   "role": zod.enum(['student', 'teacher', 'admin']),
   "phone": zod.string().optional(),
   "cnic": zod.string().optional(),
+  "dob": zod.string().optional(),
   "avatar": zod.string().optional(),
   "isActive": zod.boolean(),
   "createdAt": zod.string(),
@@ -1292,6 +1295,7 @@ export const GetUserResponse = zod.object({
   "role": zod.enum(['student', 'teacher', 'admin']),
   "phone": zod.string().optional(),
   "cnic": zod.string().optional(),
+  "dob": zod.string().optional(),
   "avatar": zod.string().optional(),
   "isActive": zod.boolean(),
   "createdAt": zod.string(),
@@ -1323,11 +1327,19 @@ export const UpdateUserParams = zod.object({
 
 export const UpdateUserBody = zod.object({
   "name": zod.string().optional(),
+  "email": zod.string().optional(),
   "phone": zod.string().optional(),
   "cnic": zod.string().optional(),
+  "dob": zod.string().optional(),
   "avatar": zod.string().optional(),
   "isActive": zod.boolean().optional(),
-  "branchId": zod.number().optional()
+  "branchId": zod.number().optional(),
+  "qualification": zod.string().optional(),
+  "specialization": zod.string().optional(),
+  "obtainedMarks": zod.number().optional(),
+  "totalMarks": zod.number().optional(),
+  "identityDocumentUrl": zod.string().optional(),
+  "educationDocumentUrl": zod.string().optional()
 })
 
 export const UpdateUserResponse = zod.object({
@@ -1337,6 +1349,7 @@ export const UpdateUserResponse = zod.object({
   "role": zod.enum(['student', 'teacher', 'admin']),
   "phone": zod.string().optional(),
   "cnic": zod.string().optional(),
+  "dob": zod.string().optional(),
   "avatar": zod.string().optional(),
   "isActive": zod.boolean(),
   "createdAt": zod.string(),

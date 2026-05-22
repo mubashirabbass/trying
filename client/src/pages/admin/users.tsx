@@ -30,7 +30,7 @@ import {
 type Tab = "dashboard" | "reg" | "enroll_req" | "fee" | "manual" | "enrolled";
 
 const TABS: { id: Tab; label: string; icon: any }[] = [
-  { id: "dashboard",  label: "User Directory",         icon: Users },
+  { id: "dashboard",  label: "Student Directory",      icon: Users },
   { id: "reg",        label: "Registration Requests", icon: UserPlus },
   { id: "enroll_req", label: "Enrollment Requests",   icon: ClipboardList },
   { id: "fee",        label: "Fee Payment",            icon: CreditCard },
@@ -49,6 +49,8 @@ export default function AdminStudents() {
   // Manual Enrollment State
   const [manualUserId, setManualUserId] = useState("");
   const [manualCourseId, setManualCourseId] = useState("");
+  const [manualStudentSearch, setManualStudentSearch] = useState("");
+  const [selectedManualStudent, setSelectedManualStudent] = useState<any>(null);
   const [previewSlipUrl, setPreviewSlipUrl] = useState<string | null>(null);
 
   // Original Dashboard Modals & Filters
@@ -153,6 +155,7 @@ export default function AdminStudents() {
       await createEnrollment.mutateAsync({ data: { userId: Number(manualUserId), courseId: Number(manualCourseId) } });
       toast({ title: "✅ Enrollment Request created! Student can now submit their fee slip." });
       setManualUserId(""); setManualCourseId("");
+      setSelectedManualStudent(null); setManualStudentSearch("");
       invalidate();
     } catch { toast({ title: "Enrollment failed", variant: "destructive" }); }
   };
@@ -261,17 +264,27 @@ export default function AdminStudents() {
         data: {
           name: formData.name,
           email: formData.email,
-          phone: formData.phone,
+          phone: formData.phone || undefined,
           role: formData.role as any,
-          cnic: formData.cnic,
-          branchName: formData.branchName
+          cnic: formData.cnic || undefined,
+          dob: formData.dob || undefined,
+          branchId: formData.branchId ? Number(formData.branchId) : undefined,
+          branchName: formData.branchName || undefined,
+          lastEducation: formData.lastEducation || undefined,
+          educationStream: formData.educationStream || undefined,
+          obtainedMarks: formData.obtainedMarks ? Number(formData.obtainedMarks) : undefined,
+          totalMarks: formData.totalMarks ? Number(formData.totalMarks) : undefined,
         }
       });
-      toast({ title: "✅ User updated successfully!" });
+      toast({ title: "✅ Student profile updated successfully!" });
       setEditUser(null);
       invalidate();
-    } catch {
-      toast({ title: "Failed to update user", variant: "destructive" });
+    } catch (error: any) {
+      toast({ 
+        title: "Failed to update profile", 
+        description: error.message || "Please try again",
+        variant: "destructive" 
+      });
     }
   };
 
@@ -295,7 +308,7 @@ export default function AdminStudents() {
       const res = await fetch(`/api/users/${resetPasswordUser.id}/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ newPassword: formData.password })
+        body: JSON.stringify({ password: formData.password })
       });
       if (!res.ok) throw new Error();
       toast({ title: "✅ Password reset successfully!" });
@@ -320,7 +333,7 @@ export default function AdminStudents() {
   }).length;
 
   const pipelineCounts = {
-    dashboard: users.length,
+    dashboard: users.filter(u => u.role === "student").length,
     reg: countReg,
     enroll_req: countEnrollReq,
     fee: countFee,
@@ -456,77 +469,64 @@ export default function AdminStudents() {
       {tab === "dashboard" && (
         <div className="space-y-4 mb-6">
           <div className="bg-slate-50/50 p-3 rounded-2xl ring-1 ring-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div className="flex items-center gap-2 w-full md:w-auto">
-              <span className="text-xs font-bold text-slate-500 whitespace-nowrap">Role Filter:</span>
-              <Select value={roleFilter} onValueChange={(val) => { setRoleFilter(val); setCurrentPage(1); }}>
-                <SelectTrigger className="w-full md:w-[160px] bg-white rounded-xl border-slate-200 text-xs h-9">
-                  <SelectValue placeholder="All Roles" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="all" className="text-xs">All Users</SelectItem>
-                  <SelectItem value="admin" className="text-xs">Admins</SelectItem>
-                  <SelectItem value="teacher" className="text-xs">Teachers</SelectItem>
-                  <SelectItem value="student" className="text-xs">Students</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-black text-slate-800">Directory Search</span>
             </div>
             <div className="relative w-full md:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-              <Input placeholder="Search directory..." className="pl-9 rounded-xl border-slate-200 text-xs h-9" value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} />
+              <Input placeholder="Search students..." className="pl-9 rounded-xl border-slate-200 text-xs h-9" value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} />
             </div>
           </div>
 
-          {/* Sub Sections Tabs & Course Filters (Visible when filtering for students/all) */}
-          {(roleFilter === "student" || roleFilter === "all") && (
-            <div className="bg-slate-50/50 p-3 rounded-2xl ring-1 ring-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { id: "all", label: "All Students", count: users.filter((u: any) => u.role === "student").length, color: "" },
-                  { id: "registered", label: "Pending Approval", count: countReg, color: "amber" },
-                  { id: "fee_unpaid", label: "Fee Unpaid", count: countEnrollReq + countFee, color: "rose" },
-                  { id: "enrolled", label: "Enrolled", count: countEnrolled, color: "emerald" },
-                ].map((tabOption) => {
-                  const isActive = studentTab === tabOption.id;
-                  const accentMap: Record<string, string> = {
-                    amber: isActive ? "bg-amber-600 text-white shadow-amber-900/10" : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100",
-                    rose: isActive ? "bg-rose-600 text-white shadow-rose-900/10" : "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
-                    emerald: isActive ? "bg-emerald-600 text-white shadow-emerald-900/10" : "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100",
-                  };
-                  const cls = tabOption.color ? accentMap[tabOption.color] : (isActive ? "bg-slate-900 text-white shadow-slate-950/15" : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200/60 hover:text-slate-900");
-                  return (
-                    <button
-                      key={tabOption.id}
-                      onClick={() => { setStudentTab(tabOption.id as any); setCurrentPage(1); }}
-                      className={`px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 flex items-center gap-2 border shadow-sm ${cls}`}
-                    >
-                      <span>{tabOption.label}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black ${isActive ? "bg-white/20" : "bg-white/60"}`}>
-                        {tabOption.count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="flex items-center gap-2 w-full md:w-auto">
-                <span className="text-xs font-bold text-slate-500 whitespace-nowrap">Course:</span>
-                <Select value={courseFilter} onValueChange={(val) => { setCourseFilter(val); setCurrentPage(1); }}>
-                  <SelectTrigger className="w-full md:w-[220px] bg-white rounded-xl border-slate-200 text-xs h-9">
-                    <BookOpen className="h-3.5 w-3.5 mr-2 text-slate-400" />
-                    <SelectValue placeholder="All Courses" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="all" className="text-xs">All Courses</SelectItem>
-                    {courses.map((course: any) => (
-                      <SelectItem key={course.id} value={course.id.toString()} className="text-xs">
-                        {course.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Sub Sections Tabs & Course Filters */}
+          <div className="bg-slate-50/50 p-3 rounded-2xl ring-1 ring-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { id: "all", label: "All Students", count: users.filter((u: any) => u.role === "student").length, color: "" },
+                { id: "registered", label: "Pending Approval", count: countReg, color: "amber" },
+                { id: "fee_unpaid", label: "Fee Unpaid", count: countEnrollReq + countFee, color: "rose" },
+                { id: "enrolled", label: "Enrolled", count: countEnrolled, color: "emerald" },
+              ].map((tabOption) => {
+                const isActive = studentTab === tabOption.id;
+                const accentMap: Record<string, string> = {
+                  amber: isActive ? "bg-amber-600 text-white shadow-amber-900/10" : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100",
+                  rose: isActive ? "bg-rose-600 text-white shadow-rose-900/10" : "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
+                  emerald: isActive ? "bg-emerald-600 text-white shadow-emerald-900/10" : "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100",
+                };
+                const cls = tabOption.color ? accentMap[tabOption.color] : (isActive ? "bg-slate-900 text-white shadow-slate-950/15" : "bg-white hover:bg-slate-50 text-slate-600 border border-slate-200/60 hover:text-slate-900");
+                return (
+                  <button
+                    key={tabOption.id}
+                    onClick={() => { setStudentTab(tabOption.id as any); setCurrentPage(1); }}
+                    className={`px-4 py-2 text-xs font-bold rounded-xl transition-all duration-200 flex items-center gap-2 border shadow-sm ${cls}`}
+                  >
+                    <span>{tabOption.label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-black ${isActive ? "bg-white/20" : "bg-white/60"}`}>
+                      {tabOption.count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
-          )}
+
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <span className="text-xs font-bold text-slate-500 whitespace-nowrap">Course:</span>
+              <Select value={courseFilter} onValueChange={(val) => { setCourseFilter(val); setCurrentPage(1); }}>
+                <SelectTrigger className="w-full md:w-[220px] bg-white rounded-xl border-slate-200 text-xs h-9">
+                  <BookOpen className="h-3.5 w-3.5 mr-2 text-slate-400" />
+                  <SelectValue placeholder="All Courses" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="all" className="text-xs">All Courses</SelectItem>
+                  {courses.map((course: any) => (
+                    <SelectItem key={course.id} value={course.id.toString()} className="text-xs">
+                      {course.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </div>
       )}
 
@@ -545,8 +545,7 @@ export default function AdminStudents() {
             <Table>
               <TableHeader className="bg-slate-50/70 border-b border-slate-100">
                 <TableRow>
-                  <TableHead className="font-bold py-4">User Profile</TableHead>
-                  <TableHead className="font-bold">Role</TableHead>
+                  <TableHead className="font-bold py-4">Student Profile</TableHead>
                   <TableHead className="font-bold">Campus</TableHead>
                   <TableHead className="font-bold">Status</TableHead>
                   <TableHead className="font-bold text-right">Actions</TableHead>
@@ -582,11 +581,6 @@ export default function AdminStudents() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary" className={`capitalize font-bold text-[10px] ${user.role === 'admin' ? 'bg-rose-50 text-rose-600 border border-rose-100' : user.role === 'teacher' ? 'bg-indigo-50 text-indigo-600 border border-indigo-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
-                          {user.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
                         <div className="flex items-center gap-1 text-xs text-slate-600"><MapPin className="h-3.5 w-3.5 text-slate-400" />{user.branchName || "Global"}</div>
                       </TableCell>
                       <TableCell>
@@ -601,11 +595,27 @@ export default function AdminStudents() {
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-slate-100"><MoreVertical className="h-4 w-4" /></Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="rounded-xl w-44">
-                            <DropdownMenuLabel className="text-xs">User Options</DropdownMenuLabel>
+                          <DropdownMenuContent align="end" className="rounded-xl w-48">
+                            <DropdownMenuLabel className="text-xs">Student Options</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => setLocation(`/admin/users/${user.id}`)} className="text-xs font-bold gap-2"><Eye className="h-3.5 w-3.5 text-indigo-500" /> View Full Profile</DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => {
-                              setFormData({ name: user.name, email: user.email, phone: user.phone || "", role: user.role, password: "", branchName: user.branchName || "Global", cnic: user.cnic || "" });
+                              setFormData({ 
+                                name: user.name || "", 
+                                email: user.email || "", 
+                                phone: user.phone || "", 
+                                role: user.role || "student", 
+                                password: "", 
+                                branchId: user.branchId ? user.branchId.toString() : "",
+                                cnic: user.cnic || "",
+                                dob: user.dob || "",
+                                lastEducation: (user.lastEducation || "") as any,
+                                educationStream: user.educationStream || "",
+                                obtainedMarks: user.obtainedMarks ? user.obtainedMarks.toString() : "",
+                                totalMarks: user.totalMarks ? user.totalMarks.toString() : "",
+                                branchName: user.branchName || "Global"
+                              });
                               setEditUser(user);
                             }} className="text-xs font-bold gap-2"><Edit2 className="h-3.5 w-3.5" /> Edit Profile</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => {
@@ -864,34 +874,157 @@ export default function AdminStudents() {
 
       {/* ─── TAB: Manual Enrollment ─── */}
       {tab === "manual" && (
-        <div className="max-w-lg mx-auto">
-          <Card className="border border-slate-200 shadow-xl rounded-xl">
-            <CardContent className="p-6 space-y-5">
-              <div>
-                <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-1.5">
-                  <GraduationCap className="h-5 w-5 text-emerald-600" />
-                  Manual Enrollment Form
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">Enroll any student instantly. Bypass payment requirements. Automatically activates student profile.</p>
+        <div className="max-w-2xl mx-auto">
+          <Card className="border border-slate-200 shadow-xl rounded-2xl overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-br from-slate-900 to-emerald-950 p-6 text-white">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center">
+                  <GraduationCap className="h-5 w-5 text-emerald-300" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black">Manual Enrollment</h2>
+                  <p className="text-xs text-white/60 mt-0.5">Search a student by name, CNIC, or ID and enroll them instantly</p>
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-600">Select Student Account</Label>
-                <Select value={manualUserId} onValueChange={setManualUserId}>
-                  <SelectTrigger className="rounded-lg border-slate-200 text-sm h-10"><SelectValue placeholder="Choose a student account..." /></SelectTrigger>
-                  <SelectContent className="max-h-60 overflow-y-auto">{users.filter((u: any) => u.role === "student").map((u: any) => <SelectItem key={u.id} value={String(u.id)} className="text-xs">{u.name} ({u.email})</SelectItem>)}</SelectContent>
+            </div>
+
+            <CardContent className="p-6 space-y-6">
+              {/* Student Search */}
+              <div className="space-y-2">
+                <Label className="text-xs font-black text-slate-500 uppercase tracking-wider">Step 1 — Find Student</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="Search by name, CNIC number, or student ID..."
+                    className="pl-9 rounded-xl border-slate-200 h-11 text-sm"
+                    value={manualStudentSearch}
+                    onChange={e => {
+                      setManualStudentSearch(e.target.value);
+                      // Clear selected student when search changes
+                      if (selectedManualStudent && e.target.value !== selectedManualStudent.name) {
+                        setSelectedManualStudent(null);
+                        setManualUserId("");
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* Search Results */}
+                {manualStudentSearch.trim().length >= 2 && !selectedManualStudent && (() => {
+                  const q = manualStudentSearch.trim().toLowerCase();
+                  const results = users.filter((u: any) => {
+                    if (u.role !== "student") return false;
+                    return (
+                      u.name?.toLowerCase().includes(q) ||
+                      u.cnic?.toLowerCase().includes(q) ||
+                      String(u.id) === q.replace(/^#?stu-?/i, "")
+                    );
+                  }).slice(0, 8);
+
+                  return (
+                    <div className="mt-1 border border-slate-200 rounded-xl overflow-hidden shadow-lg">
+                      {results.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-slate-500">
+                          <AlertCircle className="h-5 w-5 mx-auto mb-1 text-slate-300" />
+                          No students found matching "{manualStudentSearch}"
+                        </div>
+                      ) : (
+                        results.map((u: any) => (
+                          <div
+                            key={u.id}
+                            onClick={() => {
+                              setSelectedManualStudent(u);
+                              setManualUserId(String(u.id));
+                              setManualStudentSearch(u.name);
+                            }}
+                            className="flex items-center gap-4 p-3 hover:bg-slate-50 cursor-pointer border-b last:border-0 border-slate-100 transition-colors"
+                          >
+                            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-sm shrink-0">
+                              {u.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-sm text-slate-900 truncate">{u.name}</p>
+                              <p className="text-xs text-slate-500 font-mono truncate">{u.email}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-[10px] font-black text-slate-400 uppercase">ID</p>
+                              <p className="text-xs font-bold text-slate-700">#{u.id}</p>
+                            </div>
+                            {u.cnic && (
+                              <div className="text-right shrink-0 hidden md:block">
+                                <p className="text-[10px] font-black text-slate-400 uppercase">CNIC</p>
+                                <p className="text-xs font-mono text-slate-600">{u.cnic}</p>
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Selected Student Card */}
+                {selectedManualStudent && (
+                  <div className="mt-2 p-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full bg-emerald-600 flex items-center justify-center text-white font-black text-lg shrink-0">
+                      {selectedManualStudent.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-slate-900">{selectedManualStudent.name}</p>
+                      <p className="text-xs text-slate-600 font-mono">{selectedManualStudent.email}</p>
+                      {selectedManualStudent.cnic && (
+                        <p className="text-xs text-slate-500 font-mono mt-0.5">CNIC: {selectedManualStudent.cnic}</p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px] font-black">ID #{selectedManualStudent.id}</Badge>
+                      <Badge className={selectedManualStudent.isActive ? "bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]" : "bg-amber-100 text-amber-700 border-amber-200 text-[10px]"}>
+                        {selectedManualStudent.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                    <button
+                      onClick={() => { setSelectedManualStudent(null); setManualUserId(""); setManualStudentSearch(""); }}
+                      className="h-7 w-7 rounded-lg hover:bg-rose-100 flex items-center justify-center text-rose-500 transition-colors"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Course Selection */}
+              <div className="space-y-2">
+                <Label className="text-xs font-black text-slate-500 uppercase tracking-wider">Step 2 — Select Course</Label>
+                <Select value={manualCourseId} onValueChange={setManualCourseId} disabled={!selectedManualStudent}>
+                  <SelectTrigger className="rounded-xl border-slate-200 h-11 text-sm">
+                    <BookOpen className="h-4 w-4 mr-2 text-slate-400" />
+                    <SelectValue placeholder={selectedManualStudent ? "Choose a course to enroll into..." : "Select a student first"} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {courses.map((c: any) => (
+                      <SelectItem key={c.id} value={String(c.id)} className="text-xs">
+                        {c.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-600">Select Target Course</Label>
-                <Select value={manualCourseId} onValueChange={setManualCourseId}>
-                  <SelectTrigger className="rounded-lg border-slate-200 text-sm h-10"><SelectValue placeholder="Choose target course..." /></SelectTrigger>
-                  <SelectContent>{courses.map((c: any) => <SelectItem key={c.id} value={String(c.id)} className="text-xs">{c.title}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold h-10 transition-colors" disabled={!manualUserId || !manualCourseId || createEnrollment.isPending} onClick={enrollManually}>
-                {createEnrollment.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <GraduationCap className="h-4 w-4 mr-2" />}
-                Enroll Student & Activate
+
+              {/* Enroll Button */}
+              <Button
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold h-12 text-sm transition-colors shadow-md shadow-emerald-900/20"
+                disabled={!manualUserId || !manualCourseId || createEnrollment.isPending}
+                onClick={enrollManually}
+              >
+                {createEnrollment.isPending
+                  ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Processing Enrollment...</>
+                  : <><GraduationCap className="h-4 w-4 mr-2" /> Enroll Student &amp; Create Request</>}
               </Button>
+
+              <p className="text-[10px] text-slate-400 text-center">
+                This creates an enrollment request. The student must still submit their payment slip to activate the course.
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -905,38 +1038,24 @@ export default function AdminStudents() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-1.5 text-lg font-black text-slate-900">
               <UserPlus className="h-5 w-5 text-emerald-600" />
-              Add New User Profile
+              Add New Student Profile
             </DialogTitle>
-            <DialogDescription className="text-xs">Create a system login profile for a student, teacher, or administrator.</DialogDescription>
+            <DialogDescription className="text-xs">Create a system login profile for a new student.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAddUserSubmit} className="space-y-4 py-2">
             <div className="bg-slate-50 p-3 rounded-xl ring-1 ring-slate-100 flex flex-col gap-3">
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider">Account Role & Basics</h3>
+              <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider">Account Campus</h3>
               
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-slate-600">System Role</Label>
-                  <Select value={formData.role} onValueChange={val => setFormData(prev => ({ ...prev, role: val }))}>
-                    <SelectTrigger className="rounded-xl bg-white"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="student">Student</SelectItem>
-                      <SelectItem value="teacher">Teacher</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-slate-600">Select Branch / Campus</Label>
-                  <Select value={formData.branchId} onValueChange={val => setFormData(prev => ({ ...prev, branchId: val }))}>
-                    <SelectTrigger className="rounded-xl bg-white"><SelectValue placeholder="Choose branch..." /></SelectTrigger>
-                    <SelectContent>
-                      {branches.map((b: any) => (
-                        <SelectItem key={b.id} value={String(b.id)}>{b.name} — {b.city}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-600">Select Branch / Campus</Label>
+                <Select value={formData.branchId} onValueChange={val => setFormData(prev => ({ ...prev, branchId: val }))}>
+                  <SelectTrigger className="rounded-xl bg-white"><SelectValue placeholder="Choose branch..." /></SelectTrigger>
+                  <SelectContent>
+                    {branches.map((b: any) => (
+                      <SelectItem key={b.id} value={String(b.id)}>{b.name} — {b.city}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1049,47 +1168,222 @@ export default function AdminStudents() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit User Modal */}
+      {/* Edit User Modal - Full Signup Form */}
       <Dialog open={!!editUser} onOpenChange={val => !val && setEditUser(null)}>
-        <DialogContent className="max-w-md rounded-2xl">
+        <DialogContent className="max-w-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit User Profile</DialogTitle>
+            <DialogTitle className="text-xl font-bold">Edit Student Profile</DialogTitle>
+            <DialogDescription>Update student information with all details from registration</DialogDescription>
           </DialogHeader>
           {editUser && (
-            <form onSubmit={handleEditUserSubmit} className="space-y-4 py-2">
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-600">Full Name</Label>
-                <Input required value={formData.name} onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))} className="rounded-xl" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-600">Email Address</Label>
-                <Input required type="email" value={formData.email} onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))} className="rounded-xl" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-slate-600">Phone</Label>
-                  <Input value={formData.phone} onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))} className="rounded-xl" />
+            <form onSubmit={handleEditUserSubmit} className="space-y-6 py-4">
+              {/* Personal Information Section */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-700 border-b pb-2">Personal Information</h3>
+                
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-600">Full Name *</Label>
+                  <Input 
+                    required 
+                    value={formData.name || ""} 
+                    onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))} 
+                    className="rounded-xl" 
+                    placeholder="Enter full name"
+                  />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-slate-600">System Role</Label>
-                  <Select value={formData.role} onValueChange={val => setFormData(prev => ({ ...prev, role: val }))}>
-                    <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-600">Email Address *</Label>
+                    <Input 
+                      required 
+                      type="email" 
+                      value={formData.email || ""} 
+                      onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))} 
+                      className="rounded-xl"
+                      placeholder="student@example.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-600">Phone Number</Label>
+                    <Input 
+                      value={formData.phone || ""} 
+                      onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))} 
+                      className="rounded-xl"
+                      placeholder="+92 300 1234567"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-600">CNIC / B-Form Number</Label>
+                    <Input 
+                      value={formData.cnic || ""} 
+                      onChange={e => setFormData(prev => ({ ...prev, cnic: e.target.value }))} 
+                      className="rounded-xl"
+                      placeholder="12345-1234567-1"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold text-slate-600">Date of Birth</Label>
+                    <Input 
+                      type="date" 
+                      value={formData.dob || ""} 
+                      onChange={e => setFormData(prev => ({ ...prev, dob: e.target.value }))} 
+                      className="rounded-xl"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-600">Campus Branch</Label>
+                  <Select value={formData.branchId || ""} onValueChange={val => setFormData(prev => ({ ...prev, branchId: val }))}>
+                    <SelectTrigger className="rounded-xl">
+                      <MapPin className="h-4 w-4 mr-2 text-slate-400" />
+                      <SelectValue placeholder="Select campus branch" />
+                    </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="student">Student</SelectItem>
-                      <SelectItem value="teacher">Teacher</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="">Global / Online</SelectItem>
+                      {branches && branches.map((branch: any) => (
+                        <SelectItem key={branch.id} value={branch.id.toString()}>
+                          {branch.name} - {branch.city}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-600">CNIC / Form-B</Label>
-                <Input value={formData.cnic} onChange={e => setFormData(prev => ({ ...prev, cnic: e.target.value }))} className="rounded-xl" />
+
+              {/* Academic Information Section */}
+              {editUser.role === "student" && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-700 border-b pb-2">Academic Information</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold text-slate-600">Last Education Level</Label>
+                      <Select 
+                        value={formData.lastEducation || ""} 
+                        onValueChange={val => setFormData(prev => ({ ...prev, lastEducation: val as any }))}
+                      >
+                        <SelectTrigger className="rounded-xl">
+                          <SelectValue placeholder="Select education level" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Not specified</SelectItem>
+                          <SelectItem value="Matric">Matric</SelectItem>
+                          <SelectItem value="Intermediate">Intermediate</SelectItem>
+                          <SelectItem value="BS">Bachelor's Degree</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold text-slate-600">Education Stream/Field</Label>
+                      <Input 
+                        value={formData.educationStream || ""} 
+                        onChange={e => setFormData(prev => ({ ...prev, educationStream: e.target.value }))} 
+                        className="rounded-xl"
+                        placeholder="e.g., Science, Commerce, Arts"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold text-slate-600">Obtained Marks</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.obtainedMarks || ""} 
+                        onChange={e => setFormData(prev => ({ ...prev, obtainedMarks: e.target.value }))} 
+                        className="rounded-xl"
+                        placeholder="850"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold text-slate-600">Total Marks</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.totalMarks || ""} 
+                        onChange={e => setFormData(prev => ({ ...prev, totalMarks: e.target.value }))} 
+                        className="rounded-xl"
+                        placeholder="1100"
+                      />
+                    </div>
+                  </div>
+
+                  {formData.obtainedMarks && formData.totalMarks && Number(formData.totalMarks) > 0 && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-blue-700">Percentage:</span>
+                        <span className="text-lg font-black text-blue-900">
+                          {Math.round((Number(formData.obtainedMarks) / Number(formData.totalMarks)) * 100)}%
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* System Settings Section */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-700 border-b pb-2">System Settings</h3>
+
+                {editUser.identityDocumentUrl && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-purple-600" />
+                        <span className="text-xs font-bold text-purple-700">Identity Document</span>
+                      </div>
+                      <a 
+                        href={editUser.identityDocumentUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1"
+                      >
+                        View <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {editUser.educationDocumentUrl && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-emerald-600" />
+                        <span className="text-xs font-bold text-emerald-700">Education Certificate</span>
+                      </div>
+                      <a 
+                        href={editUser.educationDocumentUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs font-bold text-emerald-600 hover:text-emerald-800 flex items-center gap-1"
+                      >
+                        View <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
-              <DialogFooter className="pt-2">
-                <Button type="button" variant="outline" className="rounded-xl" onClick={() => setEditUser(null)}>Cancel</Button>
-                <Button type="submit" className="rounded-xl" disabled={updateUserMutation.isPending}>
-                  {updateUserMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : "Save Changes"}
+
+              <DialogFooter className="pt-4 border-t">
+                <Button type="button" variant="outline" className="rounded-xl" onClick={() => setEditUser(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="rounded-xl bg-emerald-600 hover:bg-emerald-700" disabled={updateUserMutation.isPending}>
+                  {updateUserMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Save Changes
+                    </>
+                  )}
                 </Button>
               </DialogFooter>
             </form>

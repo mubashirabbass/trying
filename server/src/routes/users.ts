@@ -83,6 +83,7 @@ router.get(
         role: usersTable.role,
         phone: usersTable.phone,
         cnic: usersTable.cnic,
+        dob: usersTable.dob,
         avatar: usersTable.avatar,
         isActive: usersTable.isActive,
         createdAt: usersTable.createdAt,
@@ -202,6 +203,7 @@ router.get(
         role: usersTable.role,
         phone: usersTable.phone,
         cnic: usersTable.cnic,
+        dob: usersTable.dob,
         avatar: usersTable.avatar,
         isActive: usersTable.isActive,
         createdAt: usersTable.createdAt,
@@ -254,6 +256,9 @@ router.put(
     if (!existingUser) throw new AppError("User not found", 404);
 
     const updateData = { ...req.body };
+    if (updateData.dob) {
+      updateData.dob = new Date(updateData.dob);
+    }
     if (updateData.joiningDate) {
       updateData.joiningDate = new Date(updateData.joiningDate);
     }
@@ -262,6 +267,12 @@ router.put(
     }
     if (updateData.branchId) {
       updateData.branchId = Number(updateData.branchId);
+    }
+    if (updateData.obtainedMarks !== undefined) {
+      updateData.obtainedMarks = updateData.obtainedMarks !== null ? Number(updateData.obtainedMarks) : null;
+    }
+    if (updateData.totalMarks !== undefined) {
+      updateData.totalMarks = updateData.totalMarks !== null ? Number(updateData.totalMarks) : null;
     }
 
     const [updatedUser] = await db

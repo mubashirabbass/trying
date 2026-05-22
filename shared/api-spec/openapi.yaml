@@ -1986,6 +1986,8 @@ components:
           type: string
         cnic:
           type: string
+        dob:
+          type: string
         avatar:
           type: string
         isActive:
@@ -2051,9 +2053,13 @@ components:
       properties:
         name:
           type: string
+        email:
+          type: string
         phone:
           type: string
         cnic:
+          type: string
+        dob:
           type: string
         avatar:
           type: string
@@ -2061,6 +2067,18 @@ components:
           type: boolean
         branchId:
           type: integer
+        qualification:
+          type: string
+        specialization:
+          type: string
+        obtainedMarks:
+          type: integer
+        totalMarks:
+          type: integer
+        identityDocumentUrl:
+          type: string
+        educationDocumentUrl:
+          type: string
 
     Course:
       type: object

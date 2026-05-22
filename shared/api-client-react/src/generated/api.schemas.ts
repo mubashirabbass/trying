@@ -56,6 +56,7 @@ export interface User {
   role: UserRole;
   phone?: string;
   cnic?: string;
+  dob?: string;
   avatar?: string;
   isActive: boolean;
   createdAt: string;
@@ -103,11 +104,19 @@ export interface CreateUserBody {
 
 export interface UpdateUserBody {
   name?: string;
+  email?: string;
   phone?: string;
   cnic?: string;
+  dob?: string;
   avatar?: string;
   isActive?: boolean;
   branchId?: number;
+  qualification?: string;
+  specialization?: string;
+  obtainedMarks?: number;
+  totalMarks?: number;
+  identityDocumentUrl?: string;
+  educationDocumentUrl?: string;
 }
 
 export interface Course {
