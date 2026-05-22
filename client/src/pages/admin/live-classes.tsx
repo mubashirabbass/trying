@@ -132,19 +132,33 @@ export default function AdminLiveClasses() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to remove this scheduled class?")) return;
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [classToDelete, setClassToDelete] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteClick = (c: any) => {
+    setClassToDelete(c);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!classToDelete) return;
     try {
-      const r = await fetch(`/api/live-classes/${id}`, {
+      setDeleting(true);
+      const r = await fetch(`/api/live-classes/${classToDelete.id}`, {
         method: "DELETE",
         headers,
       });
       if (r.ok) {
         toast({ title: "Live Class schedule deleted" });
+        setDeleteConfirmOpen(false);
+        setClassToDelete(null);
         fetchLiveClasses();
       }
     } catch {
       toast({ title: "Failed to delete schedule", variant: "destructive" });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -326,14 +340,14 @@ export default function AdminLiveClasses() {
                               <CheckCircle className="h-3.5 w-3.5" />
                               {c.isCompleted ? "Re-open" : "Mark Conducted"}
                             </Button>
-                            <Button
-                              onClick={() => handleDelete(c.id)}
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                             <Button
+                               onClick={() => handleDeleteClick(c)}
+                               variant="ghost"
+                               size="icon"
+                               className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700"
+                             >
+                               <Trash2 className="h-4 w-4" />
+                             </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -470,6 +484,46 @@ export default function AdminLiveClasses() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5 text-red-600" /> Delete Live Session
+            </DialogTitle>
+            <DialogDescription className="mt-2 text-sm text-gray-500">
+              Are you sure you want to delete <span className="font-semibold text-gray-900">"{classToDelete?.title}"</span>? This action is permanent and cannot be undone. All students assigned to this session will lose access.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-6 flex justify-end gap-2 border-t pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteConfirmOpen(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+              className="gap-2 bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Yes, Delete Session"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

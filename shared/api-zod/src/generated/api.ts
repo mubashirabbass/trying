@@ -606,7 +606,8 @@ export const CreateAssignmentBody = zod.object({
   "title": zod.string(),
   "description": zod.string().optional(),
   "dueDate": zod.string().optional(),
-  "totalMarks": zod.number()
+  "totalMarks": zod.number(),
+  "fileUrl": zod.string().optional()
 })
 
 
@@ -622,7 +623,8 @@ export const UpdateAssignmentBody = zod.object({
   "title": zod.string(),
   "description": zod.string().optional(),
   "dueDate": zod.string().optional(),
-  "totalMarks": zod.number()
+  "totalMarks": zod.number(),
+  "fileUrl": zod.string().optional()
 })
 
 export const UpdateAssignmentResponse = zod.object({
@@ -740,6 +742,51 @@ export const CreateQuizBody = zod.object({
 })),
   "totalMarks": zod.number(),
   "timeLimit": zod.number().optional()
+})
+
+
+/**
+ * @summary Update quiz
+ */
+export const UpdateQuizParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateQuizBody = zod.object({
+  "courseId": zod.number(),
+  "title": zod.string(),
+  "questions": zod.array(zod.object({
+  "question": zod.string(),
+  "options": zod.array(zod.string()),
+  "correctOption": zod.number(),
+  "marks": zod.number()
+})),
+  "totalMarks": zod.number(),
+  "timeLimit": zod.number().optional()
+})
+
+export const UpdateQuizResponse = zod.object({
+  "id": zod.number(),
+  "courseId": zod.number(),
+  "title": zod.string(),
+  "questions": zod.array(zod.object({
+  "id": zod.number(),
+  "question": zod.string(),
+  "options": zod.array(zod.string()),
+  "correctOption": zod.number().optional(),
+  "marks": zod.number()
+})).optional(),
+  "totalMarks": zod.number(),
+  "timeLimit": zod.number().optional(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete quiz
+ */
+export const DeleteQuizParams = zod.object({
+  "id": zod.coerce.number()
 })
 
 

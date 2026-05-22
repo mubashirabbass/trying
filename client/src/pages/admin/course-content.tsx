@@ -138,6 +138,10 @@ export default function AdminCourseContent() {
       toast({ title: "Title is required", variant: "destructive" });
       return;
     }
+    if (!formData.videoUrl.trim()) {
+      toast({ title: "YouTube video URL is required", variant: "destructive" });
+      return;
+    }
 
     try {
       await createLessonMutation.mutateAsync({
@@ -145,7 +149,7 @@ export default function AdminCourseContent() {
           courseId,
           title: formData.title,
           description: formData.description || undefined,
-          videoUrl: formData.videoUrl || undefined,
+          videoUrl: formData.videoUrl.trim(),
           pdfUrl: formData.pdfUrl || undefined,
           duration: formData.duration ? Number(formData.duration) : undefined,
           orderIndex: lessons.length,
@@ -172,6 +176,10 @@ export default function AdminCourseContent() {
       toast({ title: "Title is required", variant: "destructive" });
       return;
     }
+    if (!formData.videoUrl.trim()) {
+      toast({ title: "YouTube video URL is required", variant: "destructive" });
+      return;
+    }
 
     try {
       await updateLessonMutation.mutateAsync({
@@ -180,7 +188,7 @@ export default function AdminCourseContent() {
           courseId: Number(courseId),
           title: formData.title,
           description: formData.description || undefined,
-          videoUrl: formData.videoUrl || undefined,
+          videoUrl: formData.videoUrl.trim(),
           pdfUrl: formData.pdfUrl || undefined,
           duration: formData.duration ? Number(formData.duration) : undefined,
           orderIndex: formData.orderIndex,

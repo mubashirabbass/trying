@@ -47,6 +47,38 @@ interface UserNote {
   createdAt: string;
 }
 
+const getYoutubeVideoId = (value?: string | null) => {
+  if (!value) return null;
+
+  const trimmed = value.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    const host = url.hostname.replace(/^www\./, "");
+
+    if (host === "youtu.be") {
+      return url.pathname.split("/").filter(Boolean)[0] || null;
+    }
+
+    if (host.endsWith("youtube.com") || host.endsWith("youtube-nocookie.com")) {
+      const watchId = url.searchParams.get("v");
+      if (watchId) return watchId;
+
+      const parts = url.pathname.split("/").filter(Boolean);
+      const idIndex = parts.findIndex((part) => ["embed", "shorts", "live", "v"].includes(part));
+      if (idIndex >= 0 && parts[idIndex + 1]) return parts[idIndex + 1];
+    }
+  } catch {
+    const match = trimmed.match(/(?:v=|youtu\.be\/|embed\/|shorts\/|live\/|\/v\/)([a-zA-Z0-9_-]{11})/);
+    return match?.[1] || null;
+  }
+
+  return null;
+};
+
 export default function LessonPlayerPro() {
   const [, params] = useRoute("/dashboard/lessons/:courseId");
   const [, lessonParams] = useRoute("/dashboard/lessons/:courseId/:lessonId");
@@ -182,9 +214,8 @@ export default function LessonPlayerPro() {
     { query: { enabled: !!streamToken?.token } } as any
   );
 
-  const isYoutube = embedData?.url 
-    ? !!embedData.url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/)
-    : false;
+  const youtubeVideoId = getYoutubeVideoId(embedData?.url);
+  const isYoutube = !!youtubeVideoId;
 
   // Fetch Q&A Forum Posts directly embedded in Player
   const { data: forumPosts, isLoading: forumLoading } = useListForumPosts(
@@ -254,12 +285,7 @@ export default function LessonPlayerPro() {
     
     // Guard: Only initialize if lesson is unlocked, we are NOT loading, have a valid url, and the YT API is ready
     if (!isLessonLocked(currentLessonId) && !isLoadingLesson && !isLoadingEmbed && embedData?.url && ytReady && (window as any).YT && (window as any).YT.Player) {
-      const url = embedData.url;
-      const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/);
-      
-      if (ytMatch) {
-        const videoId = ytMatch[1];
-        
+      if (youtubeVideoId) {
         // Clean up previous container element and state safely
         if (playerInstance) {
           try {
@@ -278,7 +304,7 @@ export default function LessonPlayerPro() {
           
           try {
             player = new (window as any).YT.Player("yt-player", {
-              videoId: videoId,
+              videoId: youtubeVideoId,
               playerVars: {
                 rel: 0,
                 modestbranding: 1,
@@ -331,7 +357,7 @@ export default function LessonPlayerPro() {
         }
       }
     };
-  }, [embedData?.url, currentLessonId, ytReady, isLoadingLesson, isLoadingEmbed]);
+  }, [embedData?.url, youtubeVideoId, currentLessonId, ytReady, isLoadingLesson, isLoadingEmbed]);
 
   const startProgressPolling = (player: any) => {
     stopProgressPolling();
@@ -748,19 +774,14 @@ export default function LessonPlayerPro() {
                   <div 
                     ref={playerRef} 
                     className={`w-full h-full relative z-10 ${(!isLoadingLesson && !isLoadingEmbed && embedData?.url && isYoutube) ? 'block' : 'hidden'}`}
+                    onContextMenu={handleContextMenu}
                   >
-                    {/* Transparent context protection shield blocking right-clicks */}
-                    <div 
-                      className="absolute inset-0 bg-transparent z-20" 
-                      onContextMenu={handleContextMenu}
-                    />
                     <div id="yt-player" className="w-full h-full"></div>
                   </div>
 
                   {/* 3. HTML5 Video Player Container */}
                   {!isLoadingLesson && !isLoadingEmbed && embedData?.url && !isYoutube && (
-                    <div className="w-full h-full relative z-10">
-                      <div className="absolute inset-0 bg-transparent z-20" onContextMenu={handleContextMenu} />
+                    <div className="w-full h-full relative z-10" onContextMenu={handleContextMenu}>
                       <video
                         src={embedData.url}
                         controls

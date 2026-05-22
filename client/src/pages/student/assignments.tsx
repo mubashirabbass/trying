@@ -19,6 +19,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
 
+const MAX_ASSIGNMENT_PDF_BYTES = 5 * 1024 * 1024;
+const MAX_ASSIGNMENT_PDF_MB = Math.floor(MAX_ASSIGNMENT_PDF_BYTES / 1024 / 1024);
+
 export default function StudentAssignments() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -33,10 +36,41 @@ export default function StudentAssignments() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const submitMutation = useSubmitAssignment();
+  const [isUploadingSubmissionPdf, setIsUploadingSubmissionPdf] = useState(false);
+  const handleStudentSubmissionUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      toast({ title: "Only PDF files are allowed", variant: "destructive" }); return;
+    }
+    if (file.size > MAX_ASSIGNMENT_PDF_BYTES) {
+      toast({ title: `PDF must be ${MAX_ASSIGNMENT_PDF_MB}MB or smaller. Please compress it first.`, variant: "destructive" }); return;
+    }
+    const uploadData = new FormData();
+    uploadData.append("pdf", file);
+    setIsUploadingSubmissionPdf(true);
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const response = await fetch("/api/upload-pdf", {
+        method: "POST", body: uploadData,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Upload failed");
+      setFileUrl(data.url);
+      toast({ title: "Submission PDF uploaded successfully!" });
+    } catch (err: any) {
+      toast({ title: err.message || "Failed to upload", variant: "destructive" });
+    } finally { setIsUploadingSubmissionPdf(false); }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAssignmentId) return;
+    if (!fileUrl) {
+      toast({ title: "Upload your solved assignment PDF before submitting", variant: "destructive" });
+      return;
+    }
 
     try {
       await submitMutation.mutateAsync({
@@ -48,8 +82,8 @@ export default function StudentAssignments() {
       setFileUrl("");
       setNotes("");
       queryClient.invalidateQueries({ queryKey: getListMySubmissionsQueryKey() });
-    } catch (error) {
-      toast({ title: "Failed to submit assignment", variant: "destructive" });
+    } catch (error: any) {
+      toast({ title: error?.message || "Failed to submit assignment", variant: "destructive" });
     }
   };
 
@@ -74,10 +108,12 @@ export default function StudentAssignments() {
         <p className="text-muted-foreground mt-1 font-medium">Manage your evaluations and submissions</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-4">
         {assignments?.map((assignment) => {
           const submission = getSubmission(assignment.id);
           const isSubmitted = !!submission;
+          const isClosed = !!(assignment.dueDate && new Date() > new Date(assignment.dueDate));
+          const isLate = !!(assignment.dueDate && submission?.submittedAt && new Date(submission.submittedAt) > new Date(assignment.dueDate));
           
           return (
             <Card key={assignment.id} className={`overflow-hidden border-2 transition-all ${isSubmitted ? 'border-slate-100 bg-slate-50/50' : 'border-primary/10 hover:border-primary/30'}`}>
@@ -91,7 +127,10 @@ export default function StudentAssignments() {
                         Due: {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : 'No limit'}
                       </span>
                       <span className="flex items-center gap-1.5">
-                        <Badge variant="secondary" className="font-bold">{assignment.totalMarks} Marks</Badge>
+                      <Badge variant="secondary" className="font-bold">{assignment.totalMarks} Marks</Badge>
+                      {isClosed && !isSubmitted && (
+                        <Badge variant="destructive" className="font-bold">Closed</Badge>
+                      )}
                       </span>
                     </div>
                   </div>
@@ -100,7 +139,7 @@ export default function StudentAssignments() {
                       <Badge className={submission.status === 'graded' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-blue-500 hover:bg-blue-600'}>
                         {submission.status === 'graded' ? 'Graded' : 'Submitted'}
                       </Badge>
-                      {assignment.dueDate && new Date(submission.submittedAt) > new Date(assignment.dueDate) && (
+                      {isLate && (
                         <Badge variant="destructive" className="text-[10px] py-0 h-4 font-black uppercase tracking-tighter">Late</Badge>
                       )}
                     </div>
@@ -109,9 +148,21 @@ export default function StudentAssignments() {
               </CardHeader>
               
               <CardContent className="pb-6">
-                <p className="text-slate-600 text-sm leading-relaxed line-clamp-3 mb-6">
-                  {assignment.description}
-                </p>
+                 <div className="flex items-center gap-4 mb-6">
+                   <p className="text-slate-600 text-sm leading-relaxed line-clamp-3 flex-1">
+                     {assignment.description}
+                   </p>
+                   {(assignment as any).fileUrl && (
+                     <a
+                       href={(assignment as any).fileUrl}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="flex items-center text-xs text-primary hover:underline gap-1 bg-primary/5 px-3 py-2 rounded-lg border border-primary/20 shrink-0 font-semibold"
+                     >
+                       <FileText className="h-4 w-4" /> Download Sheet
+                     </a>
+                   )}
+                 </div>
                 
                 {isSubmitted ? (
                   <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4 shadow-sm">
@@ -145,7 +196,7 @@ export default function StudentAssignments() {
                           <AlertCircle className="h-4 w-4 shrink-0" />
                           <span className="text-xs font-semibold">Waiting for instructor review</span>
                         </div>
-                        {assignment.dueDate && new Date(submission.submittedAt) > new Date(assignment.dueDate) && (
+                        {isLate && submission.submittedAt && (
                           <div className="text-[10px] font-bold text-rose-600 flex items-center gap-1 mt-1">
                             <Clock className="h-3 w-3" /> Submitted late on {new Date(submission.submittedAt).toLocaleString()}
                           </div>
@@ -156,16 +207,22 @@ export default function StudentAssignments() {
                 ) : (
                   <div className="bg-primary/5 rounded-xl border border-dashed border-primary/20 p-6 flex flex-col items-center text-center">
                     <AlertCircle className="h-8 w-8 text-primary/40 mb-3" />
-                    <p className="text-sm font-medium text-slate-600 mb-4">No submission yet. Evaluation is pending.</p>
+                    <p className="text-sm font-medium text-slate-600 mb-4">
+                      {isClosed ? "Deadline passed. Ask your teacher to extend it before submitting." : "No submission yet. Evaluation is pending."}
+                    </p>
                     <Dialog open={isDialogOpen && selectedAssignmentId === assignment.id} onOpenChange={(open) => {
                       setIsDialogOpen(open);
                       if (open) setSelectedAssignmentId(assignment.id);
-                      else setSelectedAssignmentId(null);
+                      else {
+                        setSelectedAssignmentId(null);
+                        setFileUrl("");
+                        setNotes("");
+                      }
                     }}>
                       <DialogTrigger asChild>
-                        <Button className="w-full shadow-lg shadow-primary/20">
+                        <Button className="w-full shadow-lg shadow-primary/20" disabled={isClosed}>
                           <Upload className="h-4 w-4 mr-2" />
-                          Start Submission
+                          {isClosed ? "Submission Closed" : "Start Submission"}
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-[500px]">
@@ -174,15 +231,30 @@ export default function StudentAssignments() {
                         </DialogHeader>
                         <form onSubmit={handleSubmit} className="space-y-6 py-4">
                           <div className="space-y-3">
-                            <Label className="text-sm font-bold text-slate-700">Project File URL *</Label>
-                            <Input 
-                              required 
-                              value={fileUrl} 
-                              onChange={(e) => setFileUrl(e.target.value)} 
-                              placeholder="Google Drive or GitHub link"
-                              className="h-11 border-slate-200"
-                            />
-                            <p className="text-[10px] text-slate-400 font-medium">Ensure the link is publicly accessible for the instructor.</p>
+                            <Label className="text-sm font-bold text-slate-700">Upload PDF Submission *</Label>
+                            <div className="flex gap-2">
+                              <Input 
+                                required 
+                                value={fileUrl} 
+                                readOnly
+                                placeholder="Upload your solved PDF from your computer"
+                                className="h-11 border-slate-200 flex-1 bg-slate-50"
+                              />
+                              <div className="relative flex-shrink-0">
+                                <Input
+                                  type="file"
+                                  accept=".pdf"
+                                  onChange={handleStudentSubmissionUpload}
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                  disabled={isUploadingSubmissionPdf}
+                                />
+                                <Button type="button" variant="outline" className="h-11 text-xs" disabled={isUploadingSubmissionPdf}>
+                                  {isUploadingSubmissionPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
+                                  Upload PDF
+                                </Button>
+                              </div>
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-medium">PDF only, max {MAX_ASSIGNMENT_PDF_MB}MB. Compress larger files before uploading.</p>
                           </div>
                           <div className="space-y-3">
                             <Label className="text-sm font-bold text-slate-700">Submission Notes</Label>
@@ -193,7 +265,7 @@ export default function StudentAssignments() {
                               className="min-h-[120px] border-slate-200"
                             />
                           </div>
-                          <Button type="submit" className="w-full h-12 text-lg font-bold" disabled={submitMutation.isPending}>
+                          <Button type="submit" className="w-full h-12 text-lg font-bold" disabled={submitMutation.isPending || isUploadingSubmissionPdf || !fileUrl}>
                             {submitMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : "Complete Submission"}
                           </Button>
                         </form>

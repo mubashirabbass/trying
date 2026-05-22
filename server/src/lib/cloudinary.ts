@@ -17,12 +17,14 @@ cloudinary.config({
 export const uploadToCloudinary = async (
   fileBuffer: Buffer, 
   folder: string,
-  resourceType: "image" | "raw" | "auto" = "auto"
+  resourceType: "image" | "raw" | "auto" = "auto",
+  uploadOptions: Record<string, any> = {}
 ): Promise<any> => {
   return new Promise((resolve, reject) => {
     const options: any = {
       folder: `edu-sphere/${folder}`,
       resource_type: resourceType,
+      ...uploadOptions,
     };
 
     if (resourceType === "image") {

@@ -6,6 +6,9 @@ import {
   CreateQuizBody,
   SubmitQuizParams,
   SubmitQuizBody,
+  UpdateQuizParams,
+  UpdateQuizBody,
+  DeleteQuizParams,
 } from "@workspace/api-zod";
 import { AuthRequest, authorize } from "../middleware/auth";
 import { notificationTriggers } from "../lib/notifications";
@@ -83,9 +86,9 @@ router.post("/quizzes", authorize("admin", "teacher"), async (req: AuthRequest, 
 });
 
 router.post("/quizzes/:id/submit", async (req: AuthRequest, res): Promise<void> => {
-  const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const quizId = parseInt(raw, 10);
-  if (isNaN(quizId)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const params = SubmitQuizParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  const quizId = params.data.id;
 
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -158,7 +161,8 @@ router.get("/quizzes/results/:id", async (req: AuthRequest, res): Promise<void> 
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  const resultId = parseInt(req.params.id, 10);
+  const rawResultId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const resultId = parseInt(rawResultId, 10);
   if (isNaN(resultId)) { res.status(400).json({ error: "Invalid result id" }); return; }
 
   const [result] = await db.select().from(quizResultsTable).where(eq(quizResultsTable.id, resultId));
@@ -187,6 +191,98 @@ router.get("/quizzes/results/:id", async (req: AuthRequest, res): Promise<void> 
       questions: formattedQuestions
     }
   });
+});
+
+router.put("/quizzes/:id", authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
+  const params = UpdateQuizParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  const id = params.data.id;
+
+  const parsed = UpdateQuizBody.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+
+  const { questions, ...quizData } = parsed.data;
+
+  // Check if quiz exists and get course info
+  const [existingQuiz] = await db.select().from(quizzesTable).where(eq(quizzesTable.id, id));
+  if (!existingQuiz) { res.status(404).json({ error: "Quiz not found" }); return; }
+
+  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, existingQuiz.courseId));
+  if (!course) { res.status(404).json({ error: "Associated course not found" }); return; }
+
+  if (req.user.role === "teacher" && course.teacherId !== req.user.id) {
+    res.status(403).json({ error: "You do not have permission to modify this quiz" });
+    return;
+  }
+
+  // Use a transaction to update both quiz and questions
+  const result = await db.transaction(async (tx) => {
+    // Update quiz
+    const [updatedQuiz] = await tx.update(quizzesTable)
+      .set({
+        title: quizData.title,
+        totalMarks: quizData.totalMarks,
+        timeLimit: quizData.timeLimit,
+      })
+      .where(eq(quizzesTable.id, id))
+      .returning();
+
+    // Delete existing questions
+    await tx.delete(questionsTable).where(eq(questionsTable.quizId, id));
+
+    // Insert new questions
+    const insertedQuestions = await Promise.all(questions.map(async (q, index) => {
+      const options = q.options || [];
+      const [question] = await tx.insert(questionsTable).values({
+        quizId: id,
+        questionText: q.question,
+        optionA: options[0] || "",
+        optionB: options[1] || "",
+        optionC: options[2] || "",
+        optionD: options[3] || "",
+        correctOption: String.fromCharCode(65 + q.correctOption), // 0 -> A, 1 -> B, etc.
+        marks: q.marks,
+        orderIndex: index,
+      }).returning();
+      return question;
+    }));
+
+    return { ...updatedQuiz, questions: insertedQuestions };
+  });
+
+  res.json(result);
+});
+
+router.delete("/quizzes/:id", authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
+  const params = DeleteQuizParams.safeParse(req.params);
+  if (!params.success) { res.status(400).json({ error: "Invalid id" }); return; }
+  const id = params.data.id;
+
+  // Check if quiz exists and get course info
+  const [existingQuiz] = await db.select().from(quizzesTable).where(eq(quizzesTable.id, id));
+  if (!existingQuiz) { res.status(404).json({ error: "Quiz not found" }); return; }
+
+  const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, existingQuiz.courseId));
+  if (!course) { res.status(404).json({ error: "Associated course not found" }); return; }
+
+  if (req.user.role === "teacher" && course.teacherId !== req.user.id) {
+    res.status(403).json({ error: "You do not have permission to delete this quiz" });
+    return;
+  }
+
+  // Use a transaction to delete quiz and related data
+  await db.transaction(async (tx) => {
+    // Delete quiz results first (foreign key constraint)
+    await tx.delete(quizResultsTable).where(eq(quizResultsTable.quizId, id));
+    
+    // Delete questions
+    await tx.delete(questionsTable).where(eq(questionsTable.quizId, id));
+    
+    // Delete quiz
+    await tx.delete(quizzesTable).where(eq(quizzesTable.id, id));
+  });
+
+  res.sendStatus(204);
 });
 
 export default router;

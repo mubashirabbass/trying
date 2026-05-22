@@ -6,6 +6,7 @@ import { AppError } from "../lib/auth";
  * This allows us to upload directly to Cloudinary without local disk storage
  */
 const storage = multer.memoryStorage();
+export const ASSIGNMENT_PDF_MAX_BYTES = 5 * 1024 * 1024;
 
 /**
  * Filter files based on MIME type
@@ -36,4 +37,18 @@ export const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB
   },
   fileFilter: fileFilter,
+});
+
+export const assignmentPdfUpload = multer({
+  storage,
+  limits: {
+    fileSize: ASSIGNMENT_PDF_MAX_BYTES,
+  },
+  fileFilter: (_req: any, file: any, cb: any) => {
+    if (file.mimetype === "application/pdf") {
+      cb(null, true);
+    } else {
+      cb(new AppError("Only PDF files are allowed.", 400), false);
+    }
+  },
 });

@@ -15,10 +15,69 @@ import { AuthRequest, authorize } from "../middleware/auth";
 import { encrypt, decrypt } from "../lib/crypto";
 import jwt from "jsonwebtoken";
 import { enrollmentsTable } from "@workspace/db";
-import { upload } from "../middleware/upload";
+import { ASSIGNMENT_PDF_MAX_BYTES, assignmentPdfUpload, upload } from "../middleware/upload";
 import { uploadToCloudinary } from "../lib/cloudinary";
 
 const router: IRouter = Router();
+const ASSIGNMENT_PDF_MAX_MB = Math.floor(ASSIGNMENT_PDF_MAX_BYTES / 1024 / 1024);
+const toSafePdfPublicId = (name: string) => {
+  const baseName = name
+    .replace(/\.pdf$/i, "")
+    .replace(/[^a-z0-9_-]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || "assignment";
+  return `${Date.now()}-${baseName}.pdf`;
+};
+const getYoutubeVideoId = (value?: string | null) => {
+  if (!value) return null;
+
+  const trimmed = value.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    const host = url.hostname.replace(/^www\./, "");
+
+    if (host === "youtu.be") {
+      return url.pathname.split("/").filter(Boolean)[0] || null;
+    }
+
+    if (host.endsWith("youtube.com") || host.endsWith("youtube-nocookie.com")) {
+      const watchId = url.searchParams.get("v");
+      if (watchId) return watchId;
+
+      const parts = url.pathname.split("/").filter(Boolean);
+      const idIndex = parts.findIndex((part) => ["embed", "shorts", "live", "v"].includes(part));
+      if (idIndex >= 0 && parts[idIndex + 1]) return parts[idIndex + 1];
+    }
+  } catch {
+    const match = trimmed.match(/(?:v=|youtu\.be\/|embed\/|shorts\/|live\/|\/v\/)([a-zA-Z0-9_-]{11})/);
+    return match?.[1] || null;
+  }
+
+  return null;
+};
+const normalizeVideoUrl = (value?: string | null) => {
+  const videoId = getYoutubeVideoId(value);
+  return videoId ? `https://www.youtube.com/embed/${videoId}` : value;
+};
+const uploadAssignmentPdf = (req: any, res: any, next: any) => {
+  assignmentPdfUpload.single("pdf")(req, res, (error: any) => {
+    if (!error) {
+      next();
+      return;
+    }
+
+    if (error.code === "LIMIT_FILE_SIZE") {
+      res.status(400).json({ error: `PDF must be ${ASSIGNMENT_PDF_MAX_MB}MB or smaller. Please compress it and try again.` });
+      return;
+    }
+
+    res.status(error.statusCode || 400).json({ error: error.message || "Failed to upload PDF" });
+  });
+};
 
 router.get("/lessons", async (req: AuthRequest, res): Promise<void> => {
   const params = ListLessonsQueryParams.safeParse(req.query);
@@ -38,7 +97,13 @@ router.get("/lessons", async (req: AuthRequest, res): Promise<void> => {
     }
   }
 
-  const lessons = await db.select().from(lessonsTable).where(eq(lessonsTable.courseId, courseId)).orderBy(lessonsTable.orderIndex);
+  const lessons = await db.select().from(lessonsTable)
+    .where(
+      isStaff
+        ? eq(lessonsTable.courseId, courseId)
+        : and(eq(lessonsTable.courseId, courseId), eq(lessonsTable.isVisible, true))
+    )
+    .orderBy(lessonsTable.orderIndex);
 
   if (userId) {
     const completions = await db.select().from(lessonCompletionsTable).where(eq(lessonCompletionsTable.userId, userId));
@@ -63,6 +128,9 @@ router.post("/lessons", authorize("admin", "teacher"), async (req: AuthRequest, 
   }
 
   const data: any = { ...parsed.data };
+  if (data.videoUrl) {
+    data.videoUrl = normalizeVideoUrl(data.videoUrl);
+  }
   if (data.videoUrl && (data.videoUrl.includes("youtube.com") || data.videoUrl.includes("youtu.be"))) {
     data.encryptedYoutubeId = encrypt(data.videoUrl);
   }
@@ -81,6 +149,9 @@ router.post("/lessons", authorize("admin", "teacher"), async (req: AuthRequest, 
   }
   if (req.body.resources !== undefined) {
     data.resources = req.body.resources || null;
+  }
+  if (req.body.isVisible !== undefined) {
+    data.isVisible = req.body.isVisible === false || req.body.isVisible === "false" ? false : true;
   }
 
   const [lesson] = await db.insert(lessonsTable).values(data).returning();
@@ -112,10 +183,22 @@ router.put("/lessons/:id", authorize("admin", "teacher"), async (req: AuthReques
     return;
   }
 
-  const parsed = UpdateLessonBody.safeParse(req.body);
+  const parsed = UpdateLessonBody.safeParse({
+    courseId: existingLesson.courseId,
+    title: existingLesson.title,
+    description: existingLesson.description ?? undefined,
+    videoUrl: existingLesson.videoUrl ?? undefined,
+    pdfUrl: existingLesson.pdfUrl ?? undefined,
+    duration: existingLesson.duration ?? undefined,
+    orderIndex: existingLesson.orderIndex,
+    ...req.body,
+  });
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   
   const data: any = { ...parsed.data };
+  if (data.videoUrl) {
+    data.videoUrl = normalizeVideoUrl(data.videoUrl);
+  }
   if (data.videoUrl && (data.videoUrl.includes("youtube.com") || data.videoUrl.includes("youtu.be"))) {
     data.encryptedYoutubeId = encrypt(data.videoUrl);
   }
@@ -134,6 +217,9 @@ router.put("/lessons/:id", authorize("admin", "teacher"), async (req: AuthReques
   }
   if (req.body.resources !== undefined) {
     data.resources = req.body.resources || null;
+  }
+  if (req.body.isVisible !== undefined) {
+    data.isVisible = req.body.isVisible === false || req.body.isVisible === "false" ? false : true;
   }
 
   const [lesson] = await db.update(lessonsTable).set(data).where(eq(lessonsTable.id, id)).returning();
@@ -156,7 +242,11 @@ router.delete("/lessons/:id", authorize("admin", "teacher"), async (req: AuthReq
     return;
   }
 
-  await db.delete(lessonsTable).where(eq(lessonsTable.id, id));
+  await db.transaction(async (tx) => {
+    await tx.delete(videoAccessLogsTable).where(eq(videoAccessLogsTable.lessonId, id));
+    await tx.delete(lessonCompletionsTable).where(eq(lessonCompletionsTable.lessonId, id));
+    await tx.delete(lessonsTable).where(eq(lessonsTable.id, id));
+  });
   res.sendStatus(204);
 });
 
@@ -327,7 +417,7 @@ router.get("/lessons/:id/embed", async (req, res): Promise<void> => {
       return;
     }
 
-    res.json({ url: videoUrl });
+    res.json({ url: normalizeVideoUrl(videoUrl) });
   } catch (error) {
     res.status(401).json({ error: "Invalid or expired token" });
   }
@@ -353,6 +443,39 @@ router.post(
       res.status(201).json({
         url: result.secure_url,
         publicId: result.public_id,
+      });
+    } catch (error: any) {
+      console.error("PDF upload error:", error);
+      res.status(500).json({ error: error.message || "Failed to upload PDF" });
+    }
+  }
+);
+
+// Shared PDF upload for all authenticated users (students, teachers, admin)
+router.post(
+  "/upload-pdf",
+  authorize("admin", "teacher", "student"),
+  uploadAssignmentPdf,
+  async (req: any, res): Promise<void> => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "PDF file is required" });
+        return;
+      }
+
+      if (req.file.mimetype !== "application/pdf") {
+        res.status(400).json({ error: "Only PDF files are allowed" });
+        return;
+      }
+
+      const result = await uploadToCloudinary(req.file.buffer, "assignment-pdfs", "raw", {
+        public_id: toSafePdfPublicId(req.file.originalname || "assignment.pdf"),
+      });
+      res.status(201).json({
+        url: result.secure_url,
+        publicId: result.public_id,
+        size: req.file.size,
+        maxSize: ASSIGNMENT_PDF_MAX_BYTES,
       });
     } catch (error: any) {
       console.error("PDF upload error:", error);

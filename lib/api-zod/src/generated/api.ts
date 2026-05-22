@@ -391,6 +391,7 @@ export const ListAssignmentsResponseItem = zod.object({
   "description": zod.string().optional(),
   "dueDate": zod.string().optional(),
   "totalMarks": zod.number(),
+  "fileUrl": zod.string().optional(),
   "createdAt": zod.string()
 })
 export const ListAssignmentsResponse = zod.array(ListAssignmentsResponseItem)
@@ -404,7 +405,8 @@ export const CreateAssignmentBody = zod.object({
   "title": zod.string(),
   "description": zod.string().optional(),
   "dueDate": zod.string().optional(),
-  "totalMarks": zod.number()
+  "totalMarks": zod.number(),
+  "fileUrl": zod.string().optional()
 })
 
 

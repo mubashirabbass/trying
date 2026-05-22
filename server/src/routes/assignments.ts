@@ -28,6 +28,10 @@ router.get("/assignments", async (req, res): Promise<void> => {
 router.post("/assignments", authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
   const parsed = CreateAssignmentBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (!parsed.data.fileUrl?.trim()) {
+    res.status(400).json({ error: "Assignment PDF is required" });
+    return;
+  }
   
   const courseId = Number(parsed.data.courseId);
   const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId));
@@ -38,9 +42,10 @@ router.post("/assignments", authorize("admin", "teacher"), async (req: AuthReque
     return;
   }
 
-  const values = {
+  const values: any = {
     ...parsed.data,
     dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
+    fileUrl: parsed.data.fileUrl || null,
   };
   const [assignment] = await db.insert(assignmentsTable).values(values).returning();
   res.status(201).json(assignment);
@@ -56,6 +61,17 @@ router.post("/assignments/:id/submit", async (req: AuthRequest, res): Promise<vo
 
   const parsed = SubmitAssignmentBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (!parsed.data.fileUrl?.trim()) {
+    res.status(400).json({ error: "Solved assignment PDF is required" });
+    return;
+  }
+
+  const [assignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, assignmentId));
+  if (!assignment) { res.status(404).json({ error: "Assignment not found" }); return; }
+  if (assignment.dueDate && new Date() > new Date(assignment.dueDate)) {
+    res.status(403).json({ error: "Assignment deadline has passed. Ask your teacher to extend the deadline." });
+    return;
+  }
 
   const [submission] = await db.insert(assignmentSubmissionsTable)
     .values({ assignmentId, userId: userId, fileUrl: parsed.data.fileUrl, notes: parsed.data.notes, status: "submitted" })
@@ -157,7 +173,8 @@ router.post("/assignments/:id/grade", authorize("admin", "teacher"), async (req:
 });
 
 router.put("/assignments/:id", authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(rawId as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [existingAssignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, id));
@@ -173,13 +190,20 @@ router.put("/assignments/:id", authorize("admin", "teacher"), async (req: AuthRe
 
   const parsed = CreateAssignmentBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (!parsed.data.fileUrl?.trim()) {
+    res.status(400).json({ error: "Assignment PDF is required" });
+    return;
+  }
+
+  const values: any = {
+    ...parsed.data,
+    dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
+    fileUrl: parsed.data.fileUrl || null,
+  };
 
   const [assignment] = await db
     .update(assignmentsTable)
-    .set({
-      ...parsed.data,
-      dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
-    })
+    .set(values)
     .where(eq(assignmentsTable.id, id))
     .returning();
 
@@ -187,7 +211,8 @@ router.put("/assignments/:id", authorize("admin", "teacher"), async (req: AuthRe
 });
 
 router.delete("/assignments/:id", authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(rawId as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const [existingAssignment] = await db.select().from(assignmentsTable).where(eq(assignmentsTable.id, id));

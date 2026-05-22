@@ -18,6 +18,7 @@ export const lessonsTable = pgTable("lessons", {
   completionThreshold: integer("completion_threshold").notNull().default(80), // Percentage
   notes: text("notes"),
   resources: text("resources"),
+  isVisible: boolean("is_visible").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => {
   return {

@@ -5,9 +5,14 @@ import { authenticate, authorize, AuthRequest } from "../middleware/auth";
 
 const router: IRouter = Router();
 
+const parseRouteNumber = (value: string | string[] | undefined) => {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw ? parseInt(raw, 10) : NaN;
+};
+
 // Get attendance for a course (Admin/Teacher view)
 router.get("/attendance/course/:courseId", authenticate, authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
-  const courseId = parseInt(req.params.courseId, 10);
+  const courseId = parseRouteNumber(req.params.courseId);
   if (isNaN(courseId)) { res.status(400).json({ error: "Invalid courseId" }); return; }
 
   // Verify teacher ownership if it's a teacher
@@ -46,8 +51,16 @@ router.get("/attendance/course/:courseId", authenticate, authorize("admin", "tea
 
 // Get enrolled students for a course (used for marking attendance sheet)
 router.get("/attendance/course/:courseId/students", authenticate, authorize("admin", "teacher"), async (req: AuthRequest, res): Promise<void> => {
-  const courseId = parseInt(req.params.courseId, 10);
+  const courseId = parseRouteNumber(req.params.courseId);
   if (isNaN(courseId)) { res.status(400).json({ error: "Invalid courseId" }); return; }
+
+  if (req.user?.role === "teacher") {
+    const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, courseId));
+    if (!course || course.teacherId !== req.user.id) {
+      res.status(403).json({ error: "Unauthorized access to this course" });
+      return;
+    }
+  }
 
   const students = await db
     .select({

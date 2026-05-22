@@ -257,6 +257,7 @@ export interface CreateAssignmentBody {
   description?: string;
   dueDate?: string;
   totalMarks: number;
+  fileUrl?: string;
 }
 
 export type AssignmentSubmissionStatus = typeof AssignmentSubmissionStatus[keyof typeof AssignmentSubmissionStatus];

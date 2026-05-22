@@ -11,6 +11,7 @@ export const assignmentsTable = pgTable("assignments", {
   description: text("description"),
   dueDate: timestamp("due_date", { withTimezone: true }),
   totalMarks: integer("total_marks").notNull().default(100),
+  fileUrl: text("file_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

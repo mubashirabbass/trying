@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, settingsTable, announcementLogsTable, notificationsTable, usersTable } from "@workspace/db";
 import { eq, desc, and } from "drizzle-orm";
+import { authenticate, authorize } from "../middleware/auth";
 
 const router: IRouter = Router();
 
@@ -46,8 +47,9 @@ router.get("/settings", async (req, res): Promise<void> => {
   res.json(rows);
 });
 
-router.put("/settings/:key", async (req, res): Promise<void> => {
-  const { key } = req.params;
+router.put("/settings/:key", authenticate, authorize("admin"), async (req, res): Promise<void> => {
+  const rawKey = req.params.key;
+  const key = Array.isArray(rawKey) ? rawKey[0] : rawKey;
   const { value } = req.body;
   if (!value && value !== "") { res.status(400).json({ error: "Value required" }); return; }
   const existing = await db.select().from(settingsTable).where(eq(settingsTable.key, key));
@@ -60,7 +62,7 @@ router.put("/settings/:key", async (req, res): Promise<void> => {
   }
 });
 
-router.put("/settings", async (req, res): Promise<void> => {
+router.put("/settings", authenticate, authorize("admin"), async (req, res): Promise<void> => {
   const updates: Record<string, string> = req.body;
   const results = [];
   for (const [key, value] of Object.entries(updates)) {
@@ -76,18 +78,18 @@ router.put("/settings", async (req, res): Promise<void> => {
   res.json(results);
 });
 
-router.get("/announcements", async (req, res): Promise<void> => {
+router.get("/announcements", authenticate, authorize("admin"), async (req, res): Promise<void> => {
   const rows = await db.select().from(announcementLogsTable).orderBy(desc(announcementLogsTable.sentAt)).limit(20);
   res.json(rows);
 });
 
-router.post("/announcements", async (req, res): Promise<void> => {
+router.post("/announcements", authenticate, authorize("admin"), async (req, res): Promise<void> => {
   const { sentBy, targetType, targetId, title, message } = req.body;
   if (!sentBy || !title || !message) { res.status(400).json({ error: "Missing fields" }); return; }
   const [row] = await db.insert(announcementLogsTable).values({ sentBy, targetType: targetType || "ALL", targetId, title, message }).returning();
   
   // Trigger notifications
-  let targetUsers = [];
+  let targetUsers: Array<{ id: number }> = [];
   if (targetType === "ALL" || !targetType) {
     targetUsers = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.isActive, true));
   } else if (targetType === "STUDENTS") {

@@ -37,9 +37,12 @@ router.get("/live-classes", async (req: AuthRequest, res): Promise<void> => {
       // Auto-expire: mark past classes as completed
       const now = new Date();
       const toExpire = classes.filter(c => !c.isCompleted && new Date(c.scheduledAt) < now);
-      for (const c of toExpire) {
-        await db.update(liveClassesTable).set({ isCompleted: true }).where(eq(liveClassesTable.id, c.id));
-        c.isCompleted = true;
+      if (toExpire.length > 0) {
+        const toExpireIds = toExpire.map(c => c.id);
+        await db.update(liveClassesTable).set({ isCompleted: true }).where(inArray(liveClassesTable.id, toExpireIds));
+        for (const c of toExpire) {
+          c.isCompleted = true;
+        }
       }
 
       res.json(classes);

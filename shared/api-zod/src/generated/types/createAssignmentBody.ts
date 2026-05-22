@@ -12,4 +12,5 @@ export interface CreateAssignmentBody {
   description?: string;
   dueDate?: string;
   totalMarks: number;
+  fileUrl?: string;
 }

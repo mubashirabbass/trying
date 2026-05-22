@@ -759,6 +759,44 @@ paths:
               schema:
                 $ref: "#/components/schemas/Quiz"
 
+  /quizzes/{id}:
+    put:
+      operationId: updateQuiz
+      tags: [quizzes]
+      summary: Update quiz
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQuizBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quiz"
+    delete:
+      operationId: deleteQuiz
+      tags: [quizzes]
+      summary: Delete quiz
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
   /quizzes/{id}/submit:
     post:
       operationId: submitQuiz
@@ -2316,6 +2354,8 @@ components:
           type: string
         totalMarks:
           type: integer
+        fileUrl:
+          type: string
       required: [courseId, title, totalMarks]
 
     AssignmentSubmission:

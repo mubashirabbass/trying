@@ -117,6 +117,7 @@ router.use(articlesRouter);
 router.use(certificatesRouter);
 router.use(usersRouter);
 router.use(attendanceRouter);
+router.use(settingsRouter);
 
 router.use(authenticate);
 router.use(lessonsRouter);
@@ -129,7 +130,6 @@ router.use(notificationsRouter);
 router.use(forumRouter);
 router.use(messagesRouter);
 router.use(identityVerificationRouter);
-router.use(settingsRouter);
 router.use(leaderboardRouter);
 router.use(sectionsRouter);
 router.use(reportsRouter);
