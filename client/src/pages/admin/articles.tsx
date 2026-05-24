@@ -16,11 +16,11 @@ import {
   Search, Eye, EyeOff, Plus
 } from "lucide-react";
 
-const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+const BASE_URL = window.location.origin;
 
 export default function AdminArticles() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [articles, setArticles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -67,7 +67,7 @@ export default function AdminArticles() {
     setLoading(true);
     try {
       const res = await fetch(`${BASE_URL}/api/admin/articles`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         setArticles(await res.json());
@@ -125,7 +125,7 @@ export default function AdminArticles() {
       setIsUploadingImage(true);
       const res = await fetch(`${BASE_URL}/api/articles/upload-image`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { Authorization: `Bearer ${token}` },
         body,
       });
       const uploaded = await res.json().catch(() => ({}));
@@ -164,7 +164,7 @@ export default function AdminArticles() {
         method,
         headers: { 
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify(payload)
       });
@@ -189,7 +189,7 @@ export default function AdminArticles() {
     try {
       const res = await fetch(`${BASE_URL}/api/articles/${id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         toast({ title: "Article deleted successfully." });
@@ -223,7 +223,7 @@ export default function AdminArticles() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           title: article.title,

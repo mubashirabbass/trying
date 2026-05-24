@@ -105,7 +105,9 @@ export default function AdminCourses() {
         data: { status, rejectionNote: note || null } as any
       });
       toast({ title: `Course ${status === 'live' ? 'Approved' : 'Rejected'}` });
-      queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({}) });
+      // Force refresh the courses list
+      await queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({}) });
+      await queryClient.refetchQueries({ queryKey: getListCoursesQueryKey({}) });
       setIsReviewOpen(false);
       setReviewCourse(null);
       setRejectionNote("");

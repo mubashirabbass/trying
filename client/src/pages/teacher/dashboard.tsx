@@ -21,12 +21,26 @@ export default function TeacherDashboard() {
 
   const { data: dashboard, isLoading: isDashboardLoading } = useGetTeacherDashboard(
     { userId: user?.id || 0 },
-    { query: { enabled: !!user?.id, queryKey: getGetTeacherDashboardQueryKey({ userId: user?.id || 0 }) } }
+    { 
+      query: { 
+        enabled: !!user?.id, 
+        queryKey: getGetTeacherDashboardQueryKey({ userId: user?.id || 0 }),
+        staleTime: 30000, // Cache for 30 seconds
+        refetchOnWindowFocus: false
+      } 
+    }
   );
 
   const { data: courses = [], isLoading: isCoursesLoading } = useListCourses(
     { teacherId: user?.id ?? undefined, limit: 20 } as any,
-    { query: { queryKey: getListCoursesQueryKey({ teacherId: user?.id ?? undefined } as any), enabled: !!user?.id } }
+    { 
+      query: { 
+        queryKey: getListCoursesQueryKey({ teacherId: user?.id ?? undefined } as any), 
+        enabled: !!user?.id,
+        staleTime: 60000, // Cache for 60 seconds
+        refetchOnWindowFocus: false
+      } 
+    }
   );
   const teacherCourses = courses.filter((c: any) => c.teacherId === user?.id || c.teacherName === user?.name);
 
@@ -50,24 +64,19 @@ export default function TeacherDashboard() {
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 15000);
+    const interval = setInterval(fetchNotifications, 30000); // Reduced frequency to 30 seconds
     return () => clearInterval(interval);
   }, [user?.id]);
 
-  const isLoading = isDashboardLoading || isCoursesLoading;
-
-  if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="flex justify-center items-center h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   const firstName = user?.name?.split(" ")[0] || "Teacher";
   const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  const stats = [
+    { label: "Active Courses", value: dashboard?.totalCourses ?? teacherCourses.length, icon: BookOpen, color: "text-blue-600", bg: "bg-blue-50", href: "/teacher/courses" },
+    { label: "Total Students", value: dashboard?.totalStudents ?? 0, icon: Users, color: "text-indigo-600", bg: "bg-indigo-50", href: "/teacher/students" },
+    { label: "Pending Grades", value: dashboard?.pendingAssignments ?? 0, icon: Clock, color: "text-amber-600", bg: "bg-amber-50", href: "/teacher/grading" },
+    { label: "Avg. Rating", value: (dashboard?.averageRating || 0).toFixed(1), icon: Star, color: "text-emerald-600", bg: "bg-emerald-50", href: "/teacher/courses" },
+  ];
 
   const getNotificationIcon = (title: string) => {
     const t = title.toLowerCase();
@@ -96,19 +105,43 @@ export default function TeacherDashboard() {
     return "/teacher/dashboard";
   };
 
-  const stats = [
-    { label: "Active Courses", value: dashboard?.totalCourses ?? teacherCourses.length, icon: BookOpen, color: "text-blue-600", bg: "bg-blue-50", href: "/teacher/courses" },
-    { label: "Total Students", value: dashboard?.totalStudents ?? 0, icon: Users, color: "text-indigo-600", bg: "bg-indigo-50", href: "/teacher/students" },
-    { label: "Pending Grades", value: dashboard?.pendingAssignments ?? 0, icon: Clock, color: "text-amber-600", bg: "bg-amber-50", href: "/teacher/grading" },
-    { label: "Avg. Rating", value: (dashboard?.averageRating || 0).toFixed(1), icon: Star, color: "text-emerald-600", bg: "bg-emerald-50", href: "/teacher/courses" },
-  ];
+  // Skeleton loader component
+  const SkeletonCard = () => (
+    <Card className="border border-slate-100 shadow-sm rounded-[1.25rem] bg-white animate-pulse">
+      <CardContent className="p-5 flex items-center gap-4">
+        <div className="h-11 w-11 rounded-xl bg-slate-200" />
+        <div className="flex-1">
+          <div className="h-3 w-20 bg-slate-200 rounded mb-2" />
+          <div className="h-6 w-12 bg-slate-200 rounded" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const SkeletonCourseCard = () => (
+    <Card className="border border-slate-100 shadow-sm rounded-[1.25rem] bg-white overflow-hidden animate-pulse">
+      <CardContent className="p-6 space-y-5">
+        <div className="space-y-2">
+          <div className="h-5 bg-slate-200 rounded w-3/4" />
+          <div className="h-3 bg-slate-200 rounded w-1/4" />
+        </div>
+        <div className="space-y-3">
+          <div className="flex justify-between">
+            <div className="h-3 bg-slate-200 rounded w-20" />
+            <div className="h-3 bg-slate-200 rounded w-16" />
+          </div>
+          <div className="h-11 bg-slate-200 rounded-lg" />
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto px-4 py-6 bg-[#f8fafc] min-h-screen">
+      <div className="max-w-7xl mx-auto px-4 py-4 bg-[#f8fafc] min-h-screen">
 
         {/* Welcome Header */}
-        <div className="flex justify-between items-center mb-8 relative">
+        <div className="flex justify-between items-center mb-6 relative">
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
             Welcome back, {firstName}!
           </h1>
@@ -180,7 +213,7 @@ export default function TeacherDashboard() {
                 onClick={() => { setProfileOpen(!profileOpen); setNotificationsOpen(false); }}
                 className="h-10 w-10 rounded-full overflow-hidden border border-slate-200 shadow-sm bg-slate-200 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer block"
               >
-                <img src="https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=80&h=80&fit=crop" alt={user?.name} className="h-full w-full object-cover" />
+                <img src={user?.avatar || "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=80&h=80&fit=crop"} alt={user?.name} className="h-full w-full object-cover" />
               </button>
               {profileOpen && (
                 <>
@@ -188,7 +221,7 @@ export default function TeacherDashboard() {
                   <div className="absolute right-0 mt-2.5 z-40 w-72 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden p-4 animate-in fade-in slide-in-from-top-1 duration-200 space-y-4">
                     <div className="flex items-center gap-3 bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
                       <div className="h-12 w-12 rounded-full overflow-hidden border border-slate-200 shadow-sm bg-slate-200 shrink-0">
-                        <img src="https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=80&h=80&fit=crop" alt={user?.name} className="h-full w-full object-cover" />
+                        <img src={user?.avatar || "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=80&h=80&fit=crop"} alt={user?.name} className="h-full w-full object-cover" />
                       </div>
                       <div className="min-w-0 space-y-0.5">
                         <h4 className="font-bold text-slate-800 text-sm truncate">{user?.name}</h4>
@@ -215,35 +248,45 @@ export default function TeacherDashboard() {
         </div>
 
         {/* STATS ROW */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {stats.map((stat, i) => (
-            <Link href={stat.href} key={i}>
-              <Card className="border border-slate-100 shadow-sm rounded-[1.25rem] bg-white hover:shadow-md transition-shadow cursor-pointer">
-                <CardContent className="p-5 flex items-center gap-4">
-                  <div className={`h-11 w-11 rounded-xl ${stat.bg} ${stat.color} flex items-center justify-center shrink-0`}>
-                    <stat.icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{stat.label}</p>
-                    <p className="text-2xl font-black text-slate-900">{stat.value}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {isDashboardLoading ? (
+            // Show skeleton loaders while loading
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : (
+            stats.map((stat, i) => (
+              <Link href={stat.href} key={i}>
+                <Card className="border border-slate-100 shadow-sm rounded-[1.25rem] bg-white hover:shadow-md transition-shadow cursor-pointer">
+                  <CardContent className="p-5 flex items-center gap-4">
+                    <div className={`h-11 w-11 rounded-xl ${stat.bg} ${stat.color} flex items-center justify-center shrink-0`}>
+                      <stat.icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{stat.label}</p>
+                      <p className="text-2xl font-black text-slate-900">{stat.value}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))
+          )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
           {/* LEFT & CENTER COLUMNS */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-6">
 
             {/* PROFILE CARD */}
             <Card className="border border-slate-100 shadow-sm rounded-[1.25rem] bg-white overflow-hidden">
               <CardContent className="p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="flex items-center gap-5">
                   <div className="h-20 w-20 rounded-full overflow-hidden border border-slate-100 shadow-md bg-slate-200 shrink-0">
-                    <img src="https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=200&h=200&fit=crop" alt={user?.name} className="h-full w-full object-cover" />
+                    <img src={user?.avatar || "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=200&h=200&fit=crop"} alt={user?.name} className="h-full w-full object-cover" />
                   </div>
                   <div className="space-y-1.5">
                     <h2 className="text-2xl font-bold text-slate-800 leading-tight">{user?.name || "Instructor"}</h2>
@@ -278,7 +321,14 @@ export default function TeacherDashboard() {
                   Manage all courses
                 </Link>
               </div>
-              {teacherCourses.length > 0 ? (
+              {isCoursesLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <SkeletonCourseCard />
+                  <SkeletonCourseCard />
+                  <SkeletonCourseCard />
+                  <SkeletonCourseCard />
+                </div>
+              ) : teacherCourses.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {teacherCourses.slice(0, 4).map((course: any, idx: number) => (
                     <Card key={course.id} className="border border-slate-100 shadow-sm rounded-[1.25rem] bg-white overflow-hidden flex flex-col hover:shadow-md transition-shadow">
@@ -394,7 +444,7 @@ export default function TeacherDashboard() {
           </div>
 
           {/* RIGHT COLUMN */}
-          <div className="space-y-8">
+          <div className="space-y-6">
 
             {/* QUICK ACTIONS */}
             <Card className="border border-slate-100 shadow-sm rounded-[1.25rem] bg-white overflow-hidden">

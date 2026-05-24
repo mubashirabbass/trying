@@ -843,6 +843,19 @@ export type MarkThreadAsReadBody = {
   userId: number;
 };
 
+export type DeleteThreadParams = {
+userId: number;
+};
+
+export type DeleteMessageParams = {
+userId: number;
+};
+
+export type UpdateMessageBody = {
+  userId: number;
+  body: string;
+};
+
 export type ListNotificationsParams = {
 userId: number;
 };

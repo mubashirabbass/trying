@@ -4,7 +4,8 @@ import {
   useGetCourse, 
   useUpdateCourse,
   useListSections,
-  useListLessons
+  useListLessons,
+  getListCoursesQueryKey
 } from "@workspace/api-client-react";
 import { 
   Loader2, 
@@ -29,6 +30,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +44,7 @@ export default function AdminCourseReview() {
   const courseId = id ? Number(id) : 0;
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionNote, setRejectionNote] = useState("");
 
@@ -50,8 +53,11 @@ export default function AdminCourseReview() {
   
   const approveMutation = useUpdateCourse({
     mutation: {
-      onSuccess: () => {
+      onSuccess: async () => {
         toast({ title: "Course Published Successfully", description: "This course is now live for all students." });
+        // Force refresh the courses list
+        await queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({}) });
+        await queryClient.refetchQueries({ queryKey: getListCoursesQueryKey({}) });
         setLocation("/admin/courses");
       }
     }
@@ -59,9 +65,12 @@ export default function AdminCourseReview() {
 
   const rejectMutation = useUpdateCourse({
     mutation: {
-      onSuccess: () => {
+      onSuccess: async () => {
         toast({ title: "Course Rejected", description: "Feedback has been sent to the teacher." });
         setRejectDialogOpen(false);
+        // Force refresh the courses list
+        await queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({}) });
+        await queryClient.refetchQueries({ queryKey: getListCoursesQueryKey({}) });
         setLocation("/admin/courses");
       }
     }

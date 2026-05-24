@@ -1176,6 +1176,54 @@ export const MarkThreadAsReadBody = zod.object({
 
 
 /**
+ * @summary Delete entire chat thread
+ */
+export const DeleteThreadParams = zod.object({
+  "threadId": zod.coerce.number()
+})
+
+export const DeleteThreadQueryParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+
+/**
+ * @summary Delete a single message
+ */
+export const DeleteMessageParams = zod.object({
+  "messageId": zod.coerce.number()
+})
+
+export const DeleteMessageQueryParams = zod.object({
+  "userId": zod.coerce.number()
+})
+
+
+/**
+ * @summary Edit/update a message
+ */
+export const UpdateMessageParams = zod.object({
+  "messageId": zod.coerce.number()
+})
+
+export const UpdateMessageBody = zod.object({
+  "userId": zod.number(),
+  "body": zod.string()
+})
+
+export const UpdateMessageResponse = zod.object({
+  "id": zod.number(),
+  "threadId": zod.number(),
+  "senderId": zod.number(),
+  "body": zod.string(),
+  "isRead": zod.boolean(),
+  "createdAt": zod.string(),
+  "senderName": zod.string().optional(),
+  "senderRole": zod.string().optional()
+})
+
+
+/**
  * @summary List notifications for a user
  */
 export const ListNotificationsQueryParams = zod.object({
@@ -1386,12 +1434,6 @@ export const UpdateUserBody = zod.object({
   "branchId": zod.number().optional(),
   "qualification": zod.string().optional(),
   "specialization": zod.string().optional(),
-  "experience": zod.string().optional(),
-  "salary": zod.number().optional(),
-  "address": zod.string().optional(),
-  "designation": zod.string().optional(),
-  "gender": zod.string().optional(),
-  "joiningDate": zod.string().optional(),
   "obtainedMarks": zod.number().optional(),
   "totalMarks": zod.number().optional(),
   "identityDocumentUrl": zod.string().optional(),
@@ -1874,4 +1916,5 @@ export const GetTeacherDashboardResponse = zod.object({
   "dueDate": zod.coerce.date().nullish()
 }))
 })
+
 

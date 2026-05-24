@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { useAuth } from "@/lib/AuthContext";
 import { 
   useListQuizzes, 
   useSubmitQuiz,
-  useListEnrollments
+  useListQuizResults
 } from "@workspace/api-client-react";
 import { 
   Loader2, 
@@ -28,9 +29,15 @@ export default function QuizPlayer() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const { data: quizzes, isLoading: quizLoading } = useListQuizzes();
+  const { data: results = [], isLoading: resultsLoading } = useListQuizResults();
   const quiz = quizzes?.find(q => q.id === Number(id));
+  
+  // Check if this quiz has already been attempted
+  const hasAttempted = results.some(r => r.quizId === Number(id));
+  const existingResult = results.find(r => r.quizId === Number(id));
   
   const submitMutation = useSubmitQuiz();
 
@@ -56,9 +63,8 @@ export default function QuizPlayer() {
     return () => clearInterval(timer);
   }, [timeLeft, isFinished]);
 
-  const handleAnswerSelect = (optionIndex: number) => {
-    if (!quiz) return;
-    const questionId = quiz.questions[currentQuestionIndex].id;
+  const handleAnswerSelect = (questionId: number, optionIndex: number) => {
+    if (!quiz || isFinished) return;
     setAnswers({ ...answers, [questionId]: optionIndex });
   };
 
@@ -93,7 +99,7 @@ export default function QuizPlayer() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (quizLoading) {
+  if (quizLoading || resultsLoading) {
     return (
       <DashboardLayout>
         <div className="flex justify-center items-center h-64">
@@ -110,6 +116,60 @@ export default function QuizPlayer() {
           <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
           <h2 className="text-2xl font-bold">Quiz not found</h2>
           <Button className="mt-4" onClick={() => setLocation("/dashboard")}>Back to Dashboard</Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // If quiz has already been attempted, redirect to results
+  if (hasAttempted && existingResult) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-2xl mx-auto py-12">
+          <Card className="border-2 border-amber-200 bg-amber-50/30 shadow-xl overflow-hidden">
+            <div className="h-3 bg-amber-500" />
+            <CardHeader className="text-center pb-6 pt-10">
+              <div className="flex justify-center mb-6">
+                <div className="h-20 w-20 rounded-full flex items-center justify-center bg-amber-100 text-amber-600">
+                  <AlertCircle className="h-10 w-10" />
+                </div>
+              </div>
+              <CardTitle className="text-3xl font-black text-slate-900 mb-2">
+                Quiz Already Attempted
+              </CardTitle>
+              <p className="text-slate-600 font-medium text-lg">
+                You have already completed this quiz. Each quiz can only be attempted once.
+              </p>
+            </CardHeader>
+            <CardContent className="px-10 pb-8">
+              <div className="bg-white p-6 rounded-2xl border-2 border-amber-100">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Your Score</p>
+                    <p className="text-2xl font-black text-slate-800">{existingResult.score}/{existingResult.totalMarks}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Percentage</p>
+                    <p className="text-2xl font-black text-slate-800">{existingResult.percentage}%</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Status</p>
+                    <Badge className={`text-xs font-black ${existingResult.passed ? 'bg-emerald-500' : 'bg-rose-500'}`}>
+                      {existingResult.passed ? 'PASSED' : 'FAILED'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="bg-white p-8 flex gap-3 justify-center border-t border-amber-100">
+              <Button variant="outline" size="lg" className="px-8 font-bold" onClick={() => setLocation("/dashboard/quizzes")}>
+                Back to Quizzes
+              </Button>
+              <Button size="lg" className="px-8 font-bold" onClick={() => setLocation(`/dashboard/quizzes/results/${existingResult.id}`)}>
+                View Detailed Results
+              </Button>
+            </CardFooter>
+          </Card>
         </div>
       </DashboardLayout>
     );
@@ -248,7 +308,7 @@ export default function QuizPlayer() {
 
             <RadioGroup 
               value={answers[currentQuestion.id]?.toString()} 
-              onValueChange={(val) => handleAnswerSelect(parseInt(val))}
+              onValueChange={(val) => handleAnswerSelect(currentQuestion.id, parseInt(val))}
               className="space-y-4"
             >
               {currentQuestion.options.map((option, index) => (

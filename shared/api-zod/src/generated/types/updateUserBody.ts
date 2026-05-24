@@ -17,12 +17,6 @@ export interface UpdateUserBody {
   branchId?: number;
   qualification?: string;
   specialization?: string;
-  experience?: string;
-  salary?: number;
-  address?: string;
-  designation?: string;
-  gender?: string;
-  joiningDate?: string;
   obtainedMarks?: number;
   totalMarks?: number;
   identityDocumentUrl?: string;

@@ -239,7 +239,7 @@ function Router() {
           <ProtectedRoute component={LectureReviews} />
         </Route>
         <Route path="/teacher/articles">
-          <ProtectedRoute component={AdminArticles} />
+          <ProtectedRoute component={AdminArticles} allowedRoles={["admin", "teacher"]} />
         </Route>
 
         {/* Admin Protected Routes */}

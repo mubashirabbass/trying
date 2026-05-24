@@ -151,6 +151,9 @@ router.get("/dashboard/teacher", async (req, res): Promise<void> => {
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const userId = Number(params.data.userId);
 
+  // Set cache headers for better performance
+  res.set('Cache-Control', 'private, max-age=30'); // Cache for 30 seconds
+
   const coursesList = await db.select({ id: coursesTable.id }).from(coursesTable).where(eq(coursesTable.teacherId, userId));
   const courseIds = coursesList.map(c => c.id);
 
@@ -166,32 +169,37 @@ router.get("/dashboard/teacher", async (req, res): Promise<void> => {
     return;
   }
 
-  const [enrollmentCount] = await db.select({ c: count() })
-    .from(enrollmentsTable)
-    .where(inArray(enrollmentsTable.courseId, courseIds));
-
-  const recentSubmissions = await db.select({
-    id: assignmentSubmissionsTable.id,
-    userId: assignmentSubmissionsTable.userId,
-    assignmentId: assignmentSubmissionsTable.assignmentId,
-    status: assignmentSubmissionsTable.status,
-    userName: usersTable.name,
-    assignmentTitle: assignmentsTable.title
-  })
-    .from(assignmentSubmissionsTable)
-    .leftJoin(usersTable, eq(assignmentSubmissionsTable.userId, usersTable.id))
-    .leftJoin(assignmentsTable, eq(assignmentSubmissionsTable.assignmentId, assignmentsTable.id))
-    .where(inArray(assignmentsTable.courseId, courseIds))
-    .orderBy(desc(assignmentSubmissionsTable.submittedAt))
-    .limit(5);
-
-  const [pendingCount] = await db.select({ c: count() })
-    .from(assignmentSubmissionsTable)
-    .innerJoin(assignmentsTable, eq(assignmentSubmissionsTable.assignmentId, assignmentsTable.id))
-    .where(and(
-      inArray(assignmentsTable.courseId, courseIds),
-      eq(assignmentSubmissionsTable.status, "submitted")
-    ));
+  // Run queries in parallel for better performance
+  const [enrollmentCount, recentSubmissions, pendingCount] = await Promise.all([
+    db.select({ c: count() })
+      .from(enrollmentsTable)
+      .where(inArray(enrollmentsTable.courseId, courseIds))
+      .then(result => result[0]),
+    
+    db.select({
+      id: assignmentSubmissionsTable.id,
+      userId: assignmentSubmissionsTable.userId,
+      assignmentId: assignmentSubmissionsTable.assignmentId,
+      status: assignmentSubmissionsTable.status,
+      userName: usersTable.name,
+      assignmentTitle: assignmentsTable.title
+    })
+      .from(assignmentSubmissionsTable)
+      .leftJoin(usersTable, eq(assignmentSubmissionsTable.userId, usersTable.id))
+      .leftJoin(assignmentsTable, eq(assignmentSubmissionsTable.assignmentId, assignmentsTable.id))
+      .where(inArray(assignmentsTable.courseId, courseIds))
+      .orderBy(desc(assignmentSubmissionsTable.submittedAt))
+      .limit(5),
+    
+    db.select({ c: count() })
+      .from(assignmentSubmissionsTable)
+      .innerJoin(assignmentsTable, eq(assignmentSubmissionsTable.assignmentId, assignmentsTable.id))
+      .where(and(
+        inArray(assignmentsTable.courseId, courseIds),
+        eq(assignmentSubmissionsTable.status, "submitted")
+      ))
+      .then(result => result[0])
+  ]);
 
   res.json({
     totalCourses: courseIds.length,

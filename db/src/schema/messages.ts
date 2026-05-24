@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean, integer, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -11,7 +11,10 @@ export const messageThreadsTable = pgTable("message_threads", {
   courseId: integer("course_id").references(() => coursesTable.id, { onDelete: "set null" }),
   lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => ({
+  // Ensure only one thread per student-teacher pair
+  uniqueStudentTeacher: unique().on(table.studentId, table.teacherId),
+}));
 
 export const messagesTable = pgTable("messages", {
   id: serial("id").primaryKey(),

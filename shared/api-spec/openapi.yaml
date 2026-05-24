@@ -1291,6 +1291,85 @@ paths:
       responses:
         "200":
           description: Marked as read
+    delete:
+      operationId: deleteThread
+      tags: [messages]
+      summary: Delete entire chat thread
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Thread deleted
+        "403":
+          description: Forbidden
+        "404":
+          description: Thread not found
+
+  /messages/{messageId}:
+    delete:
+      operationId: deleteMessage
+      tags: [messages]
+      summary: Delete a single message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Message deleted
+        "403":
+          description: Forbidden - can only delete own messages
+        "404":
+          description: Message not found
+    patch:
+      operationId: updateMessage
+      tags: [messages]
+      summary: Edit/update a message
+      parameters:
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: integer
+                body:
+                  type: string
+              required: [userId, body]
+      responses:
+        "200":
+          description: Message updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "403":
+          description: Forbidden - can only edit own messages
+        "404":
+          description: Message not found
 
   /notifications:
     get:

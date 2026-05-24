@@ -508,7 +508,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-14 bg-card text-card-foreground border-border border-b flex items-center justify-between px-4 lg:px-6 shrink-0 gap-4">
+        <header className="h-12 bg-card text-card-foreground border-border border-b flex items-center justify-between px-4 lg:px-6 shrink-0 gap-4">
           <button className="lg:hidden text-muted-foreground hover:text-foreground" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-6 w-6" />
           </button>
@@ -523,12 +523,6 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
-            <Link href="/">
-              <Button variant="ghost" size="sm" className="hidden md:flex text-xs text-muted-foreground hover:text-foreground">
-                ← Public Site
-              </Button>
-            </Link>
-
             {/* Icons moved or cleaned for simplified header */}
           </div>
         </header>

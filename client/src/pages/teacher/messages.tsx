@@ -19,6 +19,9 @@ import {
   X,
   Check,
   CheckCheck,
+  Trash2,
+  Edit3,
+  Save,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -29,6 +32,23 @@ import {
   DialogTrigger,
   DialogFooter 
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { PaginationControls, getTotalPages, paginateItems } from "@/components/PaginationControls";
 
@@ -85,6 +105,10 @@ export default function TeacherMessages() {
   const [isRecording, setIsRecording] = useState(false);
   const [threadPage, setThreadPage] = useState(1);
   const [students, setStudents] = useState<any[]>([]);
+  const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
+  const [editingMessageBody, setEditingMessageBody] = useState("");
+  const [deleteThreadDialogOpen, setDeleteThreadDialogOpen] = useState(false);
+  const [deleteMessageId, setDeleteMessageId] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -123,6 +147,7 @@ export default function TeacherMessages() {
     if (!user?.id || !token) return;
     fetchThreads();
   }, [user?.id, token]);
+  
   useEffect(() => {
     if (!selectedThread && threads.length > 0) setSelectedThread(threads[0]);
     if (selectedThread) {
@@ -132,8 +157,16 @@ export default function TeacherMessages() {
       }
     }
   }, [selectedThread, threads]);
+  
   useEffect(() => {
     if (!user?.id || !token) return;
+    // Fetch students only once and cache
+    const cachedStudents = sessionStorage.getItem('teacher_students');
+    if (cachedStudents) {
+      setStudents(JSON.parse(cachedStudents));
+      return;
+    }
+    
     fetch(`${BASE}/api/dashboard/teacher/students?userId=${user.id}`, { headers })
       .then((res) => res.ok ? res.json() : [])
       .then((rows) => {
@@ -141,7 +174,9 @@ export default function TeacherMessages() {
         (Array.isArray(rows) ? rows : []).forEach((student: any) => {
           if (!unique.has(student.id)) unique.set(student.id, student);
         });
-        setStudents(Array.from(unique.values()));
+        const studentList = Array.from(unique.values());
+        setStudents(studentList);
+        sessionStorage.setItem('teacher_students', JSON.stringify(studentList));
       })
       .catch(() => setStudents([]));
   }, [user?.id, token]);
@@ -154,7 +189,7 @@ export default function TeacherMessages() {
     const interval = window.setInterval(() => {
       fetchMessages(selectedThread.id);
       fetchThreads();
-    }, 8000);
+    }, 15000); // Increased from 8s to 15s for better performance
     return () => window.clearInterval(interval);
   }, [selectedThread?.id, user?.id, token]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -267,6 +302,81 @@ export default function TeacherMessages() {
     if (r.ok) { toast({ title: "Conversation started!" }); fetchThreads(); setNewOpen(false); setNewStudentId(""); }
   };
 
+  const deleteThread = async () => {
+    if (!selectedThread) return;
+    try {
+      const r = await fetch(`${BASE}/api/messages/threads/${selectedThread.id}?userId=${user?.id}`, {
+        method: "DELETE",
+        headers: authHeaders,
+      });
+      if (r.ok) {
+        toast({ title: "Chat deleted successfully!" });
+        setSelectedThread(null);
+        fetchThreads();
+        setDeleteThreadDialogOpen(false);
+      } else {
+        const error = await r.json();
+        toast({ title: error.error || "Failed to delete chat", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Failed to delete chat", variant: "destructive" });
+    }
+  };
+
+  const deleteMessage = async (messageId: number) => {
+    try {
+      const r = await fetch(`${BASE}/api/messages/${messageId}?userId=${user?.id}`, {
+        method: "DELETE",
+        headers: authHeaders,
+      });
+      if (r.ok) {
+        toast({ title: "Message deleted" });
+        if (selectedThread) fetchMessages(selectedThread.id);
+        fetchThreads();
+      } else {
+        const error = await r.json();
+        toast({ title: error.error || "Failed to delete message", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Failed to delete message", variant: "destructive" });
+    }
+    setDeleteMessageId(null);
+  };
+
+  const startEditMessage = (msg: Message) => {
+    setEditingMessageId(msg.id);
+    setEditingMessageBody(msg.body);
+  };
+
+  const cancelEditMessage = () => {
+    setEditingMessageId(null);
+    setEditingMessageBody("");
+  };
+
+  const saveEditMessage = async (messageId: number) => {
+    if (!editingMessageBody.trim()) {
+      toast({ title: "Message cannot be empty", variant: "destructive" });
+      return;
+    }
+    try {
+      const r = await fetch(`${BASE}/api/messages/${messageId}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ userId: user?.id, body: editingMessageBody }),
+      });
+      if (r.ok) {
+        toast({ title: "Message updated" });
+        if (selectedThread) fetchMessages(selectedThread.id);
+        cancelEditMessage();
+      } else {
+        const error = await r.json();
+        toast({ title: error.error || "Failed to update message", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Failed to update message", variant: "destructive" });
+    }
+  };
+
   const filteredThreads = threads.filter(t => 
     t.studentName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.courseName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -282,8 +392,8 @@ export default function TeacherMessages() {
 
   const MessageStatusIcon = ({ msg }: { msg: Message }) => {
     const status = getMessageStatus(msg);
-    if (status === "sent") return <Check className="h-3.5 w-3.5 text-slate-400" />;
-    return <CheckCheck className={`h-3.5 w-3.5 ${status === "seen" ? "text-sky-500" : "text-slate-400"}`} />;
+    if (status === "sent") return <Check className="h-4 w-4 text-slate-500" />;
+    return <CheckCheck className={`h-4 w-4 ${status === "seen" ? "text-blue-500" : "text-slate-500"}`} />;
   };
 
   useEffect(() => {
@@ -455,9 +565,22 @@ export default function TeacherMessages() {
                       </div>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="rounded-xl text-slate-400 hover:text-slate-900">
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="rounded-xl text-slate-400 hover:text-slate-900">
+                        <MoreVertical className="h-5 w-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem 
+                        className="text-red-600 focus:text-red-600 cursor-pointer"
+                        onClick={() => setDeleteThreadDialogOpen(true)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Chat
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
 
                 {/* Messages List */}
@@ -468,6 +591,7 @@ export default function TeacherMessages() {
                     const currentDay = new Date(msg.createdAt).toDateString();
                     const previousDay = idx > 0 ? new Date(messages[idx - 1].createdAt).toDateString() : "";
                     const showDay = idx === 0 || currentDay !== previousDay;
+                    const isEditing = editingMessageId === msg.id;
                     
                     return (
                       <div key={msg.id}>
@@ -478,35 +602,83 @@ export default function TeacherMessages() {
                             </span>
                           </div>
                         )}
-                        <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                        <div className={`flex flex-col ${isMe ? "items-end" : "items-start"} group`}>
                           {showName && !isMe && (
                             <span className="mb-1 ml-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
                               {msg.senderName}
                             </span>
                           )}
-                          <div className={`
-                            max-w-[78%] rounded-lg px-3 py-2 text-sm font-medium leading-relaxed shadow-sm
-                            ${isMe 
-                              ? "rounded-tr-none bg-[#d9fdd3] text-slate-900" 
-                              : "rounded-tl-none bg-white text-slate-900"}
-                          `}>
-                            {msg.attachmentUrl && msg.attachmentType === "image" && (
-                              <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer">
-                                <img
-                                  src={msg.attachmentUrl}
-                                  alt={msg.attachmentName || "Message image"}
-                                  className="mb-2 max-h-72 w-full max-w-sm rounded-md object-cover"
-                                />
-                              </a>
-                            )}
-                            {msg.attachmentUrl && msg.attachmentType === "audio" && (
-                              <audio controls src={msg.attachmentUrl} className="mb-2 w-64 max-w-full" />
-                            )}
-                            {msg.body && <p className="whitespace-pre-wrap break-words">{msg.body}</p>}
-                            <div className="mt-1 flex items-center justify-end gap-1 pl-8 text-[10px] font-bold text-slate-500">
-                              {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                              {isMe && <MessageStatusIcon msg={msg} />}
+                          <div className="relative">
+                            <div className={`
+                              max-w-[78%] rounded-lg px-3 py-2 text-sm font-medium leading-relaxed shadow-sm
+                              ${isMe 
+                                ? "rounded-tr-none bg-[#d9fdd3] text-slate-900" 
+                                : "rounded-tl-none bg-white text-slate-900"}
+                            `}>
+                              {msg.attachmentUrl && msg.attachmentType === "image" && (
+                                <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                                  <img
+                                    src={msg.attachmentUrl}
+                                    alt={msg.attachmentName || "Message image"}
+                                    className="mb-2 max-h-72 w-full max-w-sm rounded-md object-cover"
+                                  />
+                                </a>
+                              )}
+                              {msg.attachmentUrl && msg.attachmentType === "audio" && (
+                                <audio controls src={msg.attachmentUrl} className="mb-2 w-64 max-w-full" />
+                              )}
+                              {isEditing ? (
+                                <div className="space-y-2">
+                                  <Input
+                                    value={editingMessageBody}
+                                    onChange={(e) => setEditingMessageBody(e.target.value)}
+                                    className="text-sm"
+                                    autoFocus
+                                  />
+                                  <div className="flex gap-2">
+                                    <Button size="sm" onClick={() => saveEditMessage(msg.id)} className="h-7 text-xs">
+                                      <Save className="h-3 w-3 mr-1" /> Save
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={cancelEditMessage} className="h-7 text-xs">
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  {msg.body && <p className="whitespace-pre-wrap break-words">{msg.body}</p>}
+                                  <div className="mt-1 flex items-center justify-end gap-1.5 pl-8 text-[10px] font-bold text-slate-500">
+                                    <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                                    {isMe && <MessageStatusIcon msg={msg} />}
+                                  </div>
+                                </>
+                              )}
                             </div>
+                            {isMe && !isEditing && (
+                              <div className="absolute -right-12 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => startEditMessage(msg)} className="cursor-pointer">
+                                      <Edit3 className="h-4 w-4 mr-2" />
+                                      Edit
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem 
+                                      onClick={() => setDeleteMessageId(msg.id)}
+                                      className="text-red-600 focus:text-red-600 cursor-pointer"
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -584,6 +756,45 @@ export default function TeacherMessages() {
           </div>
         </div>
       </div>
+
+      {/* Delete Thread Confirmation Dialog */}
+      <AlertDialog open={deleteThreadDialogOpen} onOpenChange={setDeleteThreadDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this entire conversation with {selectedThread?.studentName}. All messages will be lost. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteThread} className="bg-red-600 hover:bg-red-700">
+              Delete Chat
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Message Confirmation Dialog */}
+      <AlertDialog open={!!deleteMessageId} onOpenChange={(open) => !open && setDeleteMessageId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Message?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this message. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => deleteMessageId && deleteMessage(deleteMessageId)} 
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Message
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

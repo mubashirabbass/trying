@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, coursesTable, usersTable, enrollmentsTable, lessonsTable, lessonCompletionsTable, sectionsTable, attendanceTable } from "@workspace/db";
-import { eq, sql, count, desc, or, and, ilike, isNotNull } from "drizzle-orm";
+import { eq, sql, count, desc, or, and, ilike, isNotNull, inArray } from "drizzle-orm";
 import {
   ListCoursesQueryParams,
   CreateCourseBody,
@@ -65,6 +65,9 @@ router.get("/courses", async (req, res): Promise<void> => {
   const limit = Number(req.query.limit) || 24;
   const offset = Number(req.query.offset) || 0;
 
+  // Set cache headers for better performance
+  res.set('Cache-Control', 'public, max-age=60'); // Cache for 60 seconds
+
   let isStaff = false;
   try {
     const auth = req.headers.authorization;
@@ -122,14 +125,40 @@ router.get("/courses", async (req, res): Promise<void> => {
     .offset(offset)
     .orderBy(desc(coursesTable.createdAt));
 
-  const enriched = await Promise.all(courses.map(async (course) => {
-    const enrollCount = await db.select({ c: count() }).from(enrollmentsTable).where(eq(enrollmentsTable.courseId, course.id));
-    const lessonCount = await db.select({ c: count() }).from(lessonsTable).where(eq(lessonsTable.courseId, course.id));
-    return {
-      ...course,
-      enrollmentCount: Number(enrollCount[0]?.c ?? 0),
-      lessonCount: Number(lessonCount[0]?.c ?? 0),
-    };
+  // Optimize: Fetch all counts in parallel instead of N+1 queries
+  const courseIds = courses.map(c => c.id);
+  
+  if (courseIds.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  const [enrollCounts, lessonCounts] = await Promise.all([
+    db.select({ 
+      courseId: enrollmentsTable.courseId, 
+      count: count() 
+    })
+      .from(enrollmentsTable)
+      .where(inArray(enrollmentsTable.courseId, courseIds))
+      .groupBy(enrollmentsTable.courseId),
+    
+    db.select({ 
+      courseId: lessonsTable.courseId, 
+      count: count() 
+    })
+      .from(lessonsTable)
+      .where(inArray(lessonsTable.courseId, courseIds))
+      .groupBy(lessonsTable.courseId)
+  ]);
+
+  // Create lookup maps for O(1) access
+  const enrollMap = new Map(enrollCounts.map(e => [e.courseId, Number(e.count)]));
+  const lessonMap = new Map(lessonCounts.map(l => [l.courseId, Number(l.count)]));
+
+  const enriched = courses.map(course => ({
+    ...course,
+    enrollmentCount: enrollMap.get(course.id) ?? 0,
+    lessonCount: lessonMap.get(course.id) ?? 0,
   }));
 
   res.json(enriched);
@@ -372,14 +401,17 @@ router.put("/courses/:id", authenticate, authorize("admin", "teacher"), async (r
   if (req.body.status) {
     if (req.user.role === "admin") {
       updateData.status = req.body.status;
+      console.log(`[DEBUG] Admin updating course ${id} status to: ${req.body.status}`);
     } else {
       if (req.body.status === "draft" || req.body.status === "pending") {
         updateData.status = req.body.status;
+        console.log(`[DEBUG] Teacher updating course ${id} status to: ${req.body.status}`);
       }
     }
   }
   if (req.body.rejectionNote !== undefined) {
     updateData.rejectionNote = req.body.rejectionNote;
+    console.log(`[DEBUG] Setting rejection note for course ${id}: ${req.body.rejectionNote}`);
   }
 
   // Explicitly apply null overrides for fields cleared or unassigned by admin/teacher
@@ -398,6 +430,7 @@ router.put("/courses/:id", authenticate, authorize("admin", "teacher"), async (r
   }
 
   const [course] = await db.update(coursesTable).set(updateData).where(eq(coursesTable.id, id)).returning();
+  console.log(`[DEBUG] Course ${id} updated successfully. New status: ${course.status}`);
   res.json({ ...course, enrollmentCount: 0, lessonCount: 0, teacherName: null });
 });
 

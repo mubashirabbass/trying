@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, messageThreadsTable, messagesTable, usersTable, coursesTable } from "@workspace/db";
-import { eq, or, desc } from "drizzle-orm";
+import { eq, or, desc, and } from "drizzle-orm";
 import { messageMediaUpload } from "../middleware/upload";
 import { uploadToCloudinary } from "../lib/cloudinary";
 
@@ -109,11 +109,27 @@ router.post("/messages/upload", messageMediaUpload.single("media"), async (req: 
 router.post("/messages/threads", async (req, res): Promise<void> => {
   const { studentId, teacherId, courseId } = req.body;
   if (!studentId || !teacherId) { res.status(400).json({ error: "Missing fields" }); return; }
+  
+  // Check if thread already exists for this student-teacher pair
   const existing = await db.select().from(messageThreadsTable)
-    .where(eq(messageThreadsTable.studentId, Number(studentId)));
-  const found = existing.find(t => t.teacherId === Number(teacherId) && t.courseId === (courseId ? Number(courseId) : null));
-  if (found) { res.json(found); return; }
-  const [row] = await db.insert(messageThreadsTable).values({ studentId: Number(studentId), teacherId: Number(teacherId), courseId: courseId ? Number(courseId) : null }).returning();
+    .where(and(
+      eq(messageThreadsTable.studentId, Number(studentId)),
+      eq(messageThreadsTable.teacherId, Number(teacherId))
+    ));
+  
+  if (existing.length > 0) {
+    // Thread already exists, return it
+    res.json(existing[0]);
+    return;
+  }
+  
+  // Create new thread
+  const [row] = await db.insert(messageThreadsTable).values({ 
+    studentId: Number(studentId), 
+    teacherId: Number(teacherId), 
+    courseId: courseId ? Number(courseId) : null 
+  }).returning();
+  
   res.status(201).json(row);
 });
 
@@ -202,6 +218,100 @@ router.patch("/messages/threads/:threadId/read", async (req, res): Promise<void>
     .filter((message) => !userId || message.senderId !== Number(userId))
     .map((message) => db.update(messagesTable).set({ isRead: true }).where(eq(messagesTable.id, message.id))));
   res.json({ success: true });
+});
+
+// Delete a single message
+router.delete("/messages/:messageId", async (req, res): Promise<void> => {
+  const messageId = Number(req.params.messageId);
+  const userId = req.query.userId ? Number(req.query.userId) : null;
+  
+  if (!userId) {
+    res.status(400).json({ error: "userId required" });
+    return;
+  }
+
+  // Check if message exists and belongs to user
+  const [message] = await db.select().from(messagesTable).where(eq(messagesTable.id, messageId));
+  
+  if (!message) {
+    res.status(404).json({ error: "Message not found" });
+    return;
+  }
+
+  if (message.senderId !== userId) {
+    res.status(403).json({ error: "You can only delete your own messages" });
+    return;
+  }
+
+  // Delete the message
+  await db.delete(messagesTable).where(eq(messagesTable.id, messageId));
+  
+  res.json({ success: true, message: "Message deleted" });
+});
+
+// Delete entire thread (chat)
+router.delete("/messages/threads/:threadId", async (req, res): Promise<void> => {
+  const threadId = Number(req.params.threadId);
+  const userId = req.query.userId ? Number(req.query.userId) : null;
+  
+  if (!userId) {
+    res.status(400).json({ error: "userId required" });
+    return;
+  }
+
+  // Check if thread exists and user is part of it
+  const [thread] = await db.select().from(messageThreadsTable).where(eq(messageThreadsTable.id, threadId));
+  
+  if (!thread) {
+    res.status(404).json({ error: "Thread not found" });
+    return;
+  }
+
+  // Check if user is part of this thread (either student or teacher)
+  if (thread.studentId !== userId && thread.teacherId !== userId) {
+    res.status(403).json({ error: "You can only delete your own conversations" });
+    return;
+  }
+
+  // Delete all messages in thread (cascade will handle this, but explicit is better)
+  await db.delete(messagesTable).where(eq(messagesTable.threadId, threadId));
+  
+  // Delete the thread
+  await db.delete(messageThreadsTable).where(eq(messageThreadsTable.id, threadId));
+  
+  res.json({ success: true, message: "Chat deleted successfully" });
+});
+
+// Update/Edit a message
+router.patch("/messages/:messageId", async (req, res): Promise<void> => {
+  const messageId = Number(req.params.messageId);
+  const { userId, body } = req.body;
+  
+  if (!userId || !body?.trim()) {
+    res.status(400).json({ error: "userId and body required" });
+    return;
+  }
+
+  // Check if message exists and belongs to user
+  const [message] = await db.select().from(messagesTable).where(eq(messagesTable.id, messageId));
+  
+  if (!message) {
+    res.status(404).json({ error: "Message not found" });
+    return;
+  }
+
+  if (message.senderId !== userId) {
+    res.status(403).json({ error: "You can only edit your own messages" });
+    return;
+  }
+
+  // Update the message
+  const [updated] = await db.update(messagesTable)
+    .set({ body: body.trim() })
+    .where(eq(messagesTable.id, messageId))
+    .returning();
+  
+  res.json(updated);
 });
 
 export default router;

@@ -294,8 +294,8 @@ export default function StudentMessages() {
 
   const MessageStatusIcon = ({ msg }: { msg: Message }) => {
     const status = getMessageStatus(msg);
-    if (status === "sent") return <Check className="h-3.5 w-3.5 text-slate-400" />;
-    return <CheckCheck className={`h-3.5 w-3.5 ${status === "seen" ? "text-sky-500" : "text-slate-400"}`} />;
+    if (status === "sent") return <Check className="h-4 w-4 text-slate-500" />;
+    return <CheckCheck className={`h-4 w-4 ${status === "seen" ? "text-blue-500" : "text-slate-500"}`} />;
   };
 
   return (
@@ -473,8 +473,8 @@ export default function StudentMessages() {
                               <audio controls src={msg.attachmentUrl} className="mb-2 w-64 max-w-full" />
                             )}
                             {msg.body && <p className="whitespace-pre-wrap break-words">{msg.body}</p>}
-                            <div className="mt-1 flex items-center justify-end gap-1 pl-8 text-[10px] font-bold text-slate-500">
-                              {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            <div className="mt-1 flex items-center justify-end gap-1.5 pl-8 text-[10px] font-bold text-slate-500">
+                              <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                               {isMe && <MessageStatusIcon msg={msg} />}
                             </div>
                           </div>

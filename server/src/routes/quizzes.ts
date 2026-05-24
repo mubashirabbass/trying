@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, quizzesTable, quizResultsTable, questionsTable, coursesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import {
   ListQuizzesQueryParams,
   CreateQuizBody,
@@ -92,6 +92,18 @@ router.post("/quizzes/:id/submit", async (req: AuthRequest, res): Promise<void> 
 
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  // Check if user has already attempted this quiz
+  const existingAttempt = await db.select().from(quizResultsTable)
+    .where(and(
+      eq(quizResultsTable.quizId, quizId),
+      eq(quizResultsTable.userId, userId)
+    ));
+  
+  if (existingAttempt.length > 0) {
+    res.status(403).json({ error: "You have already attempted this quiz. Each quiz can only be attempted once." });
+    return;
+  }
 
   const parsed = SubmitQuizBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }

@@ -48,6 +48,8 @@ import type {
   CreateSuccessStoryCategoryBody,
   CreateTestimonialBody,
   CreateUserBody,
+  DeleteMessageParams,
+  DeleteThreadParams,
   Enrollment,
   ForumPost,
   ForumReply,
@@ -99,6 +101,7 @@ import type {
   TeacherDashboard,
   Testimonial,
   UpdateForumPostBody,
+  UpdateMessageBody,
   UpdateSettingBody,
   UpdateSettingsBulkBody,
   UpdateUserBody,
@@ -4821,6 +4824,236 @@ export const useMarkThreadAsRead = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getMarkThreadAsReadMutationOptions(options));
+    }
+
+export const getDeleteThreadUrl = (threadId: number,
+    params: DeleteThreadParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/messages/threads/${threadId}/read?${stringifiedParams}` : `/api/messages/threads/${threadId}/read`
+}
+
+/**
+ * @summary Delete entire chat thread
+ */
+export const deleteThread = async (threadId: number,
+    params: DeleteThreadParams, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteThreadUrl(threadId,params),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteThreadMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteThread>>, TError,{threadId: number;params: DeleteThreadParams}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteThread>>, TError,{threadId: number;params: DeleteThreadParams}, TContext> => {
+
+const mutationKey = ['deleteThread'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteThread>>, {threadId: number;params: DeleteThreadParams}> = (props) => {
+          const {threadId,params} = props ?? {};
+
+          return  deleteThread(threadId,params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteThreadMutationResult = NonNullable<Awaited<ReturnType<typeof deleteThread>>>
+
+    export type DeleteThreadMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete entire chat thread
+ */
+export const useDeleteThread = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteThread>>, TError,{threadId: number;params: DeleteThreadParams}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteThread>>,
+        TError,
+        {threadId: number;params: DeleteThreadParams},
+        TContext
+      > => {
+      return useMutation(getDeleteThreadMutationOptions(options));
+    }
+
+export const getDeleteMessageUrl = (messageId: number,
+    params: DeleteMessageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/messages/${messageId}?${stringifiedParams}` : `/api/messages/${messageId}`
+}
+
+/**
+ * @summary Delete a single message
+ */
+export const deleteMessage = async (messageId: number,
+    params: DeleteMessageParams, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteMessageUrl(messageId,params),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteMessageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMessage>>, TError,{messageId: number;params: DeleteMessageParams}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMessage>>, TError,{messageId: number;params: DeleteMessageParams}, TContext> => {
+
+const mutationKey = ['deleteMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMessage>>, {messageId: number;params: DeleteMessageParams}> = (props) => {
+          const {messageId,params} = props ?? {};
+
+          return  deleteMessage(messageId,params,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMessageMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMessage>>>
+
+    export type DeleteMessageMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a single message
+ */
+export const useDeleteMessage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMessage>>, TError,{messageId: number;params: DeleteMessageParams}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMessage>>,
+        TError,
+        {messageId: number;params: DeleteMessageParams},
+        TContext
+      > => {
+      return useMutation(getDeleteMessageMutationOptions(options));
+    }
+
+export const getUpdateMessageUrl = (messageId: number,) => {
+
+
+
+
+  return `/api/messages/${messageId}`
+}
+
+/**
+ * @summary Edit/update a message
+ */
+export const updateMessage = async (messageId: number,
+    updateMessageBody: UpdateMessageBody, options?: RequestInit): Promise<Message> => {
+
+  return customFetch<Message>(getUpdateMessageUrl(messageId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateMessageBody,)
+  }
+);}
+
+
+
+
+export const getUpdateMessageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMessage>>, TError,{messageId: number;data: BodyType<UpdateMessageBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMessage>>, TError,{messageId: number;data: BodyType<UpdateMessageBody>}, TContext> => {
+
+const mutationKey = ['updateMessage'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMessage>>, {messageId: number;data: BodyType<UpdateMessageBody>}> = (props) => {
+          const {messageId,data} = props ?? {};
+
+          return  updateMessage(messageId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMessageMutationResult = NonNullable<Awaited<ReturnType<typeof updateMessage>>>
+    export type UpdateMessageMutationBody = BodyType<UpdateMessageBody>
+    export type UpdateMessageMutationError = ErrorType<void>
+
+    /**
+ * @summary Edit/update a message
+ */
+export const useUpdateMessage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMessage>>, TError,{messageId: number;data: BodyType<UpdateMessageBody>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMessage>>,
+        TError,
+        {messageId: number;data: BodyType<UpdateMessageBody>},
+        TContext
+      > => {
+      return useMutation(getUpdateMessageMutationOptions(options));
     }
 
 export const getListNotificationsUrl = (params: ListNotificationsParams,) => {
