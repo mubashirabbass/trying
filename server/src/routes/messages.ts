@@ -7,6 +7,23 @@ import { uploadToCloudinary } from "../lib/cloudinary";
 const router: IRouter = Router();
 
 const allowedAttachmentTypes = new Set(["image", "audio"]);
+const ONLINE_WINDOW_MS = 60_000;
+const presence = new Map<number, number>();
+
+const isOnline = (userId?: number | null) => !!userId && Date.now() - (presence.get(userId) || 0) < ONLINE_WINDOW_MS;
+
+router.post("/presence/heartbeat", async (req, res): Promise<void> => {
+  const userId = Number(req.body.userId);
+  if (!userId) { res.status(400).json({ error: "userId required" }); return; }
+  presence.set(userId, Date.now());
+  res.json({ online: true, lastSeenAt: new Date().toISOString() });
+});
+
+router.post("/presence/offline", async (req, res): Promise<void> => {
+  const userId = Number(req.body.userId);
+  if (userId) presence.delete(userId);
+  res.json({ online: false });
+});
 
 router.get("/messages/threads", async (req, res): Promise<void> => {
   const userId = req.query.userId ? Number(req.query.userId) : null;
@@ -50,6 +67,8 @@ router.get("/messages/threads", async (req, res): Promise<void> => {
       ...t, 
       studentName: student?.name, 
       teacherName: teacher?.name,
+      studentOnline: isOnline(t.studentId),
+      teacherOnline: isOnline(t.teacherId),
       lastMessagePreview: lastMsg?.body || (lastMsg?.attachmentType === "image" ? "Image" : lastMsg?.attachmentType === "audio" ? "Voice note" : ""),
       messageCount: allMsgs.length
     };
@@ -100,6 +119,15 @@ router.post("/messages/threads", async (req, res): Promise<void> => {
 
 router.get("/messages/threads/:threadId", async (req, res): Promise<void> => {
   const threadId = Number(req.params.threadId);
+  const viewerId = req.query.viewerId ? Number(req.query.viewerId) : null;
+  const [thread] = await db.select().from(messageThreadsTable).where(eq(messageThreadsTable.id, threadId));
+  if (viewerId && thread) {
+    const existing = await db.select().from(messagesTable).where(eq(messagesTable.threadId, threadId));
+    await Promise.all(existing
+      .filter((message) => message.senderId !== viewerId && !message.isRead)
+      .map((message) => db.update(messagesTable).set({ isRead: true }).where(eq(messagesTable.id, message.id))));
+  }
+
   const msgs = await db.select({
     id: messagesTable.id,
     threadId: messagesTable.threadId,
@@ -117,7 +145,13 @@ router.get("/messages/threads/:threadId", async (req, res): Promise<void> => {
     .leftJoin(usersTable, eq(messagesTable.senderId, usersTable.id))
     .where(eq(messagesTable.threadId, threadId))
     .orderBy(messagesTable.createdAt);
-  res.json(msgs);
+  res.json(msgs.map((message) => {
+    const recipientId = thread?.studentId === message.senderId ? thread?.teacherId : thread?.studentId;
+    return {
+      ...message,
+      isDelivered: message.isRead || isOnline(recipientId),
+    };
+  }));
 });
 
 router.post("/messages/threads/:threadId/messages", async (req, res): Promise<void> => {
@@ -163,8 +197,10 @@ router.post("/messages/threads/:threadId/messages", async (req, res): Promise<vo
 router.patch("/messages/threads/:threadId/read", async (req, res): Promise<void> => {
   const threadId = Number(req.params.threadId);
   const { userId } = req.body;
-  await db.update(messagesTable).set({ isRead: true })
-    .where(eq(messagesTable.threadId, threadId));
+  const msgs = await db.select().from(messagesTable).where(eq(messagesTable.threadId, threadId));
+  await Promise.all(msgs
+    .filter((message) => !userId || message.senderId !== Number(userId))
+    .map((message) => db.update(messagesTable).set({ isRead: true }).where(eq(messagesTable.id, message.id))));
   res.json({ success: true });
 });
 

@@ -371,7 +371,7 @@ export default function AttendanceManager() {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline" className="rounded-md border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-600">
-                    {user?.role === "admin" ? "Admin Attendance" : "Teacher Attendance"}
+                    {user?.role === "admin" ? "Admin Attendance Dashboard" : "Teacher Attendance Dashboard"}
                   </Badge>
                   <Badge variant="outline" className="rounded-md border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-600">
                     Course-wise
@@ -383,9 +383,9 @@ export default function AttendanceManager() {
                   )}
                 </div>
                 <div className="mt-3 flex flex-col gap-1 md:flex-row md:items-end md:gap-3">
-                  <h1 className="text-2xl font-black text-slate-950">Attendance Workspace</h1>
+                  <h1 className="text-2xl font-black text-slate-950">Attendance Dashboard</h1>
                   <p className="truncate text-sm font-semibold text-slate-500">
-                    {selectedCourseInfo?.title || "Select a course to begin"}
+                    {selectedCourseInfo?.title || "Select a course to view dashboard metrics and manage attendance"}
                   </p>
                 </div>
               </div>
@@ -393,7 +393,7 @@ export default function AttendanceManager() {
               <TabsList className="h-auto w-full justify-start rounded-md bg-slate-100 p-1 md:w-auto">
                 <TabsTrigger value="dashboard" className="h-10 flex-1 rounded-md px-4 text-xs font-black uppercase tracking-wide md:flex-none">
                   <BarChart3 className="mr-2 h-4 w-4" />
-                  Dashboard
+                  Attendance Dashboard
                 </TabsTrigger>
                 <TabsTrigger value="manage" className="h-10 flex-1 rounded-md px-4 text-xs font-black uppercase tracking-wide md:flex-none">
                   <CheckCircle2 className="mr-2 h-4 w-4" />

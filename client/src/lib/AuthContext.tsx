@@ -47,6 +47,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
+  useEffect(() => {
+    if (!user?.id || !token) return;
+
+    const sendHeartbeat = () => {
+      fetch("/api/presence/heartbeat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId: user.id }),
+      }).catch(() => {});
+    };
+
+    sendHeartbeat();
+    const interval = window.setInterval(sendHeartbeat, 20000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") sendHeartbeat();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [user?.id, token]);
+
   const login = (newUser: User, newToken: string, rememberMe: boolean = false) => {
     setUser(newUser);
     setToken(newToken);
@@ -61,6 +85,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    const currentUserId = user?.id;
+    const currentToken = token;
+    if (currentUserId && currentToken) {
+      fetch("/api/presence/offline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${currentToken}` },
+        body: JSON.stringify({ userId: currentUserId }),
+      }).catch(() => {});
+    }
     setUser(null);
     setToken(null);
     localStorage.removeItem("token");

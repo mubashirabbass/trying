@@ -15,7 +15,9 @@ import {
   Image as ImageIcon,
   Mic,
   Square,
-  X
+  X,
+  Check,
+  CheckCheck,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useListCourses } from "@workspace/api-client-react";
@@ -33,6 +35,10 @@ interface Thread {
   teacherName?: string; 
   courseName?: string; 
   lastMessageAt: string; 
+  lastMessagePreview?: string;
+  messageCount?: number;
+  studentOnline?: boolean;
+  teacherOnline?: boolean;
 }
 interface Message { 
   id: number; 
@@ -46,6 +52,7 @@ interface Message {
   senderRole?: string; 
   createdAt: string; 
   isRead: boolean; 
+  isDelivered?: boolean;
 }
 
 interface PendingMedia {
@@ -79,18 +86,53 @@ export default function StudentMessages() {
   const headers = { ...authHeaders, "Content-Type": "application/json" };
 
   const fetchThreads = async () => {
-    const r = await fetch(`${BASE}/api/messages/threads?userId=${user?.id}`, { headers });
-    if (r.ok) setThreads(await r.json());
-    setLoading(false);
+    try {
+      const r = await fetch(`${BASE}/api/messages/threads?userId=${user?.id}`, { headers });
+      if (r.ok) setThreads(await r.json());
+      else setThreads([]);
+    } catch {
+      setThreads([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchMessages = async (threadId: number) => {
-    const r = await fetch(`${BASE}/api/messages/threads/${threadId}`, { headers });
+    const r = await fetch(`${BASE}/api/messages/threads/${threadId}?viewerId=${user?.id}`, { headers });
     if (r.ok) setMessages(await r.json());
   };
 
+  const markThreadRead = async (threadId: number) => {
+    if (!user?.id) return;
+    await fetch(`${BASE}/api/messages/threads/${threadId}/read`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ userId: user.id }),
+    }).catch(() => {});
+  };
+
   useEffect(() => { fetchThreads(); }, []);
-  useEffect(() => { if (selectedThread) fetchMessages(selectedThread.id); }, [selectedThread]);
+  useEffect(() => {
+    if (!selectedThread && threads.length > 0) setSelectedThread(threads[0]);
+    if (selectedThread) {
+      const updated = threads.find((thread) => thread.id === selectedThread.id);
+      if (updated && (updated.teacherOnline !== selectedThread.teacherOnline || updated.lastMessageAt !== selectedThread.lastMessageAt)) {
+        setSelectedThread(updated);
+      }
+    }
+  }, [selectedThread, threads]);
+  useEffect(() => {
+    if (!selectedThread) return;
+    markThreadRead(selectedThread.id).finally(() => fetchMessages(selectedThread.id));
+  }, [selectedThread?.id, user?.id]);
+  useEffect(() => {
+    if (!selectedThread || !user?.id || !token) return;
+    const interval = window.setInterval(() => {
+      fetchMessages(selectedThread.id);
+      fetchThreads();
+    }, 8000);
+    return () => window.clearInterval(interval);
+  }, [selectedThread?.id, user?.id, token]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => () => {
     if (pendingMedia?.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
@@ -241,42 +283,57 @@ export default function StudentMessages() {
 
   const filteredThreads = threads.filter(t => 
     t.teacherName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.courseName?.toLowerCase().includes(searchQuery.toLowerCase())
+    t.courseName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.lastMessagePreview?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const getMessageStatus = (msg: Message) => {
+    if (msg.isRead) return "seen";
+    if (msg.isDelivered) return "delivered";
+    return "sent";
+  };
+
+  const MessageStatusIcon = ({ msg }: { msg: Message }) => {
+    const status = getMessageStatus(msg);
+    if (status === "sent") return <Check className="h-3.5 w-3.5 text-slate-400" />;
+    return <CheckCheck className={`h-3.5 w-3.5 ${status === "seen" ? "text-sky-500" : "text-slate-400"}`} />;
+  };
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-[calc(100vh-8rem)]">
+      <div className="flex h-[calc(100vh-7rem)] flex-col">
         {/* Page Header */}
-        <div className="flex items-center justify-between mb-8 shrink-0">
+        <div className="mb-4 flex shrink-0 items-center justify-between">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">Messages</h1>
-            <p className="text-slate-500 font-medium mt-1">Private guidance from your instructors</p>
+            <h1 className="text-2xl font-black tracking-tight text-slate-900">Messages</h1>
+            <p className="mt-1 text-sm font-medium text-slate-500">Private guidance from your instructors</p>
           </div>
         </div>
 
         {/* Messaging Layout */}
-        <div className="flex flex-1 gap-6 min-h-0">
+        <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           {/* Thread list */}
-          <div className="w-96 shrink-0 bg-white rounded-[32px] border-2 border-slate-100 flex flex-col overflow-hidden shadow-sm">
-            <div className="p-6 border-b border-slate-50 flex flex-col gap-4">
+          <div className="flex w-[380px] shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white">
+            <div className="flex flex-col gap-4 border-b border-slate-200 bg-[#f0f2f5] p-4">
               <div className="flex justify-between items-center">
-                <p className="font-black text-slate-800 text-xs tracking-widest uppercase">Chats</p>
+                <div>
+                  <p className="text-lg font-black text-slate-900">Chats</p>
+                  <p className="text-xs font-medium text-slate-500">{filteredThreads.length} conversations</p>
+                </div>
                 <Button 
                   size="sm" 
-                  className="rounded-xl font-bold bg-primary text-white text-xs gap-1"
+                  className="rounded-full bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700"
                   onClick={() => setIsNewChatOpen(true)}
                 >
                   <Plus className="h-3.5 w-3.5" /> New Message
                 </Button>
               </div>
               <div className="relative">
-                <Search className="absolute left-4 top-3.5 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-4 top-3 h-4 w-4 text-slate-400" />
                 <Input 
                   placeholder="Search chats..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-11 h-11 bg-slate-50 border-transparent rounded-2xl focus:bg-white focus:border-primary/20 transition-all font-medium text-sm"
+                  className="h-10 rounded-full border-transparent bg-white pl-11 text-sm font-medium shadow-sm transition-all focus:border-emerald-200 focus:bg-white"
                 />
               </div>
             </div>
@@ -294,7 +351,7 @@ export default function StudentMessages() {
                   <p className="text-sm font-medium mt-1">Teachers can initiate a private conversation with you.</p>
                 </div>
               ) : (
-                <div className="p-2 space-y-1">
+                <div className="divide-y divide-slate-100">
                   {filteredThreads.map((t) => {
                     const otherName = t.teacherName;
                     const isSelected = selectedThread?.id === t.id;
@@ -302,28 +359,34 @@ export default function StudentMessages() {
                       <button
                         key={t.id}
                         onClick={() => setSelectedThread(t)}
-                        className={`w-full flex items-center gap-4 p-4 rounded-[24px] transition-all group ${
+                        className={`group flex w-full items-center gap-3 px-4 py-3 text-left transition-all ${
                           isSelected 
-                            ? "bg-primary text-white shadow-xl shadow-primary/20" 
+                            ? "bg-emerald-50" 
                             : "hover:bg-slate-50"
                         }`}
                       >
-                        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 transition-transform group-hover:scale-105 ${
-                          isSelected ? "bg-white/20 text-white" : "bg-indigo-50 text-indigo-600"
-                        }`}>
-                          {otherName?.charAt(0) ?? "T"}
+                        <div className="relative shrink-0">
+                          <div className={`flex h-12 w-12 items-center justify-center rounded-full text-sm font-black transition-transform group-hover:scale-105 ${
+                            isSelected ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-700"
+                          }`}>
+                            {otherName?.charAt(0) ?? "T"}
+                          </div>
+                          <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${t.teacherOnline ? "bg-emerald-500" : "bg-slate-300"}`} />
                         </div>
                         <div className="min-w-0 flex-1 text-left">
                           <div className="flex justify-between items-start mb-0.5">
-                            <p className="font-black text-sm truncate">{otherName ?? "Instructor"}</p>
-                            <span className={`text-[10px] font-bold ${isSelected ? "text-white/60" : "text-slate-400"}`}>
+                            <p className="truncate text-sm font-black text-slate-900">{otherName ?? "Instructor"}</p>
+                            <span className="ml-2 shrink-0 text-[10px] font-bold text-slate-400">
                               {new Date(t.lastMessageAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                             </span>
                           </div>
-                          <p className={`text-xs truncate font-bold ${isSelected ? "text-white/80" : "text-slate-400"}`}>
-                            {t.courseName || "Course Discussion"}
+                          <p className="truncate text-xs font-semibold text-slate-500">
+                            {t.lastMessagePreview || t.courseName || "No messages yet"}
                           </p>
                         </div>
+                        {!!t.messageCount && (
+                          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black text-white">{t.messageCount}</span>
+                        )}
                       </button>
                     );
                   })}
@@ -333,7 +396,7 @@ export default function StudentMessages() {
           </div>
 
           {/* Chat Window */}
-          <div className="flex-1 bg-white rounded-[32px] border-2 border-slate-100 flex flex-col overflow-hidden shadow-sm">
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[#efeae2]">
             {!selectedThread ? (
               <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
                 <div className="h-24 w-24 rounded-[40px] bg-slate-50 flex items-center justify-center text-slate-200 mb-6">
@@ -347,17 +410,17 @@ export default function StudentMessages() {
             ) : (
               <>
                 {/* Chat Header */}
-                <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between shrink-0 bg-white/80 backdrop-blur-md z-10">
+                <div className="z-10 flex shrink-0 items-center justify-between border-b border-slate-200 bg-[#f0f2f5] px-5 py-3">
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-black text-lg">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600 text-lg font-black text-white">
                       {selectedThread.teacherName?.charAt(0) ?? "T"}
                     </div>
                     <div>
-                      <h3 className="font-black text-slate-900 text-lg">{selectedThread.teacherName}</h3>
+                      <h3 className="text-base font-black text-slate-900">{selectedThread.teacherName}</h3>
                       <div className="flex items-center gap-2">
-                        <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                          {selectedThread.courseName || "General Discussion"}
+                        <span className={`h-2 w-2 rounded-full ${selectedThread.teacherOnline ? "bg-emerald-500" : "bg-slate-400"}`} />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          {selectedThread.teacherOnline ? "Online" : "Offline"} · {selectedThread.courseName || "General Discussion"}
                         </p>
                       </div>
                     </div>
@@ -368,41 +431,54 @@ export default function StudentMessages() {
                 </div>
 
                 {/* Messages List */}
-                <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar bg-slate-50/30">
+                <div className="flex-1 space-y-2 overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.08)_1px,transparent_0)] bg-[length:22px_22px] p-6 custom-scrollbar">
                   {messages.map((msg, idx) => {
                     const isMe = msg.senderId === user?.id;
                     const showName = idx === 0 || messages[idx - 1].senderId !== msg.senderId;
+                    const currentDay = new Date(msg.createdAt).toDateString();
+                    const previousDay = idx > 0 ? new Date(messages[idx - 1].createdAt).toDateString() : "";
+                    const showDay = idx === 0 || currentDay !== previousDay;
                     
                     return (
-                      <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-                        {showName && !isMe && (
-                          <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1.5 ml-1">
-                            {msg.senderName}
-                          </span>
+                      <div key={msg.id}>
+                        {showDay && (
+                          <div className="my-4 flex justify-center">
+                            <span className="rounded-md bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-500 shadow-sm">
+                              {new Date(msg.createdAt).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
+                            </span>
+                          </div>
                         )}
-                        <div className={`
-                          max-w-[80%] px-5 py-3.5 rounded-[22px] text-sm font-medium shadow-sm leading-relaxed space-y-3
-                          ${isMe 
-                            ? "bg-primary text-white rounded-tr-none shadow-md shadow-primary/10" 
-                            : "bg-white text-slate-800 border-2 border-slate-50 rounded-tl-none"}
-                        `}>
-                          {msg.attachmentUrl && msg.attachmentType === "image" && (
-                            <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer">
-                              <img
-                                src={msg.attachmentUrl}
-                                alt={msg.attachmentName || "Message image"}
-                                className="max-h-72 w-full max-w-sm rounded-2xl object-cover"
-                              />
-                            </a>
+                        <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                          {showName && !isMe && (
+                            <span className="mb-1 ml-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                              {msg.senderName}
+                            </span>
                           )}
-                          {msg.attachmentUrl && msg.attachmentType === "audio" && (
-                            <audio controls src={msg.attachmentUrl} className="w-64 max-w-full" />
-                          )}
-                          {msg.body && <p>{msg.body}</p>}
+                          <div className={`
+                            max-w-[78%] rounded-lg px-3 py-2 text-sm font-medium leading-relaxed shadow-sm
+                            ${isMe 
+                              ? "rounded-tr-none bg-[#d9fdd3] text-slate-900" 
+                              : "rounded-tl-none bg-white text-slate-900"}
+                          `}>
+                            {msg.attachmentUrl && msg.attachmentType === "image" && (
+                              <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                                <img
+                                  src={msg.attachmentUrl}
+                                  alt={msg.attachmentName || "Message image"}
+                                  className="mb-2 max-h-72 w-full max-w-sm rounded-md object-cover"
+                                />
+                              </a>
+                            )}
+                            {msg.attachmentUrl && msg.attachmentType === "audio" && (
+                              <audio controls src={msg.attachmentUrl} className="mb-2 w-64 max-w-full" />
+                            )}
+                            {msg.body && <p className="whitespace-pre-wrap break-words">{msg.body}</p>}
+                            <div className="mt-1 flex items-center justify-end gap-1 pl-8 text-[10px] font-bold text-slate-500">
+                              {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              {isMe && <MessageStatusIcon msg={msg} />}
+                            </div>
+                          </div>
                         </div>
-                        <span className="text-[10px] font-bold text-slate-400 mt-2 mx-1">
-                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
                       </div>
                     );
                   })}
@@ -410,7 +486,7 @@ export default function StudentMessages() {
                 </div>
 
                 {/* Message Input */}
-                <div className="p-8 border-t border-slate-50 bg-white shrink-0">
+                <div className="shrink-0 border-t border-slate-200 bg-[#f0f2f5] p-4">
                   {pendingMedia && (
                     <div className="mb-4 flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3">
                       {pendingMedia.type === "image" ? (
@@ -427,7 +503,7 @@ export default function StudentMessages() {
                       </Button>
                     </div>
                   )}
-                  <form onSubmit={sendMessage} className="flex gap-3 items-center">
+                  <form onSubmit={sendMessage} className="flex items-center gap-2">
                     <input
                       ref={imageInputRef}
                       type="file"
@@ -441,7 +517,7 @@ export default function StudentMessages() {
                       size="icon"
                       onClick={() => imageInputRef.current?.click()}
                       disabled={sending || isRecording}
-                      className="h-14 w-14 rounded-2xl bg-slate-50 text-slate-500 hover:text-primary"
+                      className="h-11 w-11 rounded-full bg-transparent text-slate-500 hover:bg-white hover:text-emerald-600"
                     >
                       <ImageIcon className="h-5 w-5" />
                     </Button>
@@ -451,7 +527,7 @@ export default function StudentMessages() {
                       size="icon"
                       onClick={isRecording ? stopRecording : startRecording}
                       disabled={sending}
-                      className={`h-14 w-14 rounded-2xl ${isRecording ? "bg-rose-50 text-rose-600" : "bg-slate-50 text-slate-500 hover:text-primary"}`}
+                      className={`h-11 w-11 rounded-full ${isRecording ? "bg-rose-50 text-rose-600" : "bg-transparent text-slate-500 hover:bg-white hover:text-emerald-600"}`}
                     >
                       {isRecording ? <Square className="h-5 w-5 fill-current" /> : <Mic className="h-5 w-5" />}
                     </Button>
@@ -460,14 +536,14 @@ export default function StudentMessages() {
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
                         placeholder="Type a message to instructor..."
-                        className="h-14 bg-slate-50 border-transparent rounded-2xl px-6 focus:bg-white focus:border-primary/20 transition-all font-medium pr-12"
+                        className="h-11 rounded-full border-transparent bg-white px-5 pr-12 font-medium shadow-sm transition-all focus:border-emerald-200 focus:bg-white"
                         disabled={sending}
                       />
                     </div>
                     <Button 
                       type="submit" 
                       disabled={(!body.trim() && !pendingMedia) || sending || isRecording}
-                      className="h-14 w-14 rounded-2xl shadow-xl shadow-primary/20 shrink-0"
+                      className="h-11 w-11 shrink-0 rounded-full bg-emerald-600 shadow-lg shadow-emerald-600/20 hover:bg-emerald-700"
                     >
                       {sending ? <Loader2 className="h-6 w-6 animate-spin" /> : <Send className="h-6 w-6" />}
                     </Button>

@@ -338,6 +338,15 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
   const navItems = getNavItems();
 
+  const headerTitle =
+    location === "/teacher/attendance"
+      ? "Teacher Attendance Dashboard"
+      : location === "/admin/attendance"
+        ? "Admin Attendance Dashboard"
+        : location === "/dashboard/attendance"
+          ? "Attendance Dashboard"
+          : "";
+
   const ROLE_COLOR: Record<string, string> = {
     student: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
     teacher: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
@@ -504,8 +513,13 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
             <Menu className="h-6 w-6" />
           </button>
 
-          <div className="flex-1 hidden md:block">
-            {/* Welcome message moved inside pages for cleaner layout */}
+          <div className="flex-1 min-w-0">
+            {headerTitle && (
+              <div className="flex items-center gap-2 text-sm font-black text-slate-900">
+                <CalendarRange className="h-4 w-4 shrink-0 text-primary" />
+                <span className="truncate">{headerTitle}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 ml-auto">

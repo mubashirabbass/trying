@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { useListAssignments, useListCourses, useCreateAssignment, useUpdateAssignment, useDeleteAssignment, getListAssignmentsQueryKey, getListCoursesQueryKey } from "@workspace/api-client-react";
 import {
   Loader2, ClipboardList, Calendar, Plus, Pencil, Trash2,
-  FileText, Upload, BookOpen, Clock, Target
+  FileText, Upload, BookOpen, Clock, Target, ArrowLeft
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -159,6 +159,7 @@ export default function TeacherAssignments() {
   };
 
   const isLoading = coursesLoading || assignmentsLoading;
+  const selectedCourseData = courses.find((course: any) => course.id === Number(courseFilter));
 
   if (isLoading) {
     return (
@@ -178,9 +179,18 @@ export default function TeacherAssignments() {
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
             <ClipboardList className="h-6 w-6 text-primary" /> Assignments
           </h1>
-          <p className="text-slate-500 text-sm mt-0.5">Create and manage assignments for your courses</p>
+          <p className="text-slate-500 text-sm mt-0.5">
+            {courseFilter === "all"
+              ? "Create and manage assignments for your courses"
+              : `Assignments for ${selectedCourseData?.title ?? "selected course"}`}
+          </p>
         </div>
         <div className="flex items-center gap-3">
+          {courseFilter !== "all" && courses.length > 1 && (
+            <Button variant="outline" className="gap-2 text-xs font-bold" onClick={() => setCourseFilter("all")}>
+              <ArrowLeft className="h-4 w-4" /> Back to All Subjects
+            </Button>
+          )}
           <Select value={courseFilter} onValueChange={setCourseFilter}>
             <SelectTrigger className="w-52 bg-white border-slate-200 text-sm">
               <BookOpen className="h-3.5 w-3.5 mr-2 text-slate-400" />

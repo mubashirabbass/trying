@@ -597,10 +597,25 @@ export const UpdateUserParams = zod.object({
 
 export const UpdateUserBody = zod.object({
   "name": zod.string().optional(),
+  "email": zod.string().optional(),
   "phone": zod.string().optional(),
+  "cnic": zod.string().optional(),
+  "dob": zod.string().optional(),
   "avatar": zod.string().optional(),
   "isActive": zod.boolean().optional(),
-  "branchId": zod.number().optional()
+  "branchId": zod.number().optional(),
+  "qualification": zod.string().optional(),
+  "specialization": zod.string().optional(),
+  "experience": zod.string().optional(),
+  "salary": zod.number().optional(),
+  "address": zod.string().optional(),
+  "designation": zod.string().optional(),
+  "gender": zod.string().optional(),
+  "joiningDate": zod.string().optional(),
+  "obtainedMarks": zod.number().optional(),
+  "totalMarks": zod.number().optional(),
+  "identityDocumentUrl": zod.string().optional(),
+  "educationDocumentUrl": zod.string().optional()
 })
 
 export const UpdateUserResponse = zod.object({
@@ -982,4 +997,3 @@ export const GetTeacherDashboardResponse = zod.object({
   "status": zod.enum(['submitted', 'graded', 'late'])
 }))
 })
-

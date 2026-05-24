@@ -30,7 +30,7 @@ import {
 import { 
   Loader2, Plus, GripVertical, Pencil, Trash2, Video, FileText, Save, X,
   Layout, ClipboardList, Calendar, Clock, HelpCircle, Youtube, Edit, Eye, EyeOff,
-  ExternalLink, Link2
+  ExternalLink, Link2, ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +55,7 @@ const getErrorMessage = (error: any, fallback: string) =>
 
 export default function TeacherCourseBuilder() {
   const { id } = useParams();
+  const [, setLocation] = useLocation();
   const courseId = Number(id);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -500,6 +501,10 @@ export default function TeacherCourseBuilder() {
           <p className="text-muted-foreground mt-1">Course Builder & Curriculum Management</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setLocation("/teacher/courses")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Courses
+          </Button>
           {(course as any)?.status === "draft" && (
             <Button variant="default" className="bg-indigo-600 hover:bg-indigo-700" onClick={handleSubmitForReview}>
               <Save className="h-4 w-4 mr-2" />

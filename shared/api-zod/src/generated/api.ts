@@ -1386,6 +1386,12 @@ export const UpdateUserBody = zod.object({
   "branchId": zod.number().optional(),
   "qualification": zod.string().optional(),
   "specialization": zod.string().optional(),
+  "experience": zod.string().optional(),
+  "salary": zod.number().optional(),
+  "address": zod.string().optional(),
+  "designation": zod.string().optional(),
+  "gender": zod.string().optional(),
+  "joiningDate": zod.string().optional(),
   "obtainedMarks": zod.number().optional(),
   "totalMarks": zod.number().optional(),
   "identityDocumentUrl": zod.string().optional(),
@@ -1868,5 +1874,4 @@ export const GetTeacherDashboardResponse = zod.object({
   "dueDate": zod.coerce.date().nullish()
 }))
 })
-
 

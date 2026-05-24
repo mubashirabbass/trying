@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable, coursesTable, enrollmentsTable, paymentsTable, certificatesTable, assignmentsTable, assignmentSubmissionsTable, notificationsTable, lessonCompletionsTable, lessonsTable } from "@workspace/db";
+import { db, usersTable, coursesTable, enrollmentsTable, paymentsTable, certificatesTable, assignmentsTable, assignmentSubmissionsTable, notificationsTable, lessonCompletionsTable, lessonsTable, branchesTable, identityVerificationsTable } from "@workspace/db";
 import { eq, count, sum, and, desc, gt, notInArray, inArray } from "drizzle-orm";
 import { GetStudentDashboardQueryParams, GetTeacherDashboardQueryParams } from "@workspace/api-zod";
 
@@ -225,14 +225,38 @@ router.get("/dashboard/teacher/students", async (req, res): Promise<void> => {
     id: usersTable.id,
     name: usersTable.name,
     email: usersTable.email,
+    phone: usersTable.phone,
+    cnic: usersTable.cnic,
+    dob: usersTable.dob,
+    gender: usersTable.gender,
+    branchId: usersTable.branchId,
+    branchName: branchesTable.name,
+    branchCity: branchesTable.city,
+    qualification: usersTable.qualification,
+    specialization: usersTable.specialization,
+    obtainedMarks: usersTable.obtainedMarks,
+    totalMarks: usersTable.totalMarks,
+    educationDocumentUrl: usersTable.educationDocumentUrl,
+    identityDocumentUrl: identityVerificationsTable.documentUrl,
+    identityVerificationStatus: identityVerificationsTable.status,
+    identityDocumentType: identityVerificationsTable.documentType,
+    identitySubmittedAt: identityVerificationsTable.submittedAt,
+    identityRejectionReason: identityVerificationsTable.rejectionReason,
+    isEmailVerified: usersTable.isEmailVerified,
+    isIdentityVerified: usersTable.isIdentityVerified,
+    isActive: usersTable.isActive,
+    createdAt: usersTable.createdAt,
     courseId: enrollmentsTable.courseId,
     courseName: coursesTable.title,
     progress: enrollmentsTable.progress,
+    enrollmentStatus: enrollmentsTable.status,
     enrolledAt: enrollmentsTable.enrolledAt
   })
     .from(enrollmentsTable)
     .innerJoin(usersTable, eq(enrollmentsTable.userId, usersTable.id))
     .innerJoin(coursesTable, eq(enrollmentsTable.courseId, coursesTable.id))
+    .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
+    .leftJoin(identityVerificationsTable, eq(usersTable.id, identityVerificationsTable.userId))
     .where(inArray(enrollmentsTable.courseId, courseIds))
     .orderBy(desc(enrollmentsTable.enrolledAt));
 

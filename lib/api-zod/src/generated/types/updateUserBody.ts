@@ -8,8 +8,23 @@
 
 export interface UpdateUserBody {
   name?: string;
+  email?: string;
   phone?: string;
+  cnic?: string;
+  dob?: string;
   avatar?: string;
   isActive?: boolean;
   branchId?: number;
+  qualification?: string;
+  specialization?: string;
+  experience?: string;
+  salary?: number;
+  address?: string;
+  designation?: string;
+  gender?: string;
+  joiningDate?: string;
+  obtainedMarks?: number;
+  totalMarks?: number;
+  identityDocumentUrl?: string;
+  educationDocumentUrl?: string;
 }
