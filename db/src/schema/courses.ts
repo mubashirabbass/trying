@@ -14,6 +14,7 @@ export const coursesTable = pgTable("courses", {
   fee: real("fee").notNull().default(0),
   thumbnail: text("thumbnail"),
   syllabus: text("syllabus"),
+  outlinePdfUrl: text("outline_pdf_url"),
   teacherId: integer("teacher_id").references(() => usersTable.id),
   status: text("status").notNull().default("draft"), // draft, pending, live, rejected, archived
   rejectionNote: text("rejection_note"),

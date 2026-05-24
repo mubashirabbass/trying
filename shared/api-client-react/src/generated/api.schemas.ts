@@ -38,6 +38,7 @@ export interface RegisterBody {
   totalMarks?: number;
   educationDocumentUrl?: string;
   branchId?: number;
+  avatar?: string;
 }
 
 export type UserRole = typeof UserRole[keyof typeof UserRole];
@@ -117,6 +118,8 @@ export interface UpdateUserBody {
   totalMarks?: number;
   identityDocumentUrl?: string;
   educationDocumentUrl?: string;
+  address?: string;
+  gender?: string;
 }
 
 export interface Course {

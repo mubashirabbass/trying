@@ -7,6 +7,7 @@ interface AuthContextType {
   token: string | null;
   login: (user: User, token: string, rememberMe?: boolean) => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -102,8 +103,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionStorage.removeItem("user");
   };
 
+  const refreshUser = async () => {
+    if (!user?.id || !token) return;
+    
+    try {
+      const response = await fetch(`/api/users/${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (response.ok) {
+        const updatedUser = await response.json();
+        setUser(updatedUser);
+        
+        // Update storage
+        const storage = localStorage.getItem("token") ? localStorage : sessionStorage;
+        storage.setItem("user", JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error("Failed to refresh user data:", error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, refreshUser, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

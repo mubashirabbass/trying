@@ -35,6 +35,8 @@ import {
   FileText,
   Calendar,
   Book,
+  Upload,
+  Camera,
 } from "lucide-react";
 import {
   Select,
@@ -88,6 +90,9 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string>("");
   
   // Step 2 fields
   const [cnic, setCnic] = useState("");
@@ -101,6 +106,7 @@ export default function Register() {
 
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [registeredData, setRegisteredData] = useState<any>(null);
 
   const { login } = useAuth();
   const [, setLocation] = useLocation();
@@ -145,27 +151,50 @@ export default function Register() {
 
     let identityDocumentUrl = "";
     let educationDocumentUrl = "";
+    let uploadedAvatarUrl = avatarUrl;
 
     try {
       setIsUploading(true);
+
+      // Upload profile picture first (if selected)
+      if (avatarFile && !avatarUrl) {
+        const fd = new FormData();
+        fd.append("file", avatarFile);
+        const res = await fetch("/api/upload/image", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok) {
+          const errMsg = data.error?.message || data.error || data.message || "Failed to upload profile picture";
+          throw new Error(typeof errMsg === "object" ? JSON.stringify(errMsg) : errMsg);
+        }
+        uploadedAvatarUrl = data.url;
+        setAvatarUrl(uploadedAvatarUrl);
+      }
       
       // Upload CNIC/B-Form
       if (cnicFile) {
         const formData = new FormData();
-        formData.append("document", cnicFile);
-        const res = await fetch("/api/auth/upload-identity", { method: "POST", body: formData });
+        formData.append("file", cnicFile);
+        const res = await fetch("/api/upload/image", { method: "POST", body: formData });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error?.message || data.error || "Failed to upload Identity Document");
+        if (!res.ok) {
+          const errMsg = data.error?.message || data.error || data.message || "Failed to upload Identity Document";
+          throw new Error(typeof errMsg === "object" ? JSON.stringify(errMsg) : errMsg);
+        }
         identityDocumentUrl = data.url;
       }
 
-      // Upload Education Document
+      // Upload Education Document (PDF or image)
       if (educationFile) {
         const formData = new FormData();
-        formData.append("document", educationFile);
-        const res = await fetch("/api/auth/upload-identity", { method: "POST", body: formData });
+        const isPdf = educationFile.type === "application/pdf";
+        formData.append("file", educationFile);
+        const endpoint = isPdf ? "/api/upload/pdf" : "/api/upload/image";
+        const res = await fetch(endpoint, { method: "POST", body: formData });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error?.message || data.error || "Failed to upload Education Document");
+        if (!res.ok) {
+          const errMsg = data.error?.message || data.error || data.message || "Failed to upload Education Document";
+          throw new Error(typeof errMsg === "object" ? JSON.stringify(errMsg) : errMsg);
+        }
         educationDocumentUrl = data.url;
       }
     } catch (err: any) {
@@ -185,6 +214,7 @@ export default function Register() {
           phone: phone || undefined,
           cnic: cnic || undefined,
           dob: dob || undefined,
+          avatar: uploadedAvatarUrl || undefined,
           identityDocumentUrl: identityDocumentUrl || undefined,
           lastEducation: lastEducation || undefined,
           educationStream: educationStream || undefined,
@@ -198,11 +228,23 @@ export default function Register() {
       {
         onSuccess: (data) => {
           toast({
-            title: "🎉 Account Created!",
-            description: `Welcome, ${data.user.name.split(" ")[0]}! Your account is pending admin approval. Check your email for a verification link.`,
-            duration: 7000,
+            title: "🎉 Application Received!",
+            description: "Please check your registered details below.",
+            duration: 5000,
           });
-          setLocation("/login");
+          setRegisteredData({
+            name,
+            email,
+            phone,
+            cnic,
+            dob,
+            avatar: uploadedAvatarUrl,
+            lastEducation,
+            educationStream,
+            obtainedMarks,
+            totalMarks,
+            branchName: branches.find((b: any) => b.id.toString() === branchId)?.name || "Main Campus"
+          });
         },
         onError: (error: any) => {
           toast({
@@ -218,6 +260,118 @@ export default function Register() {
       }
     );
   };
+
+  if (registeredData) {
+    return (
+      <MainLayout>
+        <div className="flex-1 min-h-screen flex items-center justify-center p-6 bg-slate-50 relative">
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background:
+                "radial-gradient(ellipse at top right, #eff6ff 0%, transparent 55%), radial-gradient(ellipse at bottom left, #f0fdf4 0%, transparent 55%)",
+            }}
+          />
+          
+          <div className="relative z-10 w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/80 border border-slate-100 p-8 sm:p-12 overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+            {/* Top accent bar */}
+            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-indigo-600" />
+
+            <div className="flex flex-col items-center text-center mb-8">
+              {registeredData.avatar ? (
+                <div className="h-24 w-24 rounded-full overflow-hidden border-4 border-white shadow-xl mb-4">
+                  <img src={registeredData.avatar} alt="Profile photo" className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="h-20 w-20 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-100 shadow-lg shadow-emerald-500/10 mb-4 animate-bounce">
+                  <CheckCircle2 className="h-12 w-12 text-emerald-500" />
+                </div>
+              )}
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight">🎉 Registration Submitted!</h1>
+              <p className="text-slate-500 font-semibold mt-1">Thank you for applying to Global College</p>
+            </div>
+
+            {/* Verification message card */}
+            <div className="bg-blue-50/70 border border-blue-100 rounded-2xl p-6 mb-8 text-left flex items-start gap-4">
+              <ShieldCheck className="h-6 w-6 text-blue-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-bold text-blue-900 text-sm">Application Under Review</p>
+                <p className="text-blue-700 text-xs sm:text-sm font-medium leading-relaxed">
+                  Please wait, our team will verify your details and your login will be created. A confirmation mail will be sent to your registered Gmail.
+                </p>
+              </div>
+            </div>
+
+            {/* Profile summary card */}
+            <div className="border border-slate-100 bg-slate-50/50 rounded-2xl p-6 sm:p-8 mb-8 text-left">
+              <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">
+                Application Summary
+              </h3>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase">Full Name</p>
+                  <p className="text-sm font-extrabold text-slate-800 mt-0.5">{registeredData.name}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase">Email Address</p>
+                  <p className="text-sm font-extrabold text-slate-800 mt-0.5">{registeredData.email}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase">Phone Number</p>
+                  <p className="text-sm font-extrabold text-slate-800 mt-0.5">{registeredData.phone}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase">Branch / Campus</p>
+                  <p className="text-sm font-extrabold text-slate-800 mt-0.5">{registeredData.branchName}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase">CNIC / Form-B</p>
+                  <p className="text-sm font-extrabold text-slate-800 mt-0.5">{registeredData.cnic}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase">Date of Birth</p>
+                  <p className="text-sm font-extrabold text-slate-800 mt-0.5">
+                    {new Date(registeredData.dob).toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase">Education Level</p>
+                  <p className="text-sm font-extrabold text-slate-800 mt-0.5">{registeredData.lastEducation}</p>
+                </div>
+                {registeredData.lastEducation === "Matric" || registeredData.lastEducation === "Intermediate" ? (
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase">Academic Score</p>
+                    <p className="text-sm font-extrabold text-slate-800 mt-0.5">
+                      {registeredData.obtainedMarks} / {registeredData.totalMarks} Marks
+                    </p>
+                  </div>
+                ) : null}
+                {registeredData.educationStream ? (
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase">Academic Program</p>
+                    <p className="text-sm font-extrabold text-slate-800 mt-0.5">{registeredData.educationStream}</p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <Button
+              onClick={() => setLocation("/login")}
+              className="w-full h-13 font-bold rounded-xl shadow-lg shadow-blue-500/20 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.98] transition-all"
+              style={{ height: 52 }}
+            >
+              Okay
+            </Button>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -329,6 +483,53 @@ export default function Register() {
               {/* ── STEP 1 FIELDS ── */}
               {step === 1 && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+
+                  {/* ── Profile Picture Upload ── */}
+                  <div className="flex flex-col items-center gap-3 pb-2">
+                    <div className="relative">
+                      <label htmlFor="avatarInput" className="cursor-pointer block">
+                        <div className={`h-24 w-24 rounded-full border-4 flex items-center justify-center overflow-hidden transition-all ${
+                          avatarPreview ? "border-blue-400 shadow-lg shadow-blue-200" : "border-dashed border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50"
+                        }`}>
+                          {avatarPreview ? (
+                            <img src={avatarPreview} alt="Profile preview" className="w-full h-full object-cover" />
+                          ) : (
+                            <Camera className="h-8 w-8 text-slate-300" />
+                          )}
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-blue-600 border-2 border-white flex items-center justify-center shadow-md">
+                          <Upload className="h-3.5 w-3.5 text-white" />
+                        </div>
+                      </label>
+                      <input
+                        id="avatarInput"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          if (file.size > 2 * 1024 * 1024) {
+                            toast({ title: "Image too large. Maximum size is 2 MB.", variant: "destructive" });
+                            return;
+                          }
+                          setAvatarFile(file);
+                          setAvatarUrl(""); // reset pre-uploaded
+                          const reader = new FileReader();
+                          reader.onload = (ev) => setAvatarPreview(ev.target?.result as string);
+                          reader.readAsDataURL(file);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-slate-700">
+                        {avatarPreview ? "Profile Photo Selected ✓" : "Upload Profile Photo"}
+                      </p>
+                      <p className="text-xs text-slate-400">JPEG, PNG, WebP · Max 2 MB · Optional</p>
+                    </div>
+                  </div>
+
                   {/* ── Name ── */}
                   <div className="space-y-1.5">
                     <Label htmlFor="name" className="text-slate-700 font-medium text-sm">

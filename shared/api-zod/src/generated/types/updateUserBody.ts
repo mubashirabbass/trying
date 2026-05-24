@@ -21,4 +21,6 @@ export interface UpdateUserBody {
   totalMarks?: number;
   identityDocumentUrl?: string;
   educationDocumentUrl?: string;
+  address?: string;
+  gender?: string;
 }

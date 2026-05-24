@@ -105,6 +105,7 @@ import articlesRouter from "./articles";
 import usersRouter from "./users";
 import attendanceRouter from "./attendance";
 import liveClassesRouter from "./live-classes";
+import uploadRouter from "./upload";
 
 router.use(healthRouter);
 router.use(authRouter);
@@ -118,6 +119,7 @@ router.use(certificatesRouter);
 router.use(usersRouter);
 router.use(attendanceRouter);
 router.use(settingsRouter);
+router.use(uploadRouter); // File uploads (images & PDFs) — requires auth internally
 
 router.use(authenticate);
 router.use(lessonsRouter);

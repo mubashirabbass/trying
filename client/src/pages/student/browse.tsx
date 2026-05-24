@@ -235,7 +235,7 @@ export default function StudentBrowse() {
                     </Link>
 
                     {isEnrolled ? (
-                      <Link href={`/dashboard/courses/${course.id}/learn`} className="flex-1">
+                      <Link href={`/dashboard/lessons/${course.id}`} className="flex-1">
                         <Button className="w-full rounded-xl font-bold h-10 text-sm">
                           Continue <ChevronRight className="h-4 w-4 ml-1" />
                         </Button>

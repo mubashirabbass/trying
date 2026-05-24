@@ -12,6 +12,17 @@ router.get("/dashboard/admin", async (req, res): Promise<void> => {
   const enrollments = await db.select({ c: count() }).from(enrollmentsTable);
   const revenue = await db.select({ total: sum(paymentsTable.amount) }).from(paymentsTable).where(eq(paymentsTable.status, "verified"));
   const pendingPayments = await db.select({ c: count() }).from(paymentsTable).where(eq(paymentsTable.status, "pending"));
+  
+  const pendingVerifications = await db.select({ c: count() })
+    .from(identityVerificationsTable)
+    .where(eq(identityVerificationsTable.status, "pending"));
+
+  const activeAnnouncements = await db.select({ c: count() })
+    .from(notificationsTable)
+    .where(eq(notificationsTable.type, "announcement"));
+
+  const totalCertificates = await db.select({ c: count() })
+    .from(certificatesTable);
 
   const recentEnrollments = await db.select({
     id: enrollmentsTable.id,
@@ -43,6 +54,18 @@ router.get("/dashboard/admin", async (req, res): Promise<void> => {
     .leftJoin(coursesTable, eq(paymentsTable.courseId, coursesTable.id))
     .limit(5);
 
+  const recentNotifications = await db.select({
+    id: notificationsTable.id,
+    type: notificationsTable.type,
+    title: notificationsTable.title,
+    message: notificationsTable.message,
+    createdAt: notificationsTable.createdAt,
+    userName: usersTable.name
+  }).from(notificationsTable)
+    .leftJoin(usersTable, eq(notificationsTable.userId, usersTable.id))
+    .orderBy(desc(notificationsTable.createdAt))
+    .limit(5);
+
   const coursesByCategory = await db.select({ category: coursesTable.category, count: count() })
     .from(coursesTable).groupBy(coursesTable.category);
 
@@ -53,8 +76,12 @@ router.get("/dashboard/admin", async (req, res): Promise<void> => {
     totalEnrollments: Number(enrollments[0]?.c ?? 0),
     totalRevenue: Number(revenue[0]?.total ?? 0),
     pendingPayments: Number(pendingPayments[0]?.c ?? 0),
+    pendingVerifications: Number(pendingVerifications[0]?.c ?? 0),
+    activeAnnouncements: Number(activeAnnouncements[0]?.c ?? 0),
+    totalCertificates: Number(totalCertificates[0]?.c ?? 0),
     recentEnrollments,
     recentPayments,
+    recentNotifications,
     coursesByCategory: coursesByCategory.map(c => ({ category: c.category, count: Number(c.count) })),
   });
 });

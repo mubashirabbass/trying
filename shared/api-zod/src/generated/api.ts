@@ -74,7 +74,8 @@ export const RegisterBody = zod.object({
   "obtainedMarks": zod.number().optional(),
   "totalMarks": zod.number().optional(),
   "educationDocumentUrl": zod.string().optional(),
-  "branchId": zod.number().optional()
+  "branchId": zod.number().optional(),
+  "avatar": zod.string().optional(),
 })
 
 
@@ -1437,7 +1438,9 @@ export const UpdateUserBody = zod.object({
   "obtainedMarks": zod.number().optional(),
   "totalMarks": zod.number().optional(),
   "identityDocumentUrl": zod.string().optional(),
-  "educationDocumentUrl": zod.string().optional()
+  "educationDocumentUrl": zod.string().optional(),
+  "address": zod.string().optional(),
+  "gender": zod.string().optional()
 })
 
 export const UpdateUserResponse = zod.object({

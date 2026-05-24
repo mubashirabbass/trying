@@ -22,9 +22,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Loader2, UserPlus, CheckCircle2, XCircle, GraduationCap,
-  CreditCard, Users, ClipboardList, Phone, Mail, Search, ExternalLink,
+  CreditCard, Users, User, ClipboardList, Phone, Mail, Search, ExternalLink,
   Eye, FileText, ArrowRight, Table as TableIcon, Edit2, Key, Trash2,
-  MoreVertical, ShieldAlert, Plus, BookOpen, MapPin, AlertCircle, Clock
+  MoreVertical, ShieldAlert, Plus, BookOpen, MapPin, AlertCircle, Clock, Camera, Upload
 } from "lucide-react";
 
 type Tab = "dashboard" | "reg" | "enroll_req" | "fee" | "manual" | "enrolled";
@@ -84,6 +84,8 @@ export default function AdminStudents() {
   });
   const [cnicFile, setCnicFile] = useState<File | null>(null);
   const [educationFile, setEducationFile] = useState<File | null>(null);
+  const [avatarFile, setAdminAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAdminAvatarPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   // Queries with error handling
@@ -197,7 +199,6 @@ export default function AdminStudents() {
   };
 
   const disapproveEnrollment = async (enrollmentId: number, courseName: string, studentName: string) => {
-    if (!confirm(`Remove enrollment request for "${studentName}" in "${courseName}"?`)) return;
     setActioning(enrollmentId);
     try {
       const token = localStorage.getItem("token") || sessionStorage.getItem("token");
@@ -208,6 +209,22 @@ export default function AdminStudents() {
       toast({ title: `Enrollment request removed for ${studentName}.` });
       invalidate();
     } catch { toast({ title: "Failed to remove enrollment", variant: "destructive" }); }
+    finally { setActioning(null); }
+  };
+
+  const approveEnrollment = async (enrollmentId: number, courseName: string, studentName: string) => {
+    setActioning(enrollmentId);
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const res = await fetch(`/api/enrollments/${enrollmentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ status: "active" })
+      });
+      if (!res.ok) throw new Error("Failed to approve");
+      toast({ title: `✅ Enrollment approved! ${studentName} is now enrolled in ${courseName}.` });
+      invalidate();
+    } catch { toast({ title: "Failed to approve enrollment", variant: "destructive" }); }
     finally { setActioning(null); }
   };
 
@@ -261,12 +278,24 @@ export default function AdminStudents() {
 
       try {
         setIsUploading(true);
+        const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+
+        // Upload profile picture
+        let avatarUrl = "";
+        if (avatarFile) {
+          const fd = new FormData();
+          fd.append("file", avatarFile);
+          const res = await fetch("/api/upload/image", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Failed to upload profile picture");
+          avatarUrl = data.url;
+        }
 
         // Upload CNIC/B-Form
         if (cnicFile) {
           const fd = new FormData();
-          fd.append("document", cnicFile);
-          const res = await fetch("/api/auth/upload-identity", { method: "POST", body: fd });
+          fd.append("file", cnicFile);
+          const res = await fetch("/api/upload/image", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error?.message || data.error || "Failed to upload Identity Document");
           identityDocumentUrl = data.url;
@@ -275,8 +304,10 @@ export default function AdminStudents() {
         // Upload Education Document
         if (educationFile) {
           const fd = new FormData();
-          fd.append("document", educationFile);
-          const res = await fetch("/api/auth/upload-identity", { method: "POST", body: fd });
+          fd.append("file", educationFile);
+          const isPdf = educationFile.type === "application/pdf";
+          const endpoint = isPdf ? "/api/upload/pdf" : "/api/upload/image";
+          const res = await fetch(endpoint, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error?.message || data.error || "Failed to upload Education Document");
           educationDocumentUrl = data.url;
@@ -297,6 +328,7 @@ export default function AdminStudents() {
           phone: formData.phone || undefined,
           cnic: formData.cnic || undefined,
           dob: formData.dob || undefined,
+          avatar: avatarUrl || undefined,
           identityDocumentUrl: identityDocumentUrl || undefined,
           lastEducation: formData.lastEducation || undefined,
           educationStream: formData.educationStream || undefined,
@@ -320,6 +352,8 @@ export default function AdminStudents() {
         // Clear files
         setCnicFile(null);
         setEducationFile(null);
+        setAdminAvatarFile(null);
+        setAdminAvatarPreview(null);
         invalidate();
       } catch (err: any) {
         toast({ title: "Registration Failed", description: err.message, variant: "destructive" });
@@ -511,7 +545,9 @@ export default function AdminStudents() {
               <p className="text-white/60 text-xs mt-0.5">Real-time workflow pipeline from student sign-up to course activation.</p>
             </div>
             <Button onClick={() => {
-              setFormData({ name: "", email: "", phone: "", role: "student", password: "", branchName: "Global", cnic: "" });
+              setFormData({ name: "", email: "", phone: "", role: "student", password: "", branchName: "Global", cnic: "", dob: "", lastEducation: "", educationStream: "", obtainedMarks: "", totalMarks: "", branchId: "" });
+              setAdminAvatarFile(null);
+              setAdminAvatarPreview(null);
               setAddUserOpen(true);
             }} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs gap-2 shadow-lg shadow-emerald-900/30 border border-emerald-500/30">
               <UserPlus className="h-4 w-4" /> Add New User
@@ -634,102 +670,195 @@ export default function AdminStudents() {
       {tab === "dashboard" && (
         <Card className="border border-slate-200 shadow-xl overflow-hidden rounded-2xl">
           <CardContent className="p-0">
-            <Table>
-              <TableHeader className="bg-slate-50/70 border-b border-slate-100">
-                <TableRow>
-                  <TableHead className="font-bold py-4">Student Profile</TableHead>
-                  <TableHead className="font-bold">Campus</TableHead>
-                  <TableHead className="font-bold">Status</TableHead>
-                  <TableHead className="font-bold text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {usersLoading ? (
-                  <TableRow><TableCell colSpan={5} className="h-64 text-center"><Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto opacity-20" /></TableCell></TableRow>
-                ) : filteredUsers.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="h-64 text-center text-gray-500 font-bold">No users match your filters.</TableCell></TableRow>
-                ) : (
-                  paginatedUsers.map((user: any) => (
-                    <TableRow key={user.id} className="hover:bg-slate-50/50 transition-colors">
-                      <TableCell className="py-4">
-                        <div className="flex items-center gap-4">
-                          <div className="h-10 w-10 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm">
-                            {user.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="flex flex-col">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Link href={`/admin/users/${user.id}`}>
-                                <span className="font-bold text-gray-900 hover:text-emerald-600 cursor-pointer transition-colors">{user.name}</span>
-                              </Link>
-                              {user.role === "student" && !user.isActive && (
-                                <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[9px] font-bold px-1.5 py-0.5 rounded">Pending Approval</Badge>
-                              )}
-                              {user.role === "student" && enrollments.some((e: any) => e.userId === user.id && e.status === "pending") && (
-                                <Badge className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[9px] font-bold px-1.5 py-0.5 rounded">Pending Admission</Badge>
-                              )}
-                            </div>
-                            <span className="text-xs text-gray-500 flex items-center gap-1 mt-0.5 font-mono"><Mail className="h-3 w-3" /> {user.email}</span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1 text-xs text-slate-600"><MapPin className="h-3.5 w-3.5 text-slate-400" />{user.branchName || "Global"}</div>
-                      </TableCell>
-                      <TableCell>
-                        {user.isActive ? (
-                          <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold"><CheckCircle2 className="h-3 w-3 mr-1" /> Active</Badge>
-                        ) : (
-                          <Badge className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold"><XCircle className="h-3 w-3 mr-1" /> Blocked</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-slate-100"><MoreVertical className="h-4 w-4" /></Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="rounded-xl w-48">
-                            <DropdownMenuLabel className="text-xs">Student Options</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => setLocation(`/admin/users/${user.id}`)} className="text-xs font-bold gap-2"><Eye className="h-3.5 w-3.5 text-indigo-500" /> View Full Profile</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => {
-                              setFormData({ 
-                                name: user.name || "", 
-                                email: user.email || "", 
-                                phone: user.phone || "", 
-                                role: user.role || "student", 
-                                password: "", 
-                                branchId: user.branchId ? user.branchId.toString() : "",
-                                cnic: user.cnic || "",
-                                dob: user.dob || "",
-                                lastEducation: (user.lastEducation || "") as any,
-                                educationStream: user.educationStream || "",
-                                obtainedMarks: user.obtainedMarks ? user.obtainedMarks.toString() : "",
-                                totalMarks: user.totalMarks ? user.totalMarks.toString() : "",
-                                branchName: user.branchName || "Global"
-                              });
-                              setEditUser(user);
-                            }} className="text-xs font-bold gap-2"><Edit2 className="h-3.5 w-3.5" /> Edit Profile</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
-                              setFormData(prev => ({ ...prev, password: "" }));
-                              setResetPasswordUser(user);
-                            }} className="text-xs font-bold gap-2"><Key className="h-3.5 w-3.5" /> Reset Password</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => setUserToDelete(user)} className="text-xs font-bold text-rose-600 hover:bg-rose-50 gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete Permanently</DropdownMenuItem>
-                            {user.isActive && (
-                              <DropdownMenuItem onClick={() => disapproveStudent(user.id, user.name)} className="text-xs font-bold text-amber-600 hover:bg-amber-50 gap-2"><XCircle className="h-3.5 w-3.5" /> Disapprove & Deactivate</DropdownMenuItem>
-                            )}
-                            {!user.isActive && (
-                              <DropdownMenuItem onClick={() => approveReg(user.id)} className="text-xs font-bold text-emerald-600 hover:bg-emerald-50 gap-2"><CheckCircle2 className="h-3.5 w-3.5" /> Re-Approve Account</DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+            <div className="max-w-full">
+              <Table className="border-collapse text-left text-xs w-full">
+                <TableHeader className="bg-slate-50 border-b border-slate-200 select-none">
+                  <TableRow className="hover:bg-transparent divide-x divide-slate-200">
+                    <TableHead className="w-10 text-center font-black text-slate-400 bg-slate-100/50 py-4">#</TableHead>
+                    <TableHead className="font-bold text-slate-700 py-4 text-xs">Student Profile</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-xs">Contact & CNIC</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-xs">Campus & DOB</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-xs">Academic History</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-xs text-center">Verification Docs</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-xs text-center">Status</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-xs text-center">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-slate-100">
+                  {usersLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-64 text-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto opacity-20" />
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : filteredUsers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-64 text-center text-gray-500 font-bold">
+                        No students match your filters.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    paginatedUsers.map((user: any, idx: number) => {
+                      const globalIndex = ((currentPage - 1) * itemsPerPage) + idx + 1;
+                      
+                      // Calculate score percentage
+                      let marksPercentage = "";
+                      if (user.obtainedMarks && user.totalMarks) {
+                        marksPercentage = `(${Math.round((user.obtainedMarks / user.totalMarks) * 100)}%)`;
+                      }
+
+                      return (
+                        <TableRow key={user.id} className="hover:bg-slate-50/50 transition-colors divide-x divide-slate-200">
+                          {/* 1. Index */}
+                          <TableCell className="text-center font-mono text-slate-400 bg-slate-50/30 py-4 font-bold">{globalIndex}</TableCell>
+                          
+                          {/* 2. Profile */}
+                          <TableCell className="py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-full overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center shrink-0">
+                                {user.avatar ? (
+                                  <img src={user.avatar} alt={user.name} className="w-full h-full object-cover animate-in fade-in duration-300" />
+                                ) : (
+                                  <User className="h-5 w-5 text-slate-400" />
+                                )}
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Link href={`/admin/users/${user.id}`}>
+                                    <span className="font-extrabold text-slate-900 hover:text-emerald-600 cursor-pointer transition-colors text-sm">{user.name}</span>
+                                  </Link>
+                                  {user.role === "student" && !user.isActive && (
+                                    <span className="inline-block bg-amber-50 text-amber-700 border border-amber-200 text-[8px] font-bold px-1 rounded">Pending Approval</span>
+                                  )}
+                                </div>
+                                <span className="text-xs text-slate-500 font-mono leading-none">{user.email}</span>
+                                {user.createdAt && (
+                                  <span className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5 font-semibold">
+                                    <Clock className="h-3 w-3" /> Joined: {new Date(user.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </TableCell>
+
+                          {/* 3. Contact & CNIC */}
+                          <TableCell className="py-4">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1">
+                                <Phone className="h-3.5 w-3.5 text-slate-400" /> {user.phone || "—"}
+                              </span>
+                              <span className="text-xs font-mono text-slate-500 pl-4.5">CNIC: {user.cnic || "—"}</span>
+                            </div>
+                          </TableCell>
+
+                          {/* 4. Campus & DOB */}
+                          <TableCell className="py-4">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1">
+                                <MapPin className="h-3.5 w-3.5 text-emerald-500" /> {user.branchName || "Global"}
+                              </span>
+                              <span className="text-xs text-slate-500 pl-4.5">DOB: {user.dob ? new Date(user.dob).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "—"}</span>
+                            </div>
+                          </TableCell>
+
+                          {/* 5. Academic History */}
+                          <TableCell className="py-4">
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1.5">
+                                <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200 text-[10px] font-bold px-2 py-0">
+                                  {user.lastEducation || "Matric"}
+                                </Badge>
+                                {user.educationStream && (
+                                  <span className="text-xs font-bold text-slate-800">— {user.educationStream}</span>
+                                )}
+                              </div>
+                              {user.obtainedMarks ? (
+                                <span className="text-xs font-mono text-slate-500">
+                                  Marks: <span className="font-extrabold text-slate-700">{user.obtainedMarks}</span> / {user.totalMarks} <span className="text-emerald-600 font-extrabold">{marksPercentage}</span>
+                                </span>
+                              ) : null}
+                            </div>
+                          </TableCell>
+
+                          {/* 6. Verification Docs */}
+                          <TableCell className="text-center py-4">
+                            <div className="flex items-center justify-center gap-2">
+                              {user.identityDocumentUrl ? (
+                                <a href={user.identityDocumentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-black text-[10px] transition-colors shadow-sm">
+                                  <FileText className="h-3 w-3" /> CNIC
+                                </a>
+                              ) : null}
+                              {user.educationDocumentUrl ? (
+                                <a href={user.educationDocumentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg font-black text-[10px] transition-colors shadow-sm">
+                                  <ClipboardList className="h-3 w-3" /> Sheet
+                                </a>
+                              ) : null}
+                              {!user.identityDocumentUrl && !user.educationDocumentUrl ? (
+                                <span className="text-slate-300 italic text-[11px]">No Uploads</span>
+                              ) : null}
+                            </div>
+                          </TableCell>
+
+                          {/* 7. Status */}
+                          <TableCell className="text-center py-4">
+                            {user.isActive ? (
+                              <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold px-2.5 py-0.5 rounded-lg">Active</Badge>
+                            ) : (
+                              <Badge className="bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold px-2.5 py-0.5 rounded-lg">Inactive</Badge>
+                            )}
+                          </TableCell>
+
+                          {/* 8. Actions */}
+                          <TableCell className="text-center py-4">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-slate-100"><MoreVertical className="h-4 w-4" /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="rounded-xl w-48">
+                                <DropdownMenuLabel className="text-xs">Student Options</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => setLocation(`/admin/users/${user.id}`)} className="text-xs font-bold gap-2"><Eye className="h-3.5 w-3.5 text-indigo-500" /> View Full Profile</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => {
+                                  setFormData({ 
+                                    name: user.name || "", 
+                                    email: user.email || "", 
+                                    phone: user.phone || "", 
+                                    role: user.role || "student", 
+                                    password: "", 
+                                    branchId: user.branchId ? user.branchId.toString() : "",
+                                    cnic: user.cnic || "",
+                                    dob: user.dob || "",
+                                    lastEducation: (user.lastEducation || "") as any,
+                                    educationStream: user.educationStream || "",
+                                    obtainedMarks: user.obtainedMarks ? user.obtainedMarks.toString() : "",
+                                    totalMarks: user.totalMarks ? user.totalMarks.toString() : "",
+                                    branchName: user.branchName || "Global"
+                                  });
+                                  setEditUser(user);
+                                }} className="text-xs font-bold gap-2"><Edit2 className="h-3.5 w-3.5" /> Edit Profile</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                  setFormData(prev => ({ ...prev, password: "" }));
+                                  setResetPasswordUser(user);
+                                }} className="text-xs font-bold gap-2"><Key className="h-3.5 w-3.5" /> Reset Password</DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => setUserToDelete(user)} className="text-xs font-bold text-rose-600 hover:bg-rose-50 gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete Permanently</DropdownMenuItem>
+                                {user.isActive && (
+                                  <DropdownMenuItem onClick={() => disapproveStudent(user.id, user.name)} className="text-xs font-bold text-amber-600 hover:bg-amber-50 gap-2"><XCircle className="h-3.5 w-3.5" /> Disapprove & Deactivate</DropdownMenuItem>
+                                )}
+                                {!user.isActive && (
+                                  <DropdownMenuItem onClick={() => approveReg(user.id)} className="text-xs font-bold text-emerald-600 hover:bg-emerald-50 gap-2"><CheckCircle2 className="h-3.5 w-3.5" /> Re-Approve Account</DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
 
           {/* Pagination */}
@@ -775,7 +904,7 @@ export default function AdminStudents() {
                         <TableHead className="font-bold text-slate-700">Email Address</TableHead>
                         <TableHead className="font-bold text-slate-700">Applied Courses</TableHead>
                         <TableHead className="font-bold text-slate-700">Enrollment Status</TableHead>
-                        <TableHead className="font-bold text-slate-700 text-center w-36">Profile Info</TableHead>
+                        <TableHead className="font-bold text-slate-700 text-center w-80">Workflow Actions</TableHead>
                       </>
                     )}
                     {tab === "fee" && (
@@ -870,15 +999,22 @@ export default function AdminStudents() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-center py-2">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-[10px] font-black hover:bg-slate-900 hover:text-white border-slate-200" onClick={() => setLocation(`/admin/users/${u.id}`)}>
-                                  View <ExternalLink className="h-3 w-3 ml-1" />
+                              <div className="flex items-center justify-center gap-2 flex-wrap">
+                                <Button size="sm" variant="outline" className="rounded-lg h-7 px-2.5 text-[10px] font-black hover:bg-slate-900 hover:text-white border-slate-200" onClick={() => setLocation(`/admin/users/${u.id}`)}>
+                                  View Profile
                                 </Button>
                                 {pending.map((e: any) => (
-                                  <Button key={e.id} size="sm" variant="outline" className="rounded-lg h-7 px-2 text-[10px] font-bold text-rose-600 border-rose-200 hover:bg-rose-50" disabled={actioning === e.id} onClick={() => disapproveEnrollment(e.id, e.courseName || `Course #${e.courseId}`, u.name)}>
-                                    {actioning === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3 mr-1" />}
-                                    Disapprove
-                                  </Button>
+                                  <div key={e.id} className="flex items-center gap-1.5 border border-slate-200/60 p-1 rounded-lg bg-slate-50/70 shadow-sm">
+                                    <span className="text-[9px] font-extrabold max-w-[90px] truncate text-slate-700">{e.courseName || `Course #${e.courseId}`}</span>
+                                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-md h-6 px-2 text-[9px] font-bold flex items-center justify-center" disabled={actioning === e.id} onClick={() => approveEnrollment(e.id, e.courseName || `Course #${e.courseId}`, u.name)}>
+                                      {actioning === e.id ? <Loader2 className="h-2.5 w-2.5 animate-spin mr-0.5" /> : <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />}
+                                      Approve
+                                    </Button>
+                                    <Button size="sm" variant="outline" className="text-rose-600 border-rose-200 hover:bg-rose-50 rounded-md h-6 px-2 text-[9px] font-bold flex items-center justify-center" disabled={actioning === e.id} onClick={() => disapproveEnrollment(e.id, e.courseName || `Course #${e.courseId}`, u.name)}>
+                                      {actioning === e.id ? <Loader2 className="h-2.5 w-2.5 animate-spin mr-0.5" /> : <XCircle className="h-2.5 w-2.5 mr-0.5" />}
+                                      Reject
+                                    </Button>
+                                  </div>
                                 ))}
                               </div>
                             </TableCell>
@@ -902,7 +1038,7 @@ export default function AdminStudents() {
                             <TableCell className="font-bold text-slate-700">{p.courseName || `Course #${p.courseId}`}</TableCell>
                             <TableCell className="font-extrabold text-slate-950 font-mono">Rs. {(p.amount || 0).toLocaleString()}</TableCell>
                             <TableCell className="font-black text-slate-500 uppercase">{p.method}</TableCell>
-                            <TableCell className="text-slate-500">{new Date(p.createdAt).toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" })}</TableCell>
+                            <TableCell className="text-slate-500">{p.createdAt ? new Date(p.createdAt).toLocaleDateString("en-PK", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</TableCell>
                             <TableCell className="text-center py-1">
                               {p.receiptUrl ? (
                                 <Button size="sm" variant="outline" className="h-7 rounded-lg border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 text-[10px] font-bold px-2 flex items-center justify-center gap-1 mx-auto" onClick={() => setPreviewSlipUrl(p.receiptUrl)}>
@@ -1267,6 +1403,50 @@ export default function AdminStudents() {
                   <GraduationCap className="h-4 w-4" />
                   Student Identity & Academic Background
                 </h3>
+
+                {/* Profile Picture Upload */}
+                <div className="flex flex-col items-center gap-2 pb-2 border-b border-dashed border-slate-200">
+                  <div className="relative">
+                    <label htmlFor="adminAvatarInput" className="cursor-pointer block">
+                      <div className={`h-20 w-20 rounded-full border-2 flex items-center justify-center overflow-hidden transition-all ${
+                        avatarPreview ? "border-emerald-500 shadow-md shadow-emerald-100" : "border-dashed border-slate-300 bg-white hover:border-emerald-500"
+                      }`}>
+                        {avatarPreview ? (
+                          <img src={avatarPreview} alt="Profile preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <Camera className="h-6 w-6 text-slate-300" />
+                        )}
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-emerald-600 border border-white flex items-center justify-center shadow-sm">
+                        <Upload className="h-3 w-3 text-white" />
+                      </div>
+                    </label>
+                    <input
+                      id="adminAvatarInput"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 2 * 1024 * 1024) {
+                          toast({ title: "Image too large. Maximum size is 2 MB.", variant: "destructive" });
+                          return;
+                        }
+                        setAdminAvatarFile(file);
+                        const reader = new FileReader();
+                        reader.onload = (ev) => setAdminAvatarPreview(ev.target?.result as string);
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[11px] font-bold text-slate-700">
+                      {avatarPreview ? "Profile Photo Selected ✓" : "Upload Profile Photo (Optional)"}
+                    </p>
+                    <p className="text-[9px] text-slate-400">JPEG, PNG, WebP · Max 2 MB</p>
+                  </div>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">

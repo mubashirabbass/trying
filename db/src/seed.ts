@@ -1,4 +1,4 @@
-import { db, usersTable, coursesTable, branchesTable } from "./index";
+import { db, usersTable, coursesTable, branchesTable, successStoryCategoriesTable } from "./index";
 import bcrypt from "bcryptjs";
 
 async function seed() {
@@ -117,6 +117,20 @@ async function seed() {
       status: "live", // Seeded courses should be 'live' for exploration
       teacherId: c.teacherId,
     }).onConflictDoNothing();
+  }
+
+  // 5. Success Story Categories
+  console.log("🏆 Seeding success story categories...");
+  const storyCategories = [
+    { name: "eBay Business",    slug: "ebay-business",    description: "Students who built successful eBay stores" },
+    { name: "Graphic Design",   slug: "graphic-design",   description: "Students excelling in graphic design careers" },
+    { name: "Freelancing",      slug: "freelancing",      description: "Students earning as top-rated freelancers" },
+    { name: "Web Development",  slug: "web-development",  description: "Students building web applications" },
+    { name: "AI & Python",      slug: "ai-python",        description: "Students working with AI and Python" },
+    { name: "MS Office",        slug: "ms-office",        description: "Students with MS Office expertise" },
+  ];
+  for (const cat of storyCategories) {
+    await db.insert(successStoryCategoriesTable).values(cat).onConflictDoNothing();
   }
 
   console.log("🏫 Seeding branches...");

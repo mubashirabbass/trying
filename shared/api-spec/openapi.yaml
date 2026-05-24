@@ -2076,6 +2076,8 @@ components:
           type: string
         branchId:
           type: integer
+        avatar:
+          type: string
       required: [name, email, password, role]
 
     AuthResponse:

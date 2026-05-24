@@ -255,13 +255,17 @@ router.put(
     const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.id, id));
     if (!existingUser) throw new AppError("User not found", 404);
 
-    const updateData = { ...req.body };
+    const updateData: any = { ...req.body };
+    
+    // Handle date conversions
     if (updateData.dob) {
       updateData.dob = new Date(updateData.dob);
     }
     if (updateData.joiningDate) {
       updateData.joiningDate = new Date(updateData.joiningDate);
     }
+    
+    // Handle numeric conversions
     if (updateData.salary) {
       updateData.salary = Number(updateData.salary);
     }

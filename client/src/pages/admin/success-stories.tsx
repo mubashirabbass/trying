@@ -93,12 +93,12 @@ export default function AdminSuccessStories() {
     }
 
     const body = new FormData();
-    body.append("image", file);
+    body.append("file", file);
 
     try {
       setIsUploadingImage(true);
       const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-      const response = await fetch("/api/success-stories/upload-image", {
+      const response = await fetch("/api/upload/image", {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body,

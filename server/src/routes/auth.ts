@@ -8,14 +8,14 @@ import { logger } from "../lib/logger";
 import { sendEmail, emailTemplates } from "../lib/email";
 
 import { catchAsync } from "../middleware/error";
-import { authRateLimiter } from "../middleware/rate-limit";
+import { authRateLimiter, loginRateLimiter } from "../middleware/rate-limit";
 import { upload } from "../middleware/upload";
 import { uploadToCloudinary } from "../lib/cloudinary";
 
 const router: IRouter = Router();
 
-router.post("/auth/login", authRateLimiter, catchAsync(async (req: Request, res: Response): Promise<void> => {
-  const { email, password, rememberMe } = req.body;
+router.post("/auth/login", loginRateLimiter, catchAsync(async (req: Request, res: Response): Promise<void> => {
+  const { email, password, rememberMe, role } = req.body;
   
   if (!email || !password) {
     res.status(400).json({ error: "Email and password are required" });
@@ -24,6 +24,11 @@ router.post("/auth/login", authRateLimiter, catchAsync(async (req: Request, res:
   
   const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   if (!user) {
+    res.status(401).json({ error: "Invalid credentials" });
+    return;
+  }
+
+  if (role && user.role !== role) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
@@ -74,7 +79,7 @@ router.post("/auth/register", authRateLimiter, catchAsync(async (req: Request, r
   }
   const { 
     email, password, name, role, phone, cnic, dob, identityDocumentUrl, branchId,
-    lastEducation, educationStream, obtainedMarks, totalMarks, educationDocumentUrl
+    lastEducation, educationStream, obtainedMarks, totalMarks, educationDocumentUrl, avatar
   } = parsed.data;
   if (role !== "student") {
     res.status(403).json({ error: "Only student registration is allowed publicly. Teacher and administrator accounts must be created by an Admin." });
@@ -96,6 +101,7 @@ router.post("/auth/register", authRateLimiter, catchAsync(async (req: Request, r
     cnic, 
     dob: dob ? new Date(dob) : undefined,
     branchId,
+    avatar: avatar || undefined,
     qualification: lastEducation,
     specialization: educationStream,
     obtainedMarks,

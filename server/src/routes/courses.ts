@@ -337,7 +337,8 @@ router.get("/courses/:id", async (req, res): Promise<void> => {
       isFeatured: coursesTable.isFeatured, 
       isFree: coursesTable.isFree, 
       createdAt: coursesTable.createdAt, 
-      syllabus: coursesTable.syllabus, 
+      syllabus: coursesTable.syllabus,
+      outlinePdfUrl: coursesTable.outlinePdfUrl,
       teacherName: usersTable.name,
       rejectionNote: coursesTable.rejectionNote
     })
@@ -374,6 +375,7 @@ router.put("/courses/:id", authenticate, authorize("admin", "teacher"), async (r
     fee: existingCourse.fee,
     thumbnail: existingCourse.thumbnail,
     syllabus: existingCourse.syllabus,
+    outlinePdfUrl: existingCourse.outlinePdfUrl,
     teacherId: existingCourse.teacherId,
     isFeatured: existingCourse.isFeatured,
     isFree: existingCourse.isFree,
@@ -423,6 +425,9 @@ router.put("/courses/:id", authenticate, authorize("admin", "teacher"), async (r
   }
   if (req.body.syllabus === null || req.body.syllabus === "") {
     updateData.syllabus = null;
+  }
+  if (req.body.outlinePdfUrl !== undefined) {
+    updateData.outlinePdfUrl = req.body.outlinePdfUrl || null;
   }
 
   if (req.body.minAttendancePercentage !== undefined) {

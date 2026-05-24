@@ -64,7 +64,9 @@ interface PendingMedia {
 export default function StudentMessages() {
   const { user, token } = useAuth();
   const { toast } = useToast();
-  const { data: courses } = useListCourses({ status: "live" } as any);
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [selectedContactId, setSelectedContactId] = useState("");
+  const [loadingContacts, setLoadingContacts] = useState(false);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -73,7 +75,6 @@ export default function StudentMessages() {
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
-  const [selectedCourseId, setSelectedCourseId] = useState("");
   const [creatingThread, setCreatingThread] = useState(false);
   const [pendingMedia, setPendingMedia] = useState<PendingMedia | null>(null);
   const [isRecording, setIsRecording] = useState(false);
@@ -112,6 +113,16 @@ export default function StudentMessages() {
   };
 
   useEffect(() => { fetchThreads(); }, []);
+
+  useEffect(() => {
+    if (!isNewChatOpen || !user?.id) return;
+    setLoadingContacts(true);
+    fetch(`${BASE}/api/messages/contacts?userId=${user.id}`, { headers })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setContacts(data))
+      .catch(() => setContacts([]))
+      .finally(() => setLoadingContacts(false));
+  }, [isNewChatOpen, user?.id]);
   useEffect(() => {
     if (!selectedThread && threads.length > 0) setSelectedThread(threads[0]);
     if (selectedThread) {
@@ -235,14 +246,10 @@ export default function StudentMessages() {
     }
   };
 
-  const handleCourseSelect = (val: string) => {
-    setSelectedCourseId(val);
-  };
-
   const handleCreateThread = async () => {
-    if (!selectedCourseId || !courses) return;
-    const course = courses.find((c: any) => c.id.toString() === selectedCourseId);
-    if (!course || !course.teacherId) return;
+    if (!selectedContactId) return;
+    const contact = contacts.find((c: any) => c.id.toString() === selectedContactId);
+    if (!contact) return;
 
     setCreatingThread(true);
     try {
@@ -251,16 +258,17 @@ export default function StudentMessages() {
         headers,
         body: JSON.stringify({
           studentId: user?.id,
-          teacherId: course.teacherId,
-          courseId: course.id
+          teacherId: contact.id,
+          courseId: contact.courseId || null
         })
       });
       if (r.ok) {
         const newThread = await r.json();
+        const cleanName = contact.name.replace(/\s*\(Support Admin\)|\s*\(Teacher\)/i, "");
         const formattedThread = {
           ...newThread,
-          teacherName: course.teacherName,
-          courseName: course.title,
+          teacherName: cleanName,
+          courseName: contact.role === "admin" ? "General Support" : "Academic Chat",
           lastMessageAt: new Date().toISOString()
         };
         setThreads(prev => {
@@ -269,8 +277,8 @@ export default function StudentMessages() {
         });
         setSelectedThread(formattedThread);
         setIsNewChatOpen(false);
-        setSelectedCourseId("");
-        toast({ title: "Conversation started", description: `You can now chat with ${course.teacherName}.` });
+        setSelectedContactId("");
+        toast({ title: "Conversation started", description: `You can now chat with ${cleanName}.` });
       } else {
         toast({ title: "Failed to start conversation", variant: "destructive" });
       }
@@ -559,40 +567,38 @@ export default function StudentMessages() {
       <Dialog open={isNewChatOpen} onOpenChange={setIsNewChatOpen}>
         <DialogContent className="sm:max-w-[450px] rounded-[32px]">
           <DialogHeader>
-            <DialogTitle className="text-xl font-black text-slate-900">Message Instructor</DialogTitle>
+            <DialogTitle className="text-xl font-black text-slate-900">Start Conversation</DialogTitle>
             <DialogDescription className="text-slate-500 font-medium">
-              Start a private conversation with a course instructor.
+              Choose a teacher or support administrator to message.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6 py-6">
             <div className="space-y-3">
-              <Label className="text-sm font-semibold text-slate-700">Select Course / Instructor</Label>
-              <Select value={selectedCourseId} onValueChange={handleCourseSelect}>
+              <Label className="text-sm font-semibold text-slate-700">Select Recipient</Label>
+              <Select value={selectedContactId} onValueChange={setSelectedContactId}>
                 <SelectTrigger className="w-full h-12 border-slate-200 rounded-2xl">
-                  <SelectValue placeholder="Choose a course..." />
+                  <SelectValue placeholder={loadingContacts ? "Loading contacts..." : "Choose a recipient..."} />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl">
-                  {courses
-                    ?.filter((c: any) => c.teacherId && c.teacherName)
-                    .map((course: any) => (
-                      <SelectItem key={course.id} value={course.id.toString()}>
-                        {course.title} (by {course.teacherName})
-                      </SelectItem>
-                    ))}
+                  {contacts.map((contact: any) => (
+                    <SelectItem key={contact.id} value={contact.id.toString()}>
+                      {contact.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {selectedCourseId && (
+            {selectedContactId && (
               <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-sm">
-                  {courses?.find((c: any) => c.id.toString() === selectedCourseId)?.teacherName?.charAt(0) ?? "T"}
+                  {contacts.find((c: any) => c.id.toString() === selectedContactId)?.name.charAt(0) ?? "C"}
                 </div>
                 <div>
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Assigned Teacher</p>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Recipient Name</p>
                   <p className="font-bold text-slate-800 text-sm">
-                    {courses?.find((c: any) => c.id.toString() === selectedCourseId)?.teacherName}
+                    {contacts.find((c: any) => c.id.toString() === selectedContactId)?.name}
                   </p>
                 </div>
               </div>
@@ -605,7 +611,7 @@ export default function StudentMessages() {
             </Button>
             <Button 
               onClick={handleCreateThread} 
-              disabled={!selectedCourseId || creatingThread} 
+              disabled={!selectedContactId || creatingThread} 
               className="flex-1 bg-primary text-white font-bold h-12 rounded-xl shadow-lg shadow-primary/20"
             >
               {creatingThread ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "Start Chat"}

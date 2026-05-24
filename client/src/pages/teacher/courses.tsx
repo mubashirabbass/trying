@@ -7,6 +7,7 @@ import {
 } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { Loader2, Plus, BookOpen, Clock, Users, Edit, GraduationCap, Sparkles, BookOpenCheck, Trash2 } from "lucide-react";
+import { FileUploadButton } from "@/components/FileUploadButton";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -52,6 +53,7 @@ export default function TeacherCourses() {
   const [fee, setFee] = useState("5000");
   const [isFree, setIsFree] = useState(false);
   const [thumbnail, setThumbnail] = useState("");
+  const [outlinePdfUrl, setOutlinePdfUrl] = useState("");
   const [syllabus, setSyllabus] = useState("");
   const [minAttendancePercentage, setMinAttendancePercentage] = useState("75");
   const [savingCourse, setSavingCourse] = useState(false);
@@ -72,6 +74,7 @@ export default function TeacherCourses() {
     setFee("5000");
     setIsFree(false);
     setThumbnail("");
+    setOutlinePdfUrl("");
     setSyllabus("");
     setMinAttendancePercentage("75");
     setIsDialogOpen(true);
@@ -86,6 +89,7 @@ export default function TeacherCourses() {
     setFee((course.fee ?? 0).toString());
     setIsFree(!!course.isFree);
     setThumbnail(course.thumbnail || "");
+    setOutlinePdfUrl((course as any).outlinePdfUrl || "");
     setSyllabus(course.syllabus || "");
     setMinAttendancePercentage((course.minAttendancePercentage ?? 75).toString());
     setIsDialogOpen(true);
@@ -107,6 +111,7 @@ export default function TeacherCourses() {
       isFree,
       thumbnail: thumbnail.trim() || undefined,
       syllabus: syllabus.trim() || undefined,
+      outlinePdfUrl: outlinePdfUrl.trim() || undefined,
       minAttendancePercentage: Number(minAttendancePercentage) || 75,
     };
 
@@ -401,12 +406,13 @@ export default function TeacherCourses() {
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="thumbnail">Cover Thumbnail Image URL</Label>
-              <Input
-                id="thumbnail"
-                placeholder="e.g. https://images.unsplash.com/photo-..."
-                value={thumbnail}
-                onChange={(e) => setThumbnail(e.target.value)}
+              <Label>Cover Thumbnail Image</Label>
+              <FileUploadButton
+                type="image"
+                currentUrl={thumbnail || null}
+                onUploaded={(url) => setThumbnail(url)}
+                onClear={() => setThumbnail("")}
+                showDownload={true}
               />
             </div>
 
@@ -423,13 +429,25 @@ export default function TeacherCourses() {
             </div>
 
             <div className="space-y-1">
-              <Label htmlFor="syllabus">Detailed Course Outline & Lesson Plans</Label>
+              <Label htmlFor="syllabus">Detailed Course Outline &amp; Lesson Plans</Label>
               <Textarea
                 id="syllabus"
-                placeholder="Module 1: Getting Started&#10;Module 2: Advanced Layouts&#10;Provide learning objectives, outlines, and lecture guidelines here..."
+                placeholder="- Learn React from scratch&#10;- Build real-world projects&#10;---&#10;Week 1: Foundations&#10;Week 2: Components & State"
                 value={syllabus}
                 onChange={(e) => setSyllabus(e.target.value)}
                 rows={5}
+              />
+              <p className="text-xs text-slate-400">Use '---' to separate outcome bullets from the weekly outline.</p>
+            </div>
+
+            <div className="space-y-1">
+              <Label>Course Outline PDF <span className="text-slate-400 font-normal text-xs">(students can download when enrolled)</span></Label>
+              <FileUploadButton
+                type="pdf"
+                currentUrl={outlinePdfUrl || null}
+                onUploaded={(url) => setOutlinePdfUrl(url)}
+                onClear={() => setOutlinePdfUrl("")}
+                showDownload={true}
               />
             </div>
 

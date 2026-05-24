@@ -302,7 +302,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     switch (user.role) {
       case "student":
         return [
-          { name: "Overview", path: "/dashboard", icon: LayoutDashboard },
+          { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
           { name: "Browse Courses", path: "/dashboard/browse", icon: Compass },
           { name: "My Courses", path: "/dashboard/courses", icon: BookOpen },
           { name: "Live Classes", path: "/dashboard/live-classes", icon: Video },
@@ -429,37 +429,48 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                 
                 if (item.path === "/dashboard/messages" && unreadMessages > 0) {
                   badgeContent = (
-                    <span className="ml-auto h-5 w-5 bg-red-500 text-[10px] font-black text-white rounded-full flex items-center justify-center shadow-sm animate-pulse shrink-0">
-                      {unreadMessages}
+                    <span className="ml-auto min-w-[20px] h-5 px-1.5 bg-gradient-to-br from-red-500 to-rose-600 text-[10px] font-black text-white rounded-full flex items-center justify-center shadow-md shadow-red-500/40 shrink-0 ring-1 ring-white/30">
+                      {unreadMessages > 9 ? "9+" : unreadMessages}
                     </span>
                   );
                 } else if (item.path === "/dashboard/assignments" && pendingAssignments > 0) {
                   badgeContent = (
-                    <span className="ml-auto h-5 w-5 bg-red-500 text-[10px] font-black text-white rounded-full flex items-center justify-center shadow-sm animate-pulse shrink-0">
-                      {pendingAssignments}
+                    <span className="ml-auto min-w-[20px] h-5 px-1.5 bg-gradient-to-br from-orange-500 to-red-500 text-[10px] font-black text-white rounded-full flex items-center justify-center shadow-md shadow-orange-500/40 shrink-0 ring-1 ring-white/30">
+                      {pendingAssignments > 9 ? "9+" : pendingAssignments}
                     </span>
                   );
                 } else if (item.path === "/dashboard/courses" && pendingCourses > 0) {
                   badgeContent = (
-                    <span className="ml-auto h-5 w-5 bg-blue-500 text-[10px] font-black text-white rounded-full flex items-center justify-center shadow-sm animate-pulse shrink-0" title="Pending courses / approval">
-                      {pendingCourses}
+                    <span className="ml-auto min-w-[20px] h-5 px-1.5 bg-gradient-to-br from-blue-500 to-indigo-600 text-[10px] font-black text-white rounded-full flex items-center justify-center shadow-md shadow-blue-500/40 shrink-0 ring-1 ring-white/30" title="Pending courses / approval">
+                      {pendingCourses > 9 ? "9+" : pendingCourses}
                     </span>
                   );
                 } else if (item.path === "/dashboard/quizzes" && pendingQuizzes > 0) {
                   badgeContent = (
-                    <span className="ml-auto h-5 w-5 bg-red-500 text-[10px] font-black text-white rounded-full flex items-center justify-center shadow-sm animate-pulse shrink-0">
-                      {pendingQuizzes}
+                    <span className="ml-auto min-w-[20px] h-5 px-1.5 bg-gradient-to-br from-violet-500 to-purple-600 text-[10px] font-black text-white rounded-full flex items-center justify-center shadow-md shadow-violet-500/40 shrink-0 ring-1 ring-white/30">
+                      {pendingQuizzes > 9 ? "9+" : pendingQuizzes}
                     </span>
                   );
                 } else if (item.path === "/dashboard/attendance" && attendanceStatus) {
                   badgeContent = (
-                    <span className={`ml-auto h-2.5 w-2.5 rounded-full shadow-sm animate-pulse shrink-0 ${
-                      attendanceStatus === "green" ? "bg-emerald-500" : "bg-red-500"
-                    }`} title={attendanceStatus === "green" ? "Marked Present Today" : "Marked Absent / Update"} />
+                    <span
+                      className={`ml-auto relative flex h-3.5 w-3.5 shrink-0`}
+                      title={attendanceStatus === "green" ? "Marked Present Today" : "Marked Absent / Update"}
+                    >
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-60 ${
+                        attendanceStatus === "green" ? "bg-emerald-400" : "bg-red-400"
+                      }`} />
+                      <span className={`relative inline-flex rounded-full h-3.5 w-3.5 ring-2 ring-white/70 shadow-sm ${
+                        attendanceStatus === "green" ? "bg-emerald-500" : "bg-red-500"
+                      }`} />
+                    </span>
                   );
                 } else if (item.path === "/dashboard/forum" && forumHasUpdates) {
                   badgeContent = (
-                    <span className="ml-auto h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-sm animate-pulse shrink-0" title="New discussion replies" />
+                    <span className="ml-auto relative flex h-3.5 w-3.5 shrink-0" title="New discussion replies">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                      <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 ring-2 ring-white/70 shadow-sm" />
+                    </span>
                   );
                 }
 

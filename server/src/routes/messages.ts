@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { db, messageThreadsTable, messagesTable, usersTable, coursesTable } from "@workspace/db";
-import { eq, or, desc, and } from "drizzle-orm";
+import { db, messageThreadsTable, messagesTable, usersTable, coursesTable, enrollmentsTable } from "@workspace/db";
+import { eq, or, desc, and, inArray, sql } from "drizzle-orm";
 import { messageMediaUpload } from "../middleware/upload";
 import { uploadToCloudinary } from "../lib/cloudinary";
 
@@ -23,6 +23,73 @@ router.post("/presence/offline", async (req, res): Promise<void> => {
   const userId = Number(req.body.userId);
   if (userId) presence.delete(userId);
   res.json({ online: false });
+});
+
+// Contacts list for initiating new chat threads (accessible to students)
+router.get("/messages/contacts", async (req, res): Promise<void> => {
+  const userId = req.query.userId ? Number(req.query.userId) : null;
+  if (!userId) {
+    res.status(400).json({ error: "userId required" });
+    return;
+  }
+
+  try {
+    // 1. Get all active enrollments for this student to find their teachers
+    const enrollments = await db.select().from(enrollmentsTable)
+      .where(and(
+        eq(enrollmentsTable.userId, userId),
+        eq(enrollmentsTable.status, "active")
+      ));
+    
+    const courseIds = enrollments.map(e => e.courseId);
+    let teachers: any[] = [];
+    if (courseIds.length > 0) {
+      const courses = await db.select({
+        id: coursesTable.id,
+        title: coursesTable.title,
+        teacherId: coursesTable.teacherId
+      }).from(coursesTable)
+        .where(inArray(coursesTable.id, courseIds));
+        
+      const teacherIds = courses.map(c => c.teacherId).filter(Boolean) as number[];
+      if (teacherIds.length > 0) {
+        teachers = await db.select({
+          id: usersTable.id,
+          name: usersTable.name,
+          role: usersTable.role,
+        }).from(usersTable)
+          .where(and(
+            inArray(usersTable.id, teacherIds),
+            eq(usersTable.role, "teacher")
+          ));
+      }
+    }
+
+    // 2. Get active support admins
+    const admins = await db.select({
+      id: usersTable.id,
+      name: usersTable.name,
+      role: usersTable.role,
+    }).from(usersTable)
+      .where(and(
+        eq(usersTable.role, "admin"),
+        eq(usersTable.isActive, true)
+      ));
+
+    // Combine them into a contact list
+    const contacts = [
+      ...admins.map(a => ({ id: a.id, name: `${a.name} (Support Admin)`, role: "admin", courseId: null, courseTitle: "General Support" })),
+      ...teachers.map(t => ({ id: t.id, name: `${t.name} (Teacher)`, role: "teacher", courseId: null }))
+    ];
+
+    // Remove duplicates
+    const uniqueContacts = Array.from(new Map(contacts.map(c => [c.id, c])).values());
+
+    res.json(uniqueContacts);
+  } catch (error) {
+    console.error("Failed to load contacts:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 router.get("/messages/threads", async (req, res): Promise<void> => {
@@ -52,27 +119,47 @@ router.get("/messages/threads", async (req, res): Promise<void> => {
     return;
   }
 
+  // 1. Bulk query all users associated with these threads to avoid N+1 queries
+  const studentIds = threads.map(t => t.studentId);
+  const teacherIds = threads.map(t => t.teacherId);
+  const allUserIds = Array.from(new Set([...studentIds, ...teacherIds]));
+  
+  const users = allUserIds.length > 0 
+    ? await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(inArray(usersTable.id, allUserIds))
+    : [];
+  const userMap = new Map(users.map(u => [u.id, u.name]));
+
+  // 2. Fetch last messages and counts in parallel with light weight selects
   const threadsWithDetails = await Promise.all(threads.map(async (t) => {
-    const [student] = await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(eq(usersTable.id, t.studentId));
-    const [teacher] = await db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(eq(usersTable.id, t.teacherId));
+    const studentName = userMap.get(t.studentId);
+    const teacherName = userMap.get(t.teacherId);
     
-    const [lastMsg] = await db.select().from(messagesTable)
+    const [lastMsg] = await db.select({
+      body: messagesTable.body,
+      attachmentType: messagesTable.attachmentType,
+      createdAt: messagesTable.createdAt
+    }).from(messagesTable)
       .where(eq(messagesTable.threadId, t.id))
       .orderBy(desc(messagesTable.createdAt))
       .limit(1);
-    
-    const allMsgs = await db.select().from(messagesTable).where(eq(messagesTable.threadId, t.id));
+      
+    const [countResult] = await db.select({
+      count: sql<number>`cast(count(*) as integer)`
+    }).from(messagesTable)
+      .where(eq(messagesTable.threadId, t.id));
 
     return { 
       ...t, 
-      studentName: student?.name, 
-      teacherName: teacher?.name,
+      studentName, 
+      teacherName,
       studentOnline: isOnline(t.studentId),
       teacherOnline: isOnline(t.teacherId),
       lastMessagePreview: lastMsg?.body || (lastMsg?.attachmentType === "image" ? "Image" : lastMsg?.attachmentType === "audio" ? "Voice note" : ""),
-      messageCount: allMsgs.length
+      messageCount: countResult?.count || 0,
+      courseName: t.courseName || "General Support"
     };
   }));
+
   res.json(threadsWithDetails);
 });
 

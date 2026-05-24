@@ -67,6 +67,12 @@ app.use((req, res, next) => {
 });
 
 import path from "path";
+import fs from "fs";
+
+// 3.5 Serve uploaded files (images, PDFs) from local /uploads folder
+const uploadsDir = path.join(process.cwd(), "uploads");
+fs.mkdirSync(uploadsDir, { recursive: true });
+app.use("/uploads", express.static(uploadsDir));
 
 // 4. API Routes (Versioned)
 app.use("/api", router);

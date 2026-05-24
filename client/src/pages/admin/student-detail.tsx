@@ -247,24 +247,35 @@ export default function AdminStudentDetail() {
 
     try {
       setIsUploading(true);
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
 
       // Upload CNIC if changed
       if (cnicFile) {
         const fd = new FormData();
-        fd.append("document", cnicFile);
-        const res = await fetch("/api/auth/upload-identity", { method: "POST", body: fd });
+        fd.append("file", cnicFile);
+        const res = await fetch("/api/upload/image", { 
+          method: "POST", 
+          headers: { "Authorization": `Bearer ${token}` },
+          body: fd 
+        });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error?.message || "CNIC Upload Failed");
+        if (!res.ok) throw new Error(data.error || "CNIC Upload Failed");
         identityDocumentUrl = data.url;
       }
 
       // Upload transcript if changed
       if (educationFile) {
         const fd = new FormData();
-        fd.append("document", educationFile);
-        const res = await fetch("/api/auth/upload-identity", { method: "POST", body: fd });
+        fd.append("file", educationFile);
+        const isPdf = educationFile.type === "application/pdf";
+        const endpoint = isPdf ? "/api/upload/pdf" : "/api/upload/image";
+        const res = await fetch(endpoint, { 
+          method: "POST", 
+          headers: { "Authorization": `Bearer ${token}` },
+          body: fd 
+        });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error?.message || "Transcript Upload Failed");
+        if (!res.ok) throw new Error(data.error || "Transcript Upload Failed");
         educationDocumentUrl = data.url;
       }
     } catch (err: any) {
@@ -349,8 +360,12 @@ export default function AdminStudentDetail() {
         
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="flex items-center gap-6">
-            <div className="h-24 w-24 rounded-[32px] bg-primary/10 flex items-center justify-center text-primary text-4xl font-black shadow-inner">
-              {student.name.charAt(0)}
+            <div className="h-24 w-24 rounded-[32px] overflow-hidden bg-primary/10 flex items-center justify-center text-primary text-4xl font-black shadow-inner shrink-0 border border-slate-200">
+              {student.avatar ? (
+                <img src={student.avatar} alt={student.name} className="w-full h-full object-cover" />
+              ) : (
+                (student.name || "S").charAt(0)
+              )}
             </div>
             <div>
               <div className="flex items-center gap-3">
@@ -579,7 +594,7 @@ export default function AdminStudentDetail() {
                       enrollments.map((enr: any) => (
                         <tr key={enr.id} className="border-b last:border-0 hover:bg-gray-50/50 transition-colors">
                           <td className="px-4 py-4 font-bold text-gray-900">{enr.courseName || `Course #${enr.courseId}`}</td>
-                          <td className="px-4 py-4 text-sm text-gray-500">{new Date(enr.enrolledAt).toLocaleDateString()}</td>
+                          <td className="px-4 py-4 text-sm text-gray-500">{enr.enrolledAt ? new Date(enr.enrolledAt).toLocaleDateString() : "—"}</td>
                           <td className="px-4 py-4">
                             <div className="flex items-center gap-3">
                               <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
@@ -627,7 +642,7 @@ export default function AdminStudentDetail() {
                       payments.map((pay: any) => (
                         <tr key={pay.id} className="border-b last:border-0 hover:bg-gray-50/50 transition-colors">
                           <td className="px-4 py-4 font-mono text-xs font-bold text-gray-500 uppercase">#PAY-{pay.id}</td>
-                          <td className="px-4 py-4 font-black text-gray-900">Rs. {pay.amount.toLocaleString()}</td>
+                          <td className="px-4 py-4 font-black text-gray-900">Rs. {(pay.amount || 0).toLocaleString()}</td>
                           <td className="px-4 py-4">
                             <Badge variant="outline" className="capitalize border-slate-200">{pay.method?.replace('_', ' ') || 'Unknown'}</Badge>
                           </td>
@@ -724,7 +739,7 @@ export default function AdminStudentDetail() {
                                     {doc.status}
                                   </Badge>
                                   <span className="text-xs text-gray-400">
-                                    Submitted {new Date(doc.submittedAt).toLocaleDateString()}
+                                    Submitted {doc.submittedAt ? new Date(doc.submittedAt).toLocaleDateString() : "—"}
                                   </span>
                                 </div>
                                 {doc.rejectionReason && (

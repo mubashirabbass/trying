@@ -61,9 +61,7 @@ router.get("/certificates/verify", async (req, res): Promise<void> => {
 });
 
 // PRIVATE ROUTES (Require Auth)
-router.use(authenticate);
-
-router.get("/certificates", async (req: AuthRequest, res): Promise<void> => {
+router.get("/certificates", authenticate, async (req: AuthRequest, res): Promise<void> => {
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
 
@@ -83,7 +81,7 @@ router.get("/certificates", async (req: AuthRequest, res): Promise<void> => {
   res.json(certs);
 });
 
-router.get("/certificates/:id/download", async (req: AuthRequest, res): Promise<void> => {
+router.get("/certificates/:id/download", authenticate, async (req: AuthRequest, res): Promise<void> => {
   const id = parseInt(req.params.id, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 

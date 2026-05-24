@@ -28,22 +28,49 @@ export default function StudentDashboard() {
   // 1. Dashboard statistics and activity
   const { data: dashboard, isLoading: isDashboardLoading } = useGetStudentDashboard(
     { userId: user?.id || 0 },
-    { query: { enabled: !!user?.id, queryKey: getGetStudentDashboardQueryKey({ userId: user?.id || 0 }) } }
+    { 
+      query: { 
+        enabled: !!user?.id, 
+        queryKey: getGetStudentDashboardQueryKey({ userId: user?.id || 0 }),
+        staleTime: 5 * 60 * 1000,
+        refetchOnWindowFocus: false,
+      } 
+    }
   );
 
   // 2. Enrolled courses list
   const { data: enrollments = [], isLoading: isEnrollmentsLoading } = useListEnrollments(
     { userId: user?.id },
-    { query: { enabled: !!user?.id } }
+    { 
+      query: { 
+        enabled: !!user?.id,
+        staleTime: 5 * 60 * 1000,
+        refetchOnWindowFocus: false,
+      } 
+    }
   );
 
   // 3. Courses list to map teachers
-  const { data: courses = [], isLoading: isCoursesLoading } = useListCourses();
+  const { data: courses = [], isLoading: isCoursesLoading } = useListCourses(
+    undefined,
+    {
+      query: {
+        staleTime: 10 * 60 * 1000,
+        refetchOnWindowFocus: false,
+      }
+    }
+  );
 
   // 4. Pending payments for this student
   const { data: allPayments = [], isLoading: isPaymentsLoading } = useListPayments(
     { userId: user?.id },
-    { query: { enabled: !!user?.id } }
+    { 
+      query: { 
+        enabled: !!user?.id,
+        staleTime: 2 * 60 * 1000,
+        refetchOnWindowFocus: false,
+      } 
+    }
   );
   const pendingPayments = allPayments.filter((p: any) => p.status === "pending");
 
@@ -80,19 +107,14 @@ export default function StudentDashboard() {
     return () => clearInterval(interval);
   }, [user?.id]);
 
-  const isLoading = isDashboardLoading || isEnrollmentsLoading || isCoursesLoading || isPaymentsLoading;
-
-  if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="flex justify-center items-center h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   const firstName = user?.name.split(" ")[0] || "Student";
+  
+  const getGreeting = () => {
+    const hours = new Date().getHours();
+    if (hours < 12) return "Good morning";
+    if (hours < 17) return "Good afternoon";
+    return "Good evening";
+  };
   
   // Format deadlines to match the mockup's behavior
   const formatDeadlineDate = (dueDateString: string) => {
@@ -177,9 +199,14 @@ export default function StudentDashboard() {
         
         {/* Welcome Section */}
         <div className="flex justify-between items-center mb-8 relative">
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
-            Welcome back, {firstName}!
-          </h1>
+          <div className="space-y-1">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+              {getGreeting()}, {firstName}! 👋
+            </h1>
+            <p className="text-xs sm:text-sm font-semibold text-slate-400">
+              Here's a snapshot of your academic progress and upcoming deadlines today.
+            </p>
+          </div>
           <div className="flex items-center gap-4 relative z-50">
             {/* Notification Bell Dropdown Button */}
             <div className="relative">
@@ -283,7 +310,7 @@ export default function StudentDashboard() {
                 className="h-10 w-10 rounded-full overflow-hidden border border-slate-200 shadow-sm bg-slate-200 hover:ring-2 hover:ring-primary/20 transition-all cursor-pointer block"
               >
                 <img 
-                  src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop" 
+                  src={user?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop"} 
                   alt={user?.name} 
                   className="h-full w-full object-cover"
                 />
@@ -298,7 +325,7 @@ export default function StudentDashboard() {
                     <div className="flex items-center gap-3 bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
                       <div className="h-12 w-12 rounded-full overflow-hidden border border-slate-200 shadow-sm bg-slate-200 shrink-0">
                         <img 
-                          src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop" 
+                          src={user?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&h=80&fit=crop"} 
                           alt={user?.name} 
                           className="h-full w-full object-cover"
                         />
@@ -349,14 +376,15 @@ export default function StudentDashboard() {
           <div className="lg:col-span-2 space-y-8">
             
             {/* PROFILE CARD */}
-            <Card className="border border-slate-100 shadow-sm rounded-[1.25rem] bg-white overflow-hidden">
-              <CardContent className="p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative">
+            <Card className="border border-slate-100 shadow-md rounded-[1.5rem] bg-white overflow-hidden relative group transition-all duration-300 hover:shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-transparent to-purple-500/5 opacity-50 pointer-events-none" />
+              <CardContent className="p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
                 
                 {/* Profile Details */}
                 <div className="flex items-center gap-5">
                   <div className="h-20 w-20 rounded-full overflow-hidden border border-slate-100 shadow-md bg-slate-200 shrink-0">
                     <img 
-                      src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop" 
+                      src={user?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&h=200&fit=crop"} 
                       alt={user?.name} 
                       className="h-full w-full object-cover"
                     />
@@ -400,42 +428,52 @@ export default function StudentDashboard() {
               </CardContent>
             </Card>
 
-            {/* PENDING FEE PAYMENTS ALERT */}
-            {pendingPayments.length > 0 && (
-              <Card className="border-2 border-amber-200 bg-amber-50/50 shadow-sm rounded-[1.25rem] overflow-hidden">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="h-12 w-12 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                      <CreditCard className="h-6 w-6 text-amber-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-base font-bold text-amber-900 mb-1">Pending Fee Payment</h3>
-                      <p className="text-sm text-amber-800 mb-4">
-                        You have {pendingPayments.length} course{pendingPayments.length > 1 ? 's' : ''} awaiting fee payment. Upload your receipt to activate your enrollment.
-                      </p>
-                      <div className="space-y-2">
-                        {pendingPayments.map((payment: any) => {
-                          const course = courses.find(c => c.id === payment.courseId);
-                          return (
-                            <div key={payment.id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-amber-100">
-                              <div className="min-w-0">
-                                <p className="font-semibold text-slate-800 text-sm truncate">{course?.title || `Course #${payment.courseId}`}</p>
-                                <p className="text-xs text-slate-500">Amount: Rs. {payment.amount?.toLocaleString() || 0}</p>
-                              </div>
-                              <Link href={`/dashboard/payment/${payment.courseId}`}>
-                                <Button className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-8 px-3 rounded-lg shrink-0">
-                                  Upload Receipt
-                                </Button>
-                              </Link>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+             {/* PENDING FEE PAYMENTS ALERT */}
+             {isPaymentsLoading ? (
+               <Card className="border border-slate-100 shadow-sm rounded-[1.25rem] bg-white p-6">
+                 <div className="flex items-start gap-4 animate-pulse">
+                   <div className="h-12 w-12 rounded-xl bg-slate-100 shrink-0" />
+                   <div className="flex-1 space-y-2">
+                     <div className="h-4 bg-slate-100 rounded w-1/3" />
+                     <div className="h-3 bg-slate-100 rounded w-2/3" />
+                   </div>
+                 </div>
+               </Card>
+             ) : pendingPayments.length > 0 && (
+               <Card className="border-2 border-amber-200 bg-amber-50/50 shadow-sm rounded-[1.25rem] overflow-hidden">
+                 <CardContent className="p-6">
+                   <div className="flex items-start gap-4">
+                     <div className="h-12 w-12 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                       <CreditCard className="h-6 w-6 text-amber-600" />
+                     </div>
+                     <div className="flex-1 min-w-0">
+                       <h3 className="text-base font-bold text-amber-900 mb-1">Pending Fee Payment</h3>
+                       <p className="text-sm text-amber-800 mb-4">
+                         You have {pendingPayments.length} course{pendingPayments.length > 1 ? 's' : ''} awaiting fee payment. Upload your receipt to activate your enrollment.
+                       </p>
+                       <div className="space-y-2">
+                         {pendingPayments.map((payment: any) => {
+                           const course = courses.find(c => c.id === payment.courseId);
+                           return (
+                             <div key={payment.id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-amber-100">
+                               <div className="min-w-0">
+                                 <p className="font-semibold text-slate-800 text-sm truncate">{course?.title || `Course #${payment.courseId}`}</p>
+                                 <p className="text-xs text-slate-500">Amount: Rs. {payment.amount?.toLocaleString() || 0}</p>
+                               </div>
+                               <Link href={`/dashboard/payment/${payment.courseId}`}>
+                                 <Button className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs h-8 px-3 rounded-lg shrink-0">
+                                   Upload Receipt
+                                 </Button>
+                               </Link>
+                             </div>
+                           );
+                         })}
+                       </div>
+                     </div>
+                   </div>
+                 </CardContent>
+               </Card>
+             )}
 
             {/* ENROLLED COURSES */}
             <section className="space-y-4">
@@ -446,7 +484,23 @@ export default function StudentDashboard() {
                 </Link>
               </div>
 
-              {activeEnrollments.length > 0 ? (
+              {isEnrollmentsLoading || isCoursesLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {[1, 2].map((i) => (
+                    <Card key={i} className="border border-slate-100 shadow-sm rounded-[1.25rem] bg-white p-6 space-y-4 animate-pulse">
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="space-y-2 flex-1">
+                          <div className="h-4 bg-slate-100 rounded w-3/4" />
+                          <div className="h-3 bg-slate-100 rounded w-1/4" />
+                        </div>
+                        <div className="h-4 bg-slate-100 rounded w-10" />
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded w-full" />
+                      <div className="h-10 bg-slate-105 rounded w-full" />
+                    </Card>
+                  ))}
+                </div>
+              ) : activeEnrollments.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {activeEnrollments.map((enrollment, idx) => {
                     const matchedCourse = courses.find(c => c.id === enrollment.courseId);
@@ -511,19 +565,29 @@ export default function StudentDashboard() {
                   <Info className="h-4 w-4" />
                 </button>
               </div>
-              <div className="bg-blue-50/70 border border-blue-100/60 rounded-xl p-4 flex items-center gap-4 shadow-none">
-                <div className="h-12 w-12 rounded-xl bg-blue-100/80 flex items-center justify-center text-blue-600 shrink-0 shadow-sm">
-                  <Award className="h-6 w-6" />
+              {isDashboardLoading ? (
+                <div className="bg-slate-50/70 border border-slate-100/60 rounded-xl p-4 flex items-center gap-4 animate-pulse">
+                  <div className="h-12 w-12 rounded-xl bg-slate-100 shrink-0" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-4 bg-slate-100 rounded w-1/2" />
+                    <div className="h-3 bg-slate-100 rounded w-1/4" />
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-bold text-slate-800 text-sm">
-                    Current Rank: #{dashboard?.leaderboardRank || 15} (Global)
-                  </h4>
-                  <p className="text-slate-400 text-xs font-semibold mt-0.5">
-                    Top 10%
-                  </p>
+              ) : (
+                <div className="bg-blue-50/70 border border-blue-100/60 rounded-xl p-4 flex items-center gap-4 shadow-none">
+                  <div className="h-12 w-12 rounded-xl bg-blue-100/80 flex items-center justify-center text-blue-600 shrink-0 shadow-sm">
+                    <Award className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800 text-sm">
+                      Current Rank: #{dashboard?.leaderboardRank || 15} (Global)
+                    </h4>
+                    <p className="text-slate-400 text-xs font-semibold mt-0.5">
+                      Top 10%
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </Card>
 
           </div>
@@ -536,7 +600,19 @@ export default function StudentDashboard() {
               <CardContent className="p-6 space-y-5">
                 <h3 className="text-base font-bold text-slate-800">Upcoming Deadlines</h3>
                 
-                {dashboard?.deadlines && dashboard.deadlines.length > 0 ? (
+                {isDashboardLoading ? (
+                  <div className="space-y-4 animate-pulse">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="flex gap-3.5 items-start">
+                        <div className="h-8 w-8 rounded-lg bg-slate-100 shrink-0" />
+                        <div className="space-y-2 flex-1">
+                          <div className="h-3.5 bg-slate-100 rounded w-3/4" />
+                          <div className="h-2.5 bg-slate-100 rounded w-1/2" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : dashboard?.deadlines && dashboard.deadlines.length > 0 ? (
                   <div className="space-y-4">
                     {dashboard.deadlines.map((deadline, i) => {
                       const dateInfo = formatDeadlineDate(deadline.dueDate);

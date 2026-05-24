@@ -241,7 +241,7 @@ export default function StudentProgress() {
 
                     {/* Action */}
                     <div className="shrink-0">
-                      <Link href={`/dashboard/courses/${enr.courseId}/learn`}>
+                      <Link href={`/dashboard/lessons/${enr.courseId}`}>
                         <Button
                           size="sm"
                           variant={enr.isCompleted ? "outline" : "default"}

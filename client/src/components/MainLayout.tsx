@@ -76,7 +76,7 @@ export function MainLayout({ children }: { children: ReactNode }) {
           </div>
           
           <div className="border-t border-gray-800 mt-12 pt-8 text-sm text-center text-gray-400">
-            <p>&copy; {new Date().getFullYear()} Global College LMS. All rights reserved. | <Link href="/login" className="hover:text-white transition-colors">Student Login</Link></p>
+            <p>&copy; {new Date().getFullYear()} Global College LMS. All rights reserved. | Developed by <a href="#" className="hover:text-white transition-colors font-semibold">MB soft and tech</a></p>
           </div>
         </div>
       </footer>

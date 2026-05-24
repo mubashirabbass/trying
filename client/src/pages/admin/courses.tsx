@@ -9,7 +9,13 @@ import {
   getListUsersQueryKey,
   useDeleteCourse
 } from "@workspace/api-client-react";
-import { Loader2, Plus, MoreHorizontal, CheckCircle, XCircle, Eye, ExternalLink, Video } from "lucide-react";
+import { 
+  Loader2, Plus, MoreHorizontal, CheckCircle, XCircle, Eye, 
+  ExternalLink, Video, Search, Filter, BookOpen, Clock, AlertCircle, 
+  Users, Award, ShieldCheck, Edit, Trash2, Check, Sparkles, Laptop, 
+  Palette, Briefcase, Brain, FileSpreadsheet, GraduationCap, DollarSign, ListTodo, Download, FileText
+} from "lucide-react";
+import { FileUploadButton } from "@/components/FileUploadButton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,6 +29,58 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
+
+// Dynamic Category Mapping
+const CATEGORY_DETAILS: Record<string, { label: string; icon: React.ComponentType<any>; color: string; gradient: string }> = {
+  IT: { 
+    label: "IT Specialization", 
+    icon: Laptop, 
+    color: "text-blue-600 bg-blue-50 border-blue-100 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/40", 
+    gradient: "from-blue-600 to-indigo-400" 
+  },
+  Graphics: { 
+    label: "Graphics Design", 
+    icon: Palette, 
+    color: "text-purple-600 bg-purple-50 border-purple-100 dark:bg-purple-950/20 dark:text-purple-400 dark:border-purple-900/40", 
+    gradient: "from-purple-600 to-pink-500" 
+  },
+  Freelancing: { 
+    label: "Freelancing Mastery", 
+    icon: Briefcase, 
+    color: "text-emerald-600 bg-emerald-50 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/40", 
+    gradient: "from-emerald-600 to-teal-500" 
+  },
+  AI: { 
+    label: "AI Engineering", 
+    icon: Brain, 
+    color: "text-orange-600 bg-orange-50 border-orange-100 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-900/40", 
+    gradient: "from-orange-500 to-amber-400" 
+  },
+  "MS Office": { 
+    label: "MS Office Suite", 
+    icon: FileSpreadsheet, 
+    color: "text-cyan-600 bg-cyan-50 border-cyan-100 dark:bg-cyan-950/20 dark:text-cyan-400 dark:border-cyan-900/40", 
+    gradient: "from-cyan-600 to-sky-400" 
+  },
+  Web: { 
+    label: "Web Dev", 
+    icon: Laptop, 
+    color: "text-indigo-600 bg-indigo-50 border-indigo-100 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/40", 
+    gradient: "from-indigo-600 to-violet-400" 
+  },
+  "Computer Basic": { 
+    label: "Computer Basic", 
+    icon: Laptop, 
+    color: "text-slate-600 bg-slate-50 border-slate-200 dark:bg-slate-800/40 dark:text-slate-400 dark:border-slate-700/50", 
+    gradient: "from-slate-600 to-slate-450" 
+  },
+  Default: { 
+    label: "Professional course", 
+    icon: GraduationCap, 
+    color: "text-slate-650 bg-slate-50 border-slate-100 dark:bg-slate-800/40 dark:text-slate-450 dark:border-slate-700/50", 
+    gradient: "from-indigo-600 to-violet-400" 
+  }
+};
 
 export default function AdminCourses() {
   const { toast } = useToast();
@@ -38,9 +96,10 @@ export default function AdminCourses() {
     { query: { queryKey: getListUsersQueryKey({ role: "teacher" }) } }
   );
 
-  const [reviewCourse, setReviewCourse] = useState<any>(null);
-  const [rejectionNote, setRejectionNote] = useState("");
-  const [isReviewOpen, setIsReviewOpen] = useState(false);
+  // Client-Side Searching & Filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
 
   // Course Creator Form State
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -52,9 +111,28 @@ export default function AdminCourses() {
   const [isFree, setIsFree] = useState(false);
   const [isFeatured, setIsFeatured] = useState(false);
   const [thumbnail, setThumbnail] = useState("");
+  const [outlinePdfUrl, setOutlinePdfUrl] = useState("");
   const [syllabus, setSyllabus] = useState("");
   const [teacherId, setTeacherId] = useState<string>("");
   const [minAttendancePercentage, setMinAttendancePercentage] = useState("75");
+
+  // Filter dynamic course listing on Client
+  const filteredCourses = courses?.filter(c => {
+    const matchesSearch = 
+      c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.teacherName || "").toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesCategory = filterCategory === "all" || c.category === filterCategory;
+    const matchesStatus = filterStatus === "all" || c.status === filterStatus;
+
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
+
+  // Calculate high-fidelity metrics
+  const totalCourses = courses?.length || 0;
+  const pendingReviews = courses?.filter(c => c.status === "pending").length || 0;
+  const liveTracks = courses?.filter(c => c.status === "live").length || 0;
+  const totalStudentsEnrolled = courses?.reduce((sum, c) => sum + (c.enrollmentCount || 0), 0) || 0;
 
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,8 +152,9 @@ export default function AdminCourses() {
           isFeatured,
           thumbnail: thumbnail || undefined,
           syllabus: syllabus || undefined,
-          teacherId: teacherId ? Number(teacherId) : undefined,
-          minAttendancePercentage: Number(minAttendancePercentage)
+          teacherId: teacherId && teacherId !== "none" ? Number(teacherId) : undefined,
+          minAttendancePercentage: Number(minAttendancePercentage),
+          outlinePdfUrl: outlinePdfUrl || undefined,
         } as any
       });
       toast({ title: "Course created & published successfully!" });
@@ -90,29 +169,12 @@ export default function AdminCourses() {
       setIsFree(false);
       setIsFeatured(false);
       setThumbnail("");
+      setOutlinePdfUrl("");
       setSyllabus("");
       setTeacherId("");
       setMinAttendancePercentage("75");
     } catch (error: any) {
       toast({ title: error?.response?.data?.message || "Failed to create course", variant: "destructive" });
-    }
-  };
-
-  const handleStatusUpdate = async (id: number, status: string, note?: string) => {
-    try {
-      await updateCourse.mutateAsync({
-        id,
-        data: { status, rejectionNote: note || null } as any
-      });
-      toast({ title: `Course ${status === 'live' ? 'Approved' : 'Rejected'}` });
-      // Force refresh the courses list
-      await queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({}) });
-      await queryClient.refetchQueries({ queryKey: getListCoursesQueryKey({}) });
-      setIsReviewOpen(false);
-      setReviewCourse(null);
-      setRejectionNote("");
-    } catch (error) {
-      toast({ title: "Error updating status", variant: "destructive" });
     }
   };
 
@@ -128,21 +190,48 @@ export default function AdminCourses() {
     }
   };
 
+  // Status Badge with pulse dot
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "live": return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Live</Badge>;
-      case "pending": return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100">Pending</Badge>;
-      case "rejected": return <Badge className="bg-red-100 text-red-700 hover:bg-red-100">Rejected</Badge>;
-      case "draft": return <Badge className="bg-gray-100 text-gray-700 hover:bg-gray-100">Draft</Badge>;
-      default: return <Badge variant="outline">{status}</Badge>;
+      case "live": 
+        return (
+          <Badge className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 font-bold text-xs px-2.5 py-0.5 rounded-full flex items-center w-fit gap-1.5 shadow-none">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+            Live
+          </Badge>
+        );
+      case "pending": 
+        return (
+          <Badge className="bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40 font-bold text-xs px-2.5 py-0.5 rounded-full flex items-center w-fit gap-1.5 shadow-none">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            Review Pending
+          </Badge>
+        );
+      case "rejected": 
+        return (
+          <Badge className="bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 border border-red-100 dark:border-red-900/40 font-bold text-xs px-2.5 py-0.5 rounded-full flex items-center w-fit gap-1.5 shadow-none">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-500 shrink-0" />
+            Rejected
+          </Badge>
+        );
+      case "draft": 
+        return (
+          <Badge className="bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold text-xs px-2.5 py-0.5 rounded-full flex items-center w-fit gap-1.5 shadow-none">
+            <span className="h-1.5 w-1.5 rounded-full bg-slate-400 shrink-0" />
+            Draft
+          </Badge>
+        );
+      default: 
+        return <Badge variant="outline" className="font-bold text-xs">{status}</Badge>;
     }
   };
 
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col justify-center items-center h-80 space-y-4">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <span className="text-sm text-slate-500 font-bold tracking-wide">Syncing Curriculum Ledger...</span>
         </div>
       </DashboardLayout>
     );
@@ -150,176 +239,407 @@ export default function AdminCourses() {
 
   return (
     <DashboardLayout>
-      <div className="flex justify-between items-center mb-6">
+      {/* Header section with Action Button */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold">Manage Courses</h1>
-          <p className="text-gray-500">Approve, reject, and monitor all courses</p>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Curriculum Management</h1>
+          <p className="text-slate-500 text-sm font-medium mt-1">Approve draft programs, manage live syllabi, and coordinate academic teachers.</p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Course
+        <Button 
+          onClick={() => setIsCreateOpen(true)}
+          className="rounded-xl font-bold bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white shadow-lg shadow-slate-900/10 dark:shadow-indigo-500/10"
+        >
+          <Plus className="h-4.5 w-4.5 mr-1.5" />
+          Create Course
         </Button>
       </div>
 
-      <Card>
+      {/* Metrics overview bar */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
+        
+        {/* Total Courses Card */}
+        <Card className="border border-slate-150/80 bg-white dark:bg-slate-900 shadow-sm rounded-2xl overflow-hidden relative">
+          <CardContent className="p-5 flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-xxs font-black text-slate-450 uppercase tracking-widest block">Total Curriculum</span>
+              <span className="text-3xl font-black text-slate-850 dark:text-white block">{totalCourses}</span>
+            </div>
+            <div className="h-11 w-11 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+              <BookOpen className="h-5.5 w-5.5" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Pending Review Card with blink glow */}
+        <Card className={`border rounded-2xl overflow-hidden relative shadow-sm transition-all ${
+          pendingReviews > 0 
+            ? "border-amber-250 bg-amber-50/20 dark:bg-amber-950/5 animate-[pulse_3s_infinite]" 
+            : "border-slate-150/80 bg-white dark:bg-slate-900"
+        }`}>
+          <CardContent className="p-5 flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-xxs font-black text-slate-450 uppercase tracking-widest block">Pending Reviews</span>
+              <span className="text-3xl font-black text-slate-850 dark:text-white block">{pendingReviews}</span>
+            </div>
+            <div className={`h-11 w-11 rounded-xl flex items-center justify-center ${
+              pendingReviews > 0 ? "bg-amber-500/20 text-amber-600" : "bg-slate-100 text-slate-500 dark:bg-slate-800"
+            }`}>
+              {pendingReviews > 0 ? <AlertCircle className="h-5.5 w-5.5" /> : <Clock className="h-5.5 w-5.5" />}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Live Courses Card */}
+        <Card className="border border-slate-150/80 bg-white dark:bg-slate-900 shadow-sm rounded-2xl overflow-hidden relative">
+          <CardContent className="p-5 flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-xxs font-black text-slate-450 uppercase tracking-widest block">Live Programs</span>
+              <span className="text-3xl font-black text-slate-850 dark:text-white block">{liveTracks}</span>
+            </div>
+            <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+              <CheckCircle className="h-5.5 w-5.5" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Registrations count Card */}
+        <Card className="border border-slate-150/80 bg-white dark:bg-slate-900 shadow-sm rounded-2xl overflow-hidden relative">
+          <CardContent className="p-5 flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-xxs font-black text-slate-450 uppercase tracking-widest block">Global Enrolments</span>
+              <span className="text-3xl font-black text-slate-850 dark:text-white block">{totalStudentsEnrolled.toLocaleString()}</span>
+            </div>
+            <div className="h-11 w-11 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+              <Users className="h-5.5 w-5.5" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filter and Search toolbar */}
+      <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-white dark:bg-slate-900 border border-slate-150/80 dark:border-slate-800/80 rounded-2xl p-4 shadow-sm mb-6">
+        
+        {/* Search Input */}
+        <div className="relative w-full lg:w-96">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
+          <Input 
+            placeholder="Search by program name or lecturer..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-11 h-11 bg-slate-50/50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl text-sm font-medium"
+          />
+        </div>
+
+        {/* Category & Status Select filters */}
+        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+          
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-slate-450 shrink-0" />
+            <Select value={filterCategory} onValueChange={setFilterCategory}>
+              <SelectTrigger className="w-[160px] h-10.5 rounded-xl border-slate-200 dark:border-slate-800 font-bold text-xs bg-slate-50/50 dark:bg-slate-950">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Specialties</SelectItem>
+                <SelectItem value="MS Office">MS Office</SelectItem>
+                <SelectItem value="Graphics">Graphic Design</SelectItem>
+                <SelectItem value="Freelancing">Freelancing Mastery</SelectItem>
+                <SelectItem value="AI">AI Engineering</SelectItem>
+                <SelectItem value="Web">Web Dev</SelectItem>
+                <SelectItem value="Computer Basic">Computer Basic</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[140px] h-10.5 rounded-xl border-slate-200 dark:border-slate-800 font-bold text-xs bg-slate-50/50 dark:bg-slate-950">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="live">Live</SelectItem>
+              <SelectItem value="pending">Review Pending</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Quick Clear Filter indicator */}
+          {(searchTerm || filterCategory !== "all" || filterStatus !== "all") && (
+            <Button 
+              variant="ghost" 
+              onClick={() => { setSearchTerm(""); setFilterCategory("all"); setFilterStatus("all"); }}
+              className="text-xs font-bold text-indigo-600 hover:text-indigo-700 h-10.5 px-3 rounded-xl shrink-0"
+            >
+              Clear Filters
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Upgraded Administrative Table */}
+      <Card className="border border-slate-150/85 dark:border-slate-800/80 shadow-sm rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Fee</TableHead>
-                <TableHead>Students</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {courses?.map((course) => (
-                <TableRow key={course.id}>
-                  <TableCell className="font-medium">
-                    <Link href={`/admin/courses/${course.id}/review`}>
-                      <div className="cursor-pointer hover:text-primary transition-colors">
-                        {course.title}
-                        <p className="text-xs text-muted-foreground font-normal">by {course.teacherName || "Unknown"}</p>
-                      </div>
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{course.category}</Badge>
-                  </TableCell>
-                  <TableCell>{getStatusBadge(course.status)}</TableCell>
-                  <TableCell>{course.isFree ? "Free" : `Rs. ${course.fee}`}</TableCell>
-                  <TableCell>{course.enrollmentCount}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <Link href={`/admin/courses/${course.id}/review`}>
-                          <DropdownMenuItem className="cursor-pointer">
-                            <Eye className="h-4 w-4 mr-2" /> Full Review
-                          </DropdownMenuItem>
-                        </Link>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/courses/${course.id}`} target="_blank">
-                            <div className="flex items-center w-full">
-                              <ExternalLink className="h-4 w-4 mr-2" /> View Public Page
-                            </div>
-                          </Link>
-                        </DropdownMenuItem>
-                        {course.status === "pending" && (
-                          <Link href={`/admin/courses/${course.id}/review`}>
-                            <DropdownMenuItem className="cursor-pointer">
-                              <CheckCircle className="h-4 w-4 mr-2 text-emerald-600" /> Review & Approve
-                            </DropdownMenuItem>
-                          </Link>
-                        )}
-                        <Link href={`/admin/courses/${course.id}/edit`}>
-                          <DropdownMenuItem className="cursor-pointer">
-                            <MoreHorizontal className="h-4 w-4 mr-2 text-gray-500" /> Edit Metadata
-                          </DropdownMenuItem>
-                        </Link>
-                        <Link href={`/admin/courses/${course.id}/content`}>
-                          <DropdownMenuItem className="cursor-pointer">
-                            <Video className="h-4 w-4 mr-2 text-blue-600" /> Manage Lectures
-                          </DropdownMenuItem>
-                        </Link>
-                        <DropdownMenuItem 
-                          className="text-red-600 cursor-pointer"
-                          onClick={() => handleDeleteCourse(course.id)}
-                        >
-                          <XCircle className="h-4 w-4 mr-2 text-red-600" /> Delete Course
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          
+          {filteredCourses?.length === 0 ? (
+            <div className="text-center py-20 px-4">
+              <BookOpen className="h-12 w-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">No courses match criteria</h3>
+              <p className="text-slate-500 text-xs mt-1">Try adapting your search text or removing selected category filters.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader className="bg-slate-50/60 dark:bg-slate-950/40 border-b border-slate-100 dark:border-slate-800">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="font-bold text-slate-500 dark:text-slate-400 text-xs px-6 py-4">Title & Faculty</TableHead>
+                  <TableHead className="font-bold text-slate-500 dark:text-slate-400 text-xs px-6 py-4">Specialization</TableHead>
+                  <TableHead className="font-bold text-slate-500 dark:text-slate-400 text-xs px-6 py-4">Status</TableHead>
+                  <TableHead className="font-bold text-slate-500 dark:text-slate-400 text-xs px-6 py-4">Tuition Fee</TableHead>
+                  <TableHead className="font-bold text-slate-500 dark:text-slate-400 text-xs px-6 py-4">Lectures</TableHead>
+                  <TableHead className="font-bold text-slate-500 dark:text-slate-400 text-xs px-6 py-4">Enrolled Students</TableHead>
+                  <TableHead className="font-bold text-slate-500 dark:text-slate-400 text-xs px-6 py-4 text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredCourses?.map((course) => {
+                  const details = CATEGORY_DETAILS[course.category ?? ""] ?? CATEGORY_DETAILS.Default;
+                  const CategoryIcon = details.icon;
+
+                  return (
+                    <TableRow key={course.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-950/20 border-b border-slate-100 dark:border-slate-800 transition-colors">
+                      
+                      {/* Title, avatar & Lecturer Info */}
+                      <TableCell className="px-6 py-4 font-medium">
+                        <div className="flex items-center gap-3">
+                          
+                          {/* Mini visual avatar */}
+                          <div className="h-10 w-14 rounded-lg bg-slate-950 overflow-hidden shrink-0 border border-slate-200/80 dark:border-slate-800 flex items-center justify-center">
+                            {course.thumbnail ? (
+                              <img src={course.thumbnail} alt={course.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className={`w-full h-full bg-gradient-to-br ${details.gradient} flex items-center justify-center`}>
+                                <CategoryIcon className="h-5 w-5 text-white/40" />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <Link href={`/admin/courses/${course.id}/review`}>
+                              <span className="font-bold text-sm text-slate-850 dark:text-slate-150 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors line-clamp-1">
+                                {course.title}
+                              </span>
+                            </Link>
+                            <p className="text-xxs text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                              by {course.teacherName || "Unassigned Academic"}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      {/* Specialized Category Pill */}
+                      <TableCell className="px-6 py-4">
+                        <Badge variant="outline" className={`font-bold text-[10px] tracking-wide rounded-md px-2.5 py-0.5 border ${details.color} shadow-none`}>
+                          <CategoryIcon className="h-3 w-3 mr-1 inline shrink-0" />
+                          {course.category}
+                        </Badge>
+                      </TableCell>
+
+                      {/* Status indicator badge */}
+                      <TableCell className="px-6 py-4">
+                        {getStatusBadge(course.status)}
+                      </TableCell>
+
+                      {/* Fee indicators */}
+                      <TableCell className="px-6 py-4 font-bold text-xs text-slate-700 dark:text-slate-300">
+                        {course.isFree ? (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                            Free
+                          </span>
+                        ) : (
+                          <span className="font-black text-slate-850 dark:text-slate-200">
+                            Rs. {course.fee?.toLocaleString()}
+                          </span>
+                        )}
+                      </TableCell>
+
+                      {/* Lectures Count */}
+                      <TableCell className="px-6 py-4">
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1">
+                          <Video className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                          {course.lessonCount || 0} Modules
+                        </span>
+                      </TableCell>
+
+                      {/* Registered count */}
+                      <TableCell className="px-6 py-4">
+                        <span className="text-xs text-slate-700 dark:text-slate-300 font-bold flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                          {course.enrollmentCount || 0}
+                        </span>
+                      </TableCell>
+
+                      {/* Action Menu */}
+                      <TableCell className="px-6 py-4 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg border-slate-200 hover:bg-slate-100">
+                              <MoreHorizontal className="h-4.5 w-4.5 text-slate-500" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-52 rounded-xl p-1 bg-white border border-slate-200 shadow-xl">
+                            
+                            <Link href={`/admin/courses/${course.id}/review`}>
+                              <DropdownMenuItem className="cursor-pointer font-bold text-xs rounded-lg">
+                                <Eye className="h-4 w-4 mr-2 text-slate-400" /> Full Review & Details
+                              </DropdownMenuItem>
+                            </Link>
+
+                            <DropdownMenuItem asChild className="cursor-pointer font-bold text-xs rounded-lg">
+                              <Link href={`/courses/${course.id}`} target="_blank">
+                                <div className="flex items-center w-full">
+                                  <ExternalLink className="h-4 w-4 mr-2 text-slate-400" /> View Public Page
+                                </div>
+                              </Link>
+                            </DropdownMenuItem>
+
+                            {course.status === "pending" && (
+                              <Link href={`/admin/courses/${course.id}/review`}>
+                                <DropdownMenuItem className="cursor-pointer font-bold text-xs text-emerald-600 bg-emerald-50/50 hover:bg-emerald-50 rounded-lg">
+                                  <Check className="h-4 w-4 mr-2 text-emerald-600" /> Review & Approve
+                                </DropdownMenuItem>
+                              </Link>
+                            )}
+
+                            <div className="h-px bg-slate-100 my-1" />
+
+                            <Link href={`/admin/courses/${course.id}/edit`}>
+                              <DropdownMenuItem className="cursor-pointer font-bold text-xs rounded-lg">
+                                <Edit className="h-4 w-4 mr-2 text-slate-400" /> Edit Course Details
+                              </DropdownMenuItem>
+                            </Link>
+
+                            <Link href={`/admin/courses/${course.id}/content`}>
+                              <DropdownMenuItem className="cursor-pointer font-bold text-xs rounded-lg">
+                                <Video className="h-4 w-4 mr-2 text-blue-600" /> Manage Lectures
+                              </DropdownMenuItem>
+                            </Link>
+
+                            <div className="h-px bg-slate-100 my-1" />
+
+                            <DropdownMenuItem 
+                              className="text-red-600 cursor-pointer font-bold text-xs rounded-lg hover:bg-red-50"
+                              onClick={() => handleDeleteCourse(course.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2 text-red-650" /> Delete Course
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+
         </CardContent>
       </Card>
 
       {/* ── COURSE CREATOR DIALOG (ADMIN DESIGNER) ────────────────────── */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Design New Course</DialogTitle>
-            <DialogDescription>
-              Create a new course layout, set duration & fee details, and assign an instructor.
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border border-slate-200 rounded-[24px] shadow-2xl p-6">
+          <DialogHeader className="border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-2">
+              <Badge className="bg-indigo-50 text-indigo-650 border border-indigo-200 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">
+                Curriculum Hub
+              </Badge>
+            </div>
+            <DialogTitle className="text-2xl font-black text-slate-800 tracking-tight mt-2 flex items-center gap-2">
+              <Sparkles className="h-6 w-6 text-indigo-600" />
+              Design New Course
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs font-semibold mt-1">
+              Create a new program syllabus layout, set billable tuition rates, and assign course supervisors.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleCreateCourse} className="space-y-4 pt-2">
-            <div className="space-y-1">
-              <Label htmlFor="title">Course Title <span className="text-red-500">*</span></Label>
+          <form onSubmit={handleCreateCourse} className="space-y-5 pt-4">
+            
+            {/* Title */}
+            <div className="space-y-1.5">
+              <Label htmlFor="title" className="text-xs font-black uppercase text-slate-500 tracking-wider">Course Title <span className="text-red-500">*</span></Label>
               <Input
                 id="title"
-                placeholder="e.g. MS Office Complete Course"
+                placeholder="e.g. Graphic Design Masterclass"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                className="h-11 rounded-xl border-slate-200 focus-visible:ring-indigo-500 text-sm font-medium"
                 required
               />
             </div>
 
+            {/* Specialty category & Duration */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label htmlFor="category">Category <span className="text-red-500">*</span></Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="category" className="text-xs font-black uppercase text-slate-500 tracking-wider">Category <span className="text-red-500">*</span></Label>
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger id="category">
+                  <SelectTrigger id="category" className="h-11 rounded-xl border-slate-200 text-sm font-semibold">
                     <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MS Office">MS Office</SelectItem>
-                    <SelectItem value="Graphics">Graphic Design</SelectItem>
-                    <SelectItem value="Freelancing">Freelancing Mastery</SelectItem>
-                    <SelectItem value="AI">Artificial Intelligence (AI)</SelectItem>
-                    <SelectItem value="Web">Web Development</SelectItem>
-                    <SelectItem value="Computer Basic">Computer Basic</SelectItem>
+                  <SelectContent className="rounded-xl border border-slate-200 shadow-lg">
+                    <SelectItem value="MS Office" className="text-sm font-medium">MS Office Suite</SelectItem>
+                    <SelectItem value="Graphics" className="text-sm font-medium">Graphic Design</SelectItem>
+                    <SelectItem value="Freelancing" className="text-sm font-medium">Freelancing Mastery</SelectItem>
+                    <SelectItem value="AI" className="text-sm font-medium">Artificial Intelligence (AI)</SelectItem>
+                    <SelectItem value="Web" className="text-sm font-medium">Web Development</SelectItem>
+                    <SelectItem value="Computer Basic" className="text-sm font-medium">Computer Basic</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="duration">Duration <span className="text-red-500">*</span></Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="duration" className="text-xs font-black uppercase text-slate-500 tracking-wider">Duration <span className="text-red-500">*</span></Label>
                 <Input
                   id="duration"
                   placeholder="e.g. 3 Months"
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
+                  className="h-11 rounded-xl border-slate-200 focus-visible:ring-indigo-500 text-sm font-semibold"
                   required
                 />
               </div>
             </div>
 
+            {/* Tuition Rate & Teacher selector */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label htmlFor="fee">Fee (PKR)</Label>
-                <Input
-                  id="fee"
-                  type="number"
-                  placeholder="e.g. 5000"
-                  value={fee}
-                  onChange={(e) => setFee(e.target.value)}
-                  disabled={isFree}
-                />
+              <div className="space-y-1.5">
+                <Label htmlFor="fee" className="text-xs font-black uppercase text-slate-500 tracking-wider">Tuition Fee (PKR)</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    id="fee"
+                    type="number"
+                    placeholder="e.g. 5000"
+                    value={fee}
+                    onChange={(e) => setFee(e.target.value)}
+                    disabled={isFree}
+                    className="pl-9 h-11 rounded-xl border-slate-200 focus-visible:ring-indigo-500 text-sm font-bold disabled:bg-slate-50"
+                  />
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <Label htmlFor="teacher">Assign Teacher</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="teacher" className="text-xs font-black uppercase text-slate-500 tracking-wider">Assign Teacher / Faculty</Label>
                 <Select value={teacherId} onValueChange={setTeacherId}>
-                  <SelectTrigger id="teacher">
+                  <SelectTrigger id="teacher" className="h-11 rounded-xl border-slate-200 text-sm font-semibold">
                     <SelectValue placeholder="Select Instructor" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">-- Unassigned --</SelectItem>
+                  <SelectContent className="rounded-xl border border-slate-200 shadow-lg">
+                    <SelectItem value="none" className="text-sm font-medium text-slate-400">-- Keep Unassigned --</SelectItem>
                     {teachers?.map((t: any) => (
-                      <SelectItem key={t.id} value={t.id.toString()}>
-                        {t.name} ({t.specialization || "Faculty"})
+                      <SelectItem key={t.id} value={t.id.toString()} className="text-sm font-medium">
+                        {t.name} ({t.specialization || "Faculty Scholar"})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -327,23 +647,29 @@ export default function AdminCourses() {
               </div>
             </div>
 
+            {/* Minimum attendance */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <Label htmlFor="minAttendancePercentage">Min Attendance %</Label>
-                <Input
-                  id="minAttendancePercentage"
-                  type="number"
-                  min="0"
-                  max="100"
-                  placeholder="e.g. 75"
-                  value={minAttendancePercentage}
-                  onChange={(e) => setMinAttendancePercentage(e.target.value)}
-                />
+              <div className="space-y-1.5">
+                <Label htmlFor="minAttendancePercentage" className="text-xs font-black uppercase text-slate-500 tracking-wider">Min Attendance Threshold (%)</Label>
+                <div className="relative">
+                  <ListTodo className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
+                  <Input
+                    id="minAttendancePercentage"
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="e.g. 75"
+                    value={minAttendancePercentage}
+                    onChange={(e) => setMinAttendancePercentage(e.target.value)}
+                    className="pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-indigo-500 text-sm font-bold"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-6 items-center pt-2">
-              <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700">
+            {/* Switch badges */}
+            <div className="flex flex-wrap gap-6 items-center py-2 border-y border-slate-100 my-2">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold uppercase tracking-wider text-slate-600">
                 <input
                   type="checkbox"
                   checked={isFree}
@@ -351,63 +677,76 @@ export default function AdminCourses() {
                     setIsFree(e.target.checked);
                     if (e.target.checked) setFee("0");
                   }}
-                  className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                  className="rounded border-slate-350 text-indigo-600 focus:ring-indigo-500 h-4.5 w-4.5 cursor-pointer"
                 />
                 Is Free Course
               </label>
 
-              <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700">
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold uppercase tracking-wider text-slate-600">
                 <input
                   type="checkbox"
                   checked={isFeatured}
                   onChange={(e) => setIsFeatured(e.target.checked)}
-                  className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                  className="rounded border-slate-350 text-indigo-600 focus:ring-indigo-500 h-4.5 w-4.5 cursor-pointer"
                 />
                 Feature on Homepage
               </label>
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="thumbnail">Thumbnail Image URL</Label>
-              <Input
-                id="thumbnail"
-                placeholder="e.g. https://images.unsplash.com/photo-..."
-                value={thumbnail}
-                onChange={(e) => setThumbnail(e.target.value)}
+            {/* Thumbnail Image Upload */}
+            <div className="space-y-1.5">
+              <FileUploadButton
+                type="image"
+                label="Course Thumbnail Image"
+                currentUrl={thumbnail || null}
+                onUploaded={(url) => setThumbnail(url)}
+                onClear={() => setThumbnail("")}
+                showDownload={true}
               />
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="description">Short Description <span className="text-red-500">*</span></Label>
+            {/* Short description */}
+            <div className="space-y-1.5">
+              <Label htmlFor="description" className="text-xs font-black uppercase text-slate-500 tracking-wider">Short Description <span className="text-red-500">*</span></Label>
               <Textarea
                 id="description"
-                placeholder="Briefly describe the course content & outcomes..."
+                placeholder="Provide a brief summary of what the course covers and its professional outcomes..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
+                className="rounded-xl border-slate-200 focus-visible:ring-indigo-500 text-sm font-medium"
                 required
               />
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="syllabus">Course Outline / Syllabus</Label>
-              <Textarea
-                id="syllabus"
-                placeholder="Enter detailed course outline, topics covered, learning objectives, etc..."
-                value={syllabus}
-                onChange={(e) => setSyllabus(e.target.value)}
-                rows={5}
+            {/* Course Outline PDF Upload */}
+            <div className="space-y-1.5">
+              <FileUploadButton
+                type="pdf"
+                label="Course Outline PDF (Downloadable by enrolled students)"
+                currentUrl={outlinePdfUrl || null}
+                onUploaded={(url) => setOutlinePdfUrl(url)}
+                onClear={() => setOutlinePdfUrl("")}
+                showDownload={true}
               />
-              <p className="text-xs text-gray-500">
-                Provide a comprehensive overview of what will be taught in this course.
+              <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
+                Enrolled students will see a download button for this PDF on the course page. Max 5 MB.
               </p>
             </div>
 
-            <DialogFooter className="pt-4 border-t">
-              <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
+            <DialogFooter className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsCreateOpen(false)}
+                className="h-11 rounded-xl font-bold text-xs"
+              >
                 Cancel
               </Button>
-              <Button type="submit" className="bg-primary text-white">
+              <Button 
+                type="submit" 
+                className="h-11 rounded-xl font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white"
+              >
                 Create & Publish
               </Button>
             </DialogFooter>

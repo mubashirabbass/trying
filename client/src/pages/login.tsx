@@ -75,9 +75,17 @@ export default function Login() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     loginMutation.mutate(
-      { data: { email, password, rememberMe } as any },
+      { data: { email, password, rememberMe, role: selectedRole } as any },
       {
         onSuccess: (data) => {
+          if (data.user.role !== selectedRole) {
+            toast({
+              title: "Authentication Failed",
+              description: "Invalid username or password.",
+              variant: "destructive",
+            });
+            return;
+          }
           login(data.user, data.token, rememberMe);
           toast({
             title: "Welcome Back! 👋",
