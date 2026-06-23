@@ -2,7 +2,7 @@ import { useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useAuth } from "@/lib/AuthContext";
 import { useListCourses, useListEnrollments, useCreateEnrollment, getListEnrollmentsQueryKey } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,17 +24,7 @@ import {
   Tag,
 } from "lucide-react";
 
-const CATEGORIES = [
-  "All Categories",
-  "Computer Basics",
-  "Graphic Design",
-  "Freelancing",
-  "AI Tools",
-  "MS Office",
-  "Digital Marketing",
-  "Web Development",
-  "QuickBooks",
-];
+// Fetch CATEGORIES dynamically from the server inside the component
 
 export default function StudentBrowse() {
   const { user } = useAuth();
@@ -45,6 +35,17 @@ export default function StudentBrowse() {
   const [category, setCategory] = useState("All Categories");
   const [freeOnly, setFreeOnly] = useState(false);
   const [sort, setSort] = useState("newest");
+
+  const { data: dbCategories = [] } = useQuery<any[]>({
+    queryKey: ["course-categories"],
+    queryFn: async () => {
+      const res = await fetch("/api/course-categories");
+      if (!res.ok) throw new Error("Failed to fetch categories");
+      return res.json();
+    }
+  });
+
+  const categoriesList = ["All Categories", ...dbCategories.map((c: any) => c.name)];
 
   const { data: courses = [], isLoading: coursesLoading } = useListCourses();
   const { data: myEnrollments = [], isLoading: enrollLoading } = useListEnrollments({ userId: user?.id });
@@ -112,7 +113,7 @@ export default function StudentBrowse() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {CATEGORIES.map((c) => (
+            {categoriesList.map((c) => (
               <SelectItem key={c} value={c}>{c}</SelectItem>
             ))}
           </SelectContent>

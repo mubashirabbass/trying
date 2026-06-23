@@ -35,7 +35,10 @@ router.get("/teachers/public", async (req, res) => {
 
 router.post("/success-story-categories", authenticate, authorize("admin"), async (req, res) => {
   const parsed = CreateSuccessStoryCategoryBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
   try {
     const [category] = await db.insert(successStoryCategoriesTable).values(parsed.data).returning();
     res.status(201).json(category);
@@ -47,7 +50,10 @@ router.post("/success-story-categories", authenticate, authorize("admin"), async
 router.put("/success-story-categories/:id", authenticate, authorize("admin"), async (req, res) => {
   const id = Number(req.params.id);
   const parsed = CreateSuccessStoryCategoryBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
   
   try {
     const [category] = await db
@@ -56,7 +62,10 @@ router.put("/success-story-categories/:id", authenticate, authorize("admin"), as
       .where(eq(successStoryCategoriesTable.id, id))
       .returning();
       
-    if (!category) return res.status(404).json({ error: "Category not found" });
+    if (!category) {
+      res.status(404).json({ error: "Category not found" });
+      return;
+    }
     res.json(category);
   } catch (err) {
     res.status(500).json({ error: "Database error" });
@@ -71,7 +80,10 @@ router.delete("/success-story-categories/:id", authenticate, authorize("admin"),
       .where(eq(successStoryCategoriesTable.id, id))
       .returning();
       
-    if (!deleted) return res.status(404).json({ error: "Category not found" });
+    if (!deleted) {
+      res.status(404).json({ error: "Category not found" });
+      return;
+    }
     res.sendStatus(204);
   } catch (err) {
     res.status(500).json({ error: "Database error" });
@@ -106,6 +118,8 @@ import usersRouter from "./users";
 import attendanceRouter from "./attendance";
 import liveClassesRouter from "./live-classes";
 import uploadRouter from "./upload";
+import courseCategoriesRouter from "./course-categories";
+import franchiseApplicationsRouter from "./franchise-applications";
 
 router.use(healthRouter);
 router.use(authRouter);
@@ -120,6 +134,8 @@ router.use(usersRouter);
 router.use(attendanceRouter);
 router.use(settingsRouter);
 router.use(uploadRouter); // File uploads (images & PDFs) — requires auth internally
+router.use(courseCategoriesRouter);
+router.use(franchiseApplicationsRouter);
 
 router.use(authenticate);
 router.use(lessonsRouter);

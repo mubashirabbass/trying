@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/AuthContext";
 import { PaginationControls, getTotalPages, paginateItems } from "@/components/PaginationControls";
 
@@ -45,10 +45,25 @@ export default function TeacherCourses() {
   const [editingCourse, setEditingCourse] = useState<any>(null); // null means create mode
   const [courseToDelete, setCourseToDelete] = useState<any>(null);
 
+  const { data: dbCategories = [] } = useQuery<any[]>({
+    queryKey: ["course-categories"],
+    queryFn: async () => {
+      const res = await fetch("/api/course-categories");
+      if (!res.ok) throw new Error("Failed to fetch categories");
+      return res.json();
+    }
+  });
+
   // Form fields
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("MS Office");
+  const [category, setCategory] = useState("");
+
+  useEffect(() => {
+    if (dbCategories.length > 0 && !category) {
+      setCategory(dbCategories[0].name);
+    }
+  }, [dbCategories, category]);
   const [duration, setDuration] = useState("3 Months");
   const [fee, setFee] = useState("5000");
   const [isFree, setIsFree] = useState(false);
@@ -69,7 +84,7 @@ export default function TeacherCourses() {
     setEditingCourse(null);
     setTitle("");
     setDescription("");
-    setCategory("MS Office");
+    setCategory(dbCategories.length > 0 ? dbCategories[0].name : "");
     setDuration("3 Months");
     setFee("5000");
     setIsFree(false);
@@ -84,7 +99,7 @@ export default function TeacherCourses() {
     setEditingCourse(course);
     setTitle(course.title || "");
     setDescription(course.description || "");
-    setCategory(course.category || "MS Office");
+    setCategory(course.category || (dbCategories.length > 0 ? dbCategories[0].name : ""));
     setDuration(course.duration || "3 Months");
     setFee((course.fee ?? 0).toString());
     setIsFree(!!course.isFree);
@@ -341,12 +356,9 @@ export default function TeacherCourses() {
                     <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="MS Office">MS Office</SelectItem>
-                    <SelectItem value="Graphics">Graphic Design</SelectItem>
-                    <SelectItem value="Freelancing">Freelancing Mastery</SelectItem>
-                    <SelectItem value="AI">Artificial Intelligence (AI)</SelectItem>
-                    <SelectItem value="Web">Web Development</SelectItem>
-                    <SelectItem value="Computer Basic">Computer Basic</SelectItem>
+                    {dbCategories.map((cat: any) => (
+                      <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

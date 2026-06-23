@@ -6,9 +6,11 @@ import {
   useDeleteEnrollment,
   useListUsers,
   useListCourses,
-  getListEnrollmentsQueryKey 
+  getListEnrollmentsQueryKey,
+  useDeleteUser
 } from "@workspace/api-client-react";
-import { Loader2, Plus, Trash2, GraduationCap, User, BookOpen, Check } from "lucide-react";
+import { Loader2, Plus, Trash2, GraduationCap, User, BookOpen, Check, ShieldAlert, MoreVertical, XCircle } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -28,6 +30,21 @@ export default function AdminEnrollments() {
   
   const createEnrollment = useCreateEnrollment();
   const deleteEnrollment = useDeleteEnrollment();
+  const deleteUser = useDeleteUser();
+
+  const [studentToDelete, setStudentToDelete] = useState<{ userId: number; userName: string } | null>(null);
+
+  const handleDeleteStudentConfirm = async () => {
+    if (!studentToDelete) return;
+    try {
+      await deleteUser.mutateAsync({ id: studentToDelete.userId });
+      toast({ title: "Student and all associated data deleted permanently from LMS." });
+      setStudentToDelete(null);
+      queryClient.invalidateQueries({ queryKey: getListEnrollmentsQueryKey({}) });
+    } catch {
+      toast({ title: "Error deleting student", variant: "destructive" });
+    }
+  };
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState("");
@@ -172,22 +189,44 @@ export default function AdminEnrollments() {
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-right py-4 space-x-1">
-                    {enrollment.status === "pending" && (
+                  <TableCell className="text-right py-4 pr-6">
+                    <div className="flex justify-end items-center gap-1.5">
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        title="Approve Enrollment"
-                        className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl"
-                        onClick={() => handleApprove(enrollment.id)}
-                        disabled={approvingId === enrollment.id}
+                        title="Delete Student from LMS"
+                        className="h-8 w-8 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl"
+                        onClick={() => setStudentToDelete({ userId: enrollment.userId, userName: enrollment.userName || "Unknown" })}
                       >
-                        {approvingId === enrollment.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                    )}
-                    <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-600 transition-colors rounded-xl" onClick={() => handleDelete(enrollment.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl border border-slate-200/60 hover:bg-slate-100 shadow-sm">
+                            <MoreVertical className="h-4 w-4 text-slate-500" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
+                          {enrollment.status === "pending" && (
+                            <DropdownMenuItem 
+                              className="rounded-xl font-bold text-xs gap-2 py-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50" 
+                              onClick={() => handleApprove(enrollment.id)}
+                              disabled={approvingId === enrollment.id}
+                            >
+                              {approvingId === enrollment.id ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Check className="h-4 w-4" />} 
+                              Approve Enrollment
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem 
+                            className="rounded-xl font-bold text-xs gap-2 py-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50" 
+                            onClick={() => handleDelete(enrollment.id)}
+                          >
+                            <XCircle className="h-4 w-4" /> 
+                            Remove Enrollment
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -255,6 +294,25 @@ export default function AdminEnrollments() {
             </Button>
             <Button onClick={handleEnroll} disabled={!selectedUser || !selectedCourse} className="flex-1 bg-slate-900 hover:bg-slate-800 font-semibold h-11">
               Enroll Now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={!!studentToDelete} onOpenChange={val => !val && setStudentToDelete(null)}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader className="flex flex-col items-center text-center">
+            <div className="h-12 w-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mb-2"><ShieldAlert className="h-6 w-6" /></div>
+            <DialogTitle>Are you sure you want to delete the student?</DialogTitle>
+            <DialogDescription className="text-xs">
+              Are you sure you want to delete the student <strong>{studentToDelete?.userName}</strong>? This will permanently delete all of their data from the LMS.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 justify-center sm:justify-center pt-2">
+            <Button variant="outline" className="rounded-xl flex-1 text-xs" onClick={() => setStudentToDelete(null)}>Cancel</Button>
+            <Button className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl flex-1 text-xs" onClick={handleDeleteStudentConfirm} disabled={deleteUser.isPending}>
+              {deleteUser.isPending ? "Deleting..." : "Yes, Delete User"}
             </Button>
           </DialogFooter>
         </DialogContent>

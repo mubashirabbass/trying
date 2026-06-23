@@ -6,68 +6,76 @@ import { GetStudentDashboardQueryParams, GetTeacherDashboardQueryParams } from "
 const router: IRouter = Router();
 
 router.get("/dashboard/admin", async (req, res): Promise<void> => {
-  const students = await db.select({ c: count() }).from(usersTable).where(eq(usersTable.role, "student"));
-  const teachers = await db.select({ c: count() }).from(usersTable).where(eq(usersTable.role, "teacher"));
-  const courses = await db.select({ c: count() }).from(coursesTable);
-  const enrollments = await db.select({ c: count() }).from(enrollmentsTable);
-  const revenue = await db.select({ total: sum(paymentsTable.amount) }).from(paymentsTable).where(eq(paymentsTable.status, "verified"));
-  const pendingPayments = await db.select({ c: count() }).from(paymentsTable).where(eq(paymentsTable.status, "pending"));
-  
-  const pendingVerifications = await db.select({ c: count() })
-    .from(identityVerificationsTable)
-    .where(eq(identityVerificationsTable.status, "pending"));
+  // Set cache headers for better performance (cache for 5 seconds private)
+  res.set('Cache-Control', 'private, max-age=5');
 
-  const activeAnnouncements = await db.select({ c: count() })
-    .from(notificationsTable)
-    .where(eq(notificationsTable.type, "announcement"));
-
-  const totalCertificates = await db.select({ c: count() })
-    .from(certificatesTable);
-
-  const recentEnrollments = await db.select({
-    id: enrollmentsTable.id,
-    userId: enrollmentsTable.userId,
-    courseId: enrollmentsTable.courseId,
-    progress: enrollmentsTable.progress,
-    status: enrollmentsTable.status,
-    enrolledAt: enrollmentsTable.enrolledAt,
-    courseName: coursesTable.title,
-    userName: usersTable.name,
-  }).from(enrollmentsTable)
-    .leftJoin(coursesTable, eq(enrollmentsTable.courseId, coursesTable.id))
-    .leftJoin(usersTable, eq(enrollmentsTable.userId, usersTable.id))
-    .limit(5);
-
-  const recentPayments = await db.select({
-    id: paymentsTable.id,
-    userId: paymentsTable.userId,
-    courseId: paymentsTable.courseId,
-    amount: paymentsTable.amount,
-    method: paymentsTable.method,
-    status: paymentsTable.status,
-    receiptUrl: paymentsTable.receiptUrl,
-    createdAt: paymentsTable.createdAt,
-    userName: usersTable.name,
-    courseName: coursesTable.title,
-  }).from(paymentsTable)
-    .leftJoin(usersTable, eq(paymentsTable.userId, usersTable.id))
-    .leftJoin(coursesTable, eq(paymentsTable.courseId, coursesTable.id))
-    .limit(5);
-
-  const recentNotifications = await db.select({
-    id: notificationsTable.id,
-    type: notificationsTable.type,
-    title: notificationsTable.title,
-    message: notificationsTable.message,
-    createdAt: notificationsTable.createdAt,
-    userName: usersTable.name
-  }).from(notificationsTable)
-    .leftJoin(usersTable, eq(notificationsTable.userId, usersTable.id))
-    .orderBy(desc(notificationsTable.createdAt))
-    .limit(5);
-
-  const coursesByCategory = await db.select({ category: coursesTable.category, count: count() })
-    .from(coursesTable).groupBy(coursesTable.category);
+  // Execute all 13 queries concurrently in parallel
+  const [
+    students,
+    teachers,
+    courses,
+    enrollments,
+    revenue,
+    pendingPayments,
+    pendingVerifications,
+    activeAnnouncements,
+    totalCertificates,
+    recentEnrollments,
+    recentPayments,
+    recentNotifications,
+    coursesByCategory,
+  ] = await Promise.all([
+    db.select({ c: count() }).from(usersTable).where(eq(usersTable.role, "student")),
+    db.select({ c: count() }).from(usersTable).where(eq(usersTable.role, "teacher")),
+    db.select({ c: count() }).from(coursesTable),
+    db.select({ c: count() }).from(enrollmentsTable),
+    db.select({ total: sum(paymentsTable.amount) }).from(paymentsTable).where(eq(paymentsTable.status, "verified")),
+    db.select({ c: count() }).from(paymentsTable).where(eq(paymentsTable.status, "pending")),
+    db.select({ c: count() }).from(identityVerificationsTable).where(eq(identityVerificationsTable.status, "pending")),
+    db.select({ c: count() }).from(notificationsTable).where(eq(notificationsTable.type, "announcement")),
+    db.select({ c: count() }).from(certificatesTable),
+    db.select({
+      id: enrollmentsTable.id,
+      userId: enrollmentsTable.userId,
+      courseId: enrollmentsTable.courseId,
+      progress: enrollmentsTable.progress,
+      status: enrollmentsTable.status,
+      enrolledAt: enrollmentsTable.enrolledAt,
+      courseName: coursesTable.title,
+      userName: usersTable.name,
+    }).from(enrollmentsTable)
+      .leftJoin(coursesTable, eq(enrollmentsTable.courseId, coursesTable.id))
+      .leftJoin(usersTable, eq(enrollmentsTable.userId, usersTable.id))
+      .limit(5),
+    db.select({
+      id: paymentsTable.id,
+      userId: paymentsTable.userId,
+      courseId: paymentsTable.courseId,
+      amount: paymentsTable.amount,
+      method: paymentsTable.method,
+      status: paymentsTable.status,
+      receiptUrl: paymentsTable.receiptUrl,
+      createdAt: paymentsTable.createdAt,
+      userName: usersTable.name,
+      courseName: coursesTable.title,
+    }).from(paymentsTable)
+      .leftJoin(usersTable, eq(paymentsTable.userId, usersTable.id))
+      .leftJoin(coursesTable, eq(paymentsTable.courseId, coursesTable.id))
+      .limit(5),
+    db.select({
+      id: notificationsTable.id,
+      type: notificationsTable.type,
+      title: notificationsTable.title,
+      message: notificationsTable.message,
+      createdAt: notificationsTable.createdAt,
+      userName: usersTable.name
+    }).from(notificationsTable)
+      .leftJoin(usersTable, eq(notificationsTable.userId, usersTable.id))
+      .orderBy(desc(notificationsTable.createdAt))
+      .limit(5),
+    db.select({ category: coursesTable.category, count: count() })
+      .from(coursesTable).groupBy(coursesTable.category)
+  ]);
 
   res.json({
     totalStudents: Number(students[0]?.c ?? 0),

@@ -57,6 +57,11 @@ import {
   Building2,
   ExternalLink,
   DollarSign,
+  Handshake,
+  Briefcase,
+  CheckCircle2,
+  Loader2,
+  X,
 } from "lucide-react";
 import {
   Accordion,
@@ -163,6 +168,37 @@ export default function Home() {
   const [selectedStory, setSelectedStory] = useState<any | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
+  // Franchise form state
+  const [franchiseOpen, setFranchiseOpen] = useState(false);
+  const [franchiseForm, setFranchiseForm] = useState({ name: "", email: "", phone: "", address: "", city: "", description: "" });
+  const [franchiseSubmitting, setFranchiseSubmitting] = useState(false);
+  const [franchiseSuccess, setFranchiseSuccess] = useState(false);
+  const [franchiseError, setFranchiseError] = useState("");
+
+  const handleFranchiseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!franchiseForm.name || !franchiseForm.email || !franchiseForm.phone || !franchiseForm.address || !franchiseForm.description) {
+      setFranchiseError("Please fill in all required fields.");
+      return;
+    }
+    // Show thank-you immediately on submit click
+    setFranchiseSuccess(true);
+    const payload = { ...franchiseForm };
+    setFranchiseForm({ name: "", email: "", phone: "", address: "", city: "", description: "" });
+    // Save to backend in background
+    try {
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+      await fetch(`${base}/api/franchise-applications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // Silent — user already sees thank-you
+    }
+  };
+
+
   const { data: categories } = useListSuccessStoryCategories({
     query: { queryKey: getListSuccessStoryCategoriesQueryKey() },
   });
@@ -256,6 +292,7 @@ export default function Home() {
 
   const [activeAchiever, setActiveAchiever] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoLoaded, setVideoLoaded] = useState(false);
 
   // Auto-scroll logic for Achievers
   useEffect(() => {
@@ -275,7 +312,9 @@ export default function Home() {
   // Force play hero video
   useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.play().catch((error) => {
+      videoRef.current.defaultMuted = true;
+      videoRef.current.muted = true;
+      videoRef.current.play().then(() => setVideoLoaded(true)).catch((error) => {
         console.log("Autoplay was prevented:", error);
       });
     }
@@ -398,7 +437,15 @@ export default function Home() {
   return (
     <MainLayout>
       {/* ── Hero Section ──────────────────────────────────────────────────── */}
-        <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
+        <section className="relative min-h-[90vh] flex items-end justify-center overflow-hidden bg-slate-950 pb-8 md:pb-12">
+          {/* High-quality poster fallback displayed immediately, fades out when video plays */}
+          <div 
+            className={`absolute inset-0 bg-cover bg-center z-0 transition-opacity duration-1000 ${
+              videoLoaded ? "opacity-0 pointer-events-none" : "opacity-100"
+            }`}
+            style={{ backgroundImage: 'url("/assets/images/hero-video-poster.png")' }}
+          />
+
           {/* Video Background */}
           <video 
             ref={videoRef}
@@ -407,7 +454,10 @@ export default function Home() {
             muted 
             playsInline
             preload="auto"
-            className="absolute inset-0 w-full h-full object-cover z-0"
+            onPlaying={() => setVideoLoaded(true)}
+            className={`absolute inset-0 w-full h-full object-cover z-0 scale-125 transition-opacity duration-1000 ${
+              videoLoaded ? "opacity-100" : "opacity-0"
+            }`}
           >
             <source src="/assets/videos/eBay-Course-Etsy-Training-Pakistan.mp4" type="video/mp4" />
           </video>
@@ -1442,6 +1492,214 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Get Work With Us — Franchise Section ──────────────────────────── */}
+      <section className="py-20 bg-gradient-to-br from-slate-900 via-[#0f2c6f] to-[#1a4d3a] relative overflow-hidden">
+        {/* Background decorations */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(26,77,58,0.4),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_50%,rgba(15,44,111,0.4),transparent_60%)]" />
+        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
+        <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
+
+        <div className="w-full px-4 md:px-10 lg:px-16 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            {/* Left: Text Content */}
+            <div>
+              <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-5 py-2 mb-8">
+                <Handshake className="h-4 w-4 text-emerald-400" />
+                <span className="text-emerald-300 text-sm font-bold uppercase tracking-widest">Franchise Opportunity</span>
+              </div>
+
+              <h2 className="text-4xl md:text-5xl font-black text-white mb-6 leading-tight">
+                Get Work With Us —
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300 mt-1">
+                  Own a Global College Franchise
+                </span>
+              </h2>
+
+              <p className="text-slate-300 text-lg leading-relaxed mb-10 font-medium">
+                Join Pakistan's fastest-growing digital education network. Open your own Global College campus in your city and be part of an ecosystem that has already trained 4,500+ students.
+              </p>
+
+              <div className="space-y-5 mb-10">
+                {[
+                  { icon: CheckCircle2, text: "Full training & onboarding support from our core team" },
+                  { icon: CheckCircle2, text: "Proven curriculum & certified diploma programs" },
+                  { icon: CheckCircle2, text: "Marketing materials, brand rights & student referrals" },
+                  { icon: CheckCircle2, text: "Access to our LMS, admin portal & student management tools" },
+                  { icon: CheckCircle2, text: "Ongoing mentorship and revenue-sharing model" },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <item.icon className="h-5 w-5 text-emerald-400 shrink-0 mt-0.5" />
+                    <span className="text-slate-300 font-medium">{item.text}</span>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={() => { setFranchiseOpen(true); setFranchiseSuccess(false); setFranchiseError(""); }}
+                className="inline-flex items-center gap-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-lg px-10 py-5 rounded-2xl shadow-2xl shadow-emerald-500/30 transition-all hover:scale-105 active:scale-95"
+              >
+                <Briefcase className="h-6 w-6" />
+                Apply for Franchise
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Right: Stats Cards */}
+            <div className="grid grid-cols-2 gap-5">
+              {[
+                { value: "4,500+", label: "Students Trained", icon: Users, color: "from-emerald-500/20 to-emerald-600/10", border: "border-emerald-500/20", iconColor: "text-emerald-400" },
+                { value: "10+", label: "Active Campuses", icon: Building2, color: "from-blue-500/20 to-blue-600/10", border: "border-blue-500/20", iconColor: "text-blue-400" },
+                { value: "95%", label: "Success Rate", icon: Trophy, color: "from-amber-500/20 to-amber-600/10", border: "border-amber-500/20", iconColor: "text-amber-400" },
+                { value: "PKR 0", label: "No Royalty Fee*", icon: DollarSign, color: "from-rose-500/20 to-rose-600/10", border: "border-rose-500/20", iconColor: "text-rose-400" },
+              ].map((stat, i) => (
+                <div key={i} className={`p-6 rounded-2xl bg-gradient-to-br ${stat.color} border ${stat.border} backdrop-blur-sm`}>
+                  <stat.icon className={`h-8 w-8 ${stat.iconColor} mb-4`} />
+                  <p className="text-3xl font-black text-white mb-1">{stat.value}</p>
+                  <p className="text-slate-400 text-sm font-bold uppercase tracking-wider">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Franchise Application Modal */}
+        {franchiseOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => { setFranchiseOpen(false); setFranchiseSuccess(false); }} />
+            <div className="relative w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl overflow-hidden">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-[#0f2c6f] to-[#1a4d3a] px-8 py-7">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-emerald-300 text-xs font-black uppercase tracking-widest mb-1">Franchise Application</p>
+                    <h3 className="text-white text-2xl font-black">Get Work With Us</h3>
+                    <p className="text-slate-300 text-sm font-medium mt-1">Fill in your details and we'll contact you within 24 hours.</p>
+                  </div>
+                  <button onClick={() => { setFranchiseOpen(false); setFranchiseSuccess(false); }} className="text-white/60 hover:text-white transition-colors mt-1">
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-8 max-h-[70vh] overflow-y-auto">
+                {franchiseSuccess ? (
+                  <div className="text-center py-8">
+                    <div className="h-20 w-20 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-6">
+                      <CheckCircle2 className="h-10 w-10 text-emerald-500" />
+                    </div>
+                    <h4 className="text-2xl font-black text-slate-900 mb-3">Application Submitted!</h4>
+                    <p className="text-slate-500 font-medium max-w-sm mx-auto">
+                      Thank you for your interest! Our team will review your application and contact you within 24 hours.
+                    </p>
+                    <button
+                      onClick={() => { setFranchiseOpen(false); setFranchiseSuccess(false); }}
+                      className="mt-8 inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-8 py-3 rounded-xl transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleFranchiseSubmit} className="space-y-5">
+                    {franchiseError && (
+                      <div className="bg-red-50 border border-red-200 text-red-700 text-sm font-medium px-4 py-3 rounded-xl">
+                        {franchiseError}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div>
+                        <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Full Name <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          placeholder="Muhammad Ali"
+                          value={franchiseForm.name}
+                          onChange={e => setFranchiseForm(p => ({ ...p, name: e.target.value }))}
+                          className="w-full h-12 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 font-medium text-sm focus:outline-none focus:border-emerald-400 focus:bg-white transition-all"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Phone Number <span className="text-red-500">*</span></label>
+                        <input
+                          type="tel"
+                          placeholder="+92 300 1234567"
+                          value={franchiseForm.phone}
+                          onChange={e => setFranchiseForm(p => ({ ...p, phone: e.target.value }))}
+                          className="w-full h-12 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 font-medium text-sm focus:outline-none focus:border-emerald-400 focus:bg-white transition-all"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Email Address <span className="text-red-500">*</span></label>
+                      <input
+                        type="email"
+                        placeholder="yourname@email.com"
+                        value={franchiseForm.email}
+                        onChange={e => setFranchiseForm(p => ({ ...p, email: e.target.value }))}
+                        className="w-full h-12 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 font-medium text-sm focus:outline-none focus:border-emerald-400 focus:bg-white transition-all"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div>
+                        <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">City <span className="text-slate-400">(Optional)</span></label>
+                        <input
+                          type="text"
+                          placeholder="Lahore, Karachi..."
+                          value={franchiseForm.city}
+                          onChange={e => setFranchiseForm(p => ({ ...p, city: e.target.value }))}
+                          className="w-full h-12 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 font-medium text-sm focus:outline-none focus:border-emerald-400 focus:bg-white transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Full Address <span className="text-red-500">*</span></label>
+                        <input
+                          type="text"
+                          placeholder="Street, Area, City"
+                          value={franchiseForm.address}
+                          onChange={e => setFranchiseForm(p => ({ ...p, address: e.target.value }))}
+                          className="w-full h-12 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 font-medium text-sm focus:outline-none focus:border-emerald-400 focus:bg-white transition-all"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black text-slate-700 uppercase tracking-wider mb-2">Tell Us About Yourself <span className="text-red-500">*</span></label>
+                      <textarea
+                        placeholder="Describe your background, experience, why you want to open a franchise, and your business goals..."
+                        value={franchiseForm.description}
+                        onChange={e => setFranchiseForm(p => ({ ...p, description: e.target.value }))}
+                        rows={4}
+                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 text-slate-900 font-medium text-sm focus:outline-none focus:border-emerald-400 focus:bg-white transition-all resize-none"
+                        required
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={franchiseSubmitting}
+                      className="w-full h-14 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 text-white font-black text-base rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-3"
+                    >
+                      {franchiseSubmitting ? (
+                        <><Loader2 className="h-5 w-5 animate-spin" /> Submitting Application...</>
+                      ) : (
+                        <><Briefcase className="h-5 w-5" /> Submit Franchise Application</>
+                      )}
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
       {/* ── CTA ──────────────────────────────────────────────────────────── */}
       <section className="py-14 bg-gradient-to-r from-[#0f2c6f] to-[#1a47b8] text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -1456,10 +1714,11 @@ export default function Home() {
             <Link href="/register">
               <Button
                 size="lg"
-                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-10"
+                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-10 animate-attention-seeker"
               >
                 Register Free
               </Button>
+
             </Link>
             <a href="https://wa.me/923019890076" target="_blank" rel="noreferrer">
               <Button

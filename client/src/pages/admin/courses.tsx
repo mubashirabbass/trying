@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { 
   useListCourses, 
@@ -29,6 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { useAuth } from "@/lib/AuthContext";
 
 // Dynamic Category Mapping
 const CATEGORY_DETAILS: Record<string, { label: string; icon: React.ComponentType<any>; color: string; gradient: string }> = {
@@ -53,7 +55,7 @@ const CATEGORY_DETAILS: Record<string, { label: string; icon: React.ComponentTyp
   AI: { 
     label: "AI Engineering", 
     icon: Brain, 
-    color: "text-orange-600 bg-orange-50 border-orange-100 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-900/40", 
+    color: "text-orange-605 bg-orange-50 border-orange-100 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-900/40", 
     gradient: "from-orange-500 to-amber-400" 
   },
   "MS Office": { 
@@ -71,13 +73,13 @@ const CATEGORY_DETAILS: Record<string, { label: string; icon: React.ComponentTyp
   "Computer Basic": { 
     label: "Computer Basic", 
     icon: Laptop, 
-    color: "text-slate-600 bg-slate-50 border-slate-200 dark:bg-slate-800/40 dark:text-slate-400 dark:border-slate-700/50", 
-    gradient: "from-slate-600 to-slate-450" 
+    color: "text-slate-600 bg-slate-50 border-slate-100 dark:bg-slate-950/20 dark:text-slate-400 dark:border-slate-900/40", 
+    gradient: "from-slate-600 to-slate-400" 
   },
   Default: { 
-    label: "Professional course", 
+    label: "Professional Course", 
     icon: GraduationCap, 
-    color: "text-slate-650 bg-slate-50 border-slate-100 dark:bg-slate-800/40 dark:text-slate-450 dark:border-slate-700/50", 
+    color: "text-indigo-600 bg-indigo-50 border-indigo-100 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/40", 
     gradient: "from-indigo-600 to-violet-400" 
   }
 };
@@ -89,12 +91,96 @@ export default function AdminCourses() {
   const updateCourse = useUpdateCourse();
   const createCourse = useCreateCourse();
   const deleteCourseMutation = useDeleteCourse();
+  const { token } = useAuth();
 
   // Fetch teachers for selection
   const { data: teachers } = useListUsers(
     { role: "teacher" },
     { query: { queryKey: getListUsersQueryKey({ role: "teacher" }) } }
   );
+
+  // Dynamic Course Categories Queries & Mutations
+  const { data: dbCategories = [], refetch: refetchCategories } = useQuery<any[]>({
+    queryKey: ["course-categories"],
+    queryFn: async () => {
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res = await fetch("/api/course-categories", { headers });
+      if (!res.ok) throw new Error("Failed to fetch categories");
+      return res.json();
+    }
+  });
+
+  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
+  const [categoryName, setCategoryName] = useState("");
+  const [categorySlug, setCategorySlug] = useState("");
+  const [categoryDesc, setCategoryDesc] = useState("");
+  const [editingCategory, setEditingCategory] = useState<any>(null);
+
+  const handleNameChange = (val: string) => {
+    setCategoryName(val);
+    if (!editingCategory) {
+      setCategorySlug(val.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""));
+    }
+  };
+
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!categoryName || !categorySlug) {
+      toast({ title: "Name and Slug are required", variant: "destructive" });
+      return;
+    }
+    try {
+      const url = editingCategory ? `/api/course-categories/${editingCategory.id}` : "/api/course-categories";
+      const method = editingCategory ? "PUT" : "POST";
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: JSON.stringify({ name: categoryName, slug: categorySlug, description: categoryDesc })
+      });
+      if (!res.ok) throw new Error("Failed to save category");
+      toast({ title: editingCategory ? "Category updated successfully!" : "Category created successfully!" });
+      setCategoryName("");
+      setCategorySlug("");
+      setCategoryDesc("");
+      setEditingCategory(null);
+      refetchCategories();
+    } catch (err) {
+      toast({ title: "Error saving category", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteCategory = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this category?")) return;
+    try {
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res = await fetch(`/api/course-categories/${id}`, { 
+        method: "DELETE",
+        headers
+      });
+      if (!res.ok) throw new Error("Failed to delete category");
+      toast({ title: "Category deleted successfully!" });
+      refetchCategories();
+    } catch (err) {
+      toast({ title: "Error deleting category", variant: "destructive" });
+    }
+  };
+
+  // Dynamic Category details lookup
+  const getCategoryDetails = (catName: string) => {
+    const normalized = (catName || "").toLowerCase();
+    if (normalized.includes("web")) return CATEGORY_DETAILS.Web;
+    if (normalized.includes("ai") || normalized.includes("artificial")) return CATEGORY_DETAILS.AI;
+    if (normalized.includes("graphic") || normalized.includes("design")) return CATEGORY_DETAILS.Graphics;
+    if (normalized.includes("freelance") || normalized.includes("upwork")) return CATEGORY_DETAILS.Freelancing;
+    if (normalized.includes("office") || normalized.includes("excel") || normalized.includes("word")) return CATEGORY_DETAILS["MS Office"];
+    if (normalized.includes("it") || normalized.includes("network") || normalized.includes("server")) return CATEGORY_DETAILS.IT;
+    if (normalized.includes("computer") || normalized.includes("basic")) return CATEGORY_DETAILS["Computer Basic"];
+    return CATEGORY_DETAILS.Default;
+  };
 
   // Client-Side Searching & Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -105,7 +191,7 @@ export default function AdminCourses() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("MS Office");
+  const [category, setCategory] = useState("");
   const [duration, setDuration] = useState("3 Months");
   const [fee, setFee] = useState("5000");
   const [isFree, setIsFree] = useState(false);
@@ -115,6 +201,13 @@ export default function AdminCourses() {
   const [syllabus, setSyllabus] = useState("");
   const [teacherId, setTeacherId] = useState<string>("");
   const [minAttendancePercentage, setMinAttendancePercentage] = useState("75");
+
+  // Set default category when categories load
+  useEffect(() => {
+    if (dbCategories.length > 0 && !category) {
+      setCategory(dbCategories[0].name);
+    }
+  }, [dbCategories]);
 
   // Filter dynamic course listing on Client
   const filteredCourses = courses?.filter(c => {
@@ -245,13 +338,28 @@ export default function AdminCourses() {
           <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Curriculum Management</h1>
           <p className="text-slate-500 text-sm font-medium mt-1">Approve draft programs, manage live syllabi, and coordinate academic teachers.</p>
         </div>
-        <Button 
-          onClick={() => setIsCreateOpen(true)}
-          className="rounded-xl font-bold bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white shadow-lg shadow-slate-900/10 dark:shadow-indigo-500/10"
-        >
-          <Plus className="h-4.5 w-4.5 mr-1.5" />
-          Create Course
-        </Button>
+        <div className="flex gap-3">
+          <Button 
+            onClick={() => setIsCategoriesOpen(true)}
+            variant="outline"
+            className="rounded-xl font-bold border-slate-250 hover:bg-slate-50 flex items-center gap-1.5"
+          >
+            <ListTodo className="h-4.5 w-4.5 mr-1.5 text-indigo-500" />
+            Manage Categories
+          </Button>
+          <Button 
+            onClick={() => {
+              if (dbCategories.length > 0) {
+                setCategory(dbCategories[0].name);
+              }
+              setIsCreateOpen(true);
+            }}
+            className="rounded-xl font-bold bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white shadow-lg shadow-slate-900/10 dark:shadow-indigo-500/10"
+          >
+            <Plus className="h-4.5 w-4.5 mr-1.5" />
+            Create Course
+          </Button>
+        </div>
       </div>
 
       {/* Metrics overview bar */}
@@ -341,12 +449,9 @@ export default function AdminCourses() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Specialties</SelectItem>
-                <SelectItem value="MS Office">MS Office</SelectItem>
-                <SelectItem value="Graphics">Graphic Design</SelectItem>
-                <SelectItem value="Freelancing">Freelancing Mastery</SelectItem>
-                <SelectItem value="AI">AI Engineering</SelectItem>
-                <SelectItem value="Web">Web Dev</SelectItem>
-                <SelectItem value="Computer Basic">Computer Basic</SelectItem>
+                {dbCategories.map((cat: any) => (
+                  <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -402,7 +507,7 @@ export default function AdminCourses() {
               </TableHeader>
               <TableBody>
                 {filteredCourses?.map((course) => {
-                  const details = CATEGORY_DETAILS[course.category ?? ""] ?? CATEGORY_DETAILS.Default;
+                  const details = getCategoryDetails(course.category ?? "");
                   const CategoryIcon = details.icon;
 
                   return (
@@ -588,12 +693,9 @@ export default function AdminCourses() {
                     <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border border-slate-200 shadow-lg">
-                    <SelectItem value="MS Office" className="text-sm font-medium">MS Office Suite</SelectItem>
-                    <SelectItem value="Graphics" className="text-sm font-medium">Graphic Design</SelectItem>
-                    <SelectItem value="Freelancing" className="text-sm font-medium">Freelancing Mastery</SelectItem>
-                    <SelectItem value="AI" className="text-sm font-medium">Artificial Intelligence (AI)</SelectItem>
-                    <SelectItem value="Web" className="text-sm font-medium">Web Development</SelectItem>
-                    <SelectItem value="Computer Basic" className="text-sm font-medium">Computer Basic</SelectItem>
+                    {dbCategories.map((cat: any) => (
+                      <SelectItem key={cat.id} value={cat.name} className="text-sm font-medium">{cat.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -751,6 +853,148 @@ export default function AdminCourses() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── COURSE CATEGORY MANAGER DIALOG ────────────────────────────── */}
+      <Dialog open={isCategoriesOpen} onOpenChange={setIsCategoriesOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white border border-slate-200 rounded-[24px] shadow-2xl p-6">
+          <DialogHeader className="border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-2">
+              <Badge className="bg-indigo-50 text-indigo-650 border border-indigo-200 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full">
+                Syllabi Taxonomy
+              </Badge>
+            </div>
+            <DialogTitle className="text-2xl font-black text-slate-800 tracking-tight mt-2 flex items-center gap-2">
+              <ListTodo className="h-6 w-6 text-indigo-600" />
+              Manage Course Categories
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs font-semibold mt-1">
+              Add new academic classifications, customize course taxonomy slugs, or remove unused categories.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+            {/* Category Form */}
+            <form onSubmit={handleSaveCategory} className="space-y-4 border-r border-slate-100 pr-0 md:pr-6">
+              <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">
+                {editingCategory ? "Edit Category" : "Add New Category"}
+              </h3>
+              
+              <div className="space-y-1.5">
+                <Label htmlFor="catName" className="text-xs font-black uppercase text-slate-500 tracking-wider">Category Name <span className="text-red-500">*</span></Label>
+                <Input
+                  id="catName"
+                  placeholder="e.g. Cybersecurity Specialization"
+                  value={categoryName}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  className="h-11 rounded-xl border-slate-200 text-sm font-medium"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="catSlug" className="text-xs font-black uppercase text-slate-500 tracking-wider">Slug (Unique identifier) <span className="text-red-500">*</span></Label>
+                <Input
+                  id="catSlug"
+                  placeholder="e.g. cybersecurity"
+                  value={categorySlug}
+                  onChange={(e) => setCategorySlug(e.target.value)}
+                  className="h-11 rounded-xl border-slate-200 text-sm font-semibold"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="catDesc" className="text-xs font-black uppercase text-slate-500 tracking-wider">Description</Label>
+                <Textarea
+                  id="catDesc"
+                  placeholder="Briefly describe the topics covered in this track..."
+                  value={categoryDesc}
+                  onChange={(e) => setCategoryDesc(e.target.value)}
+                  rows={3}
+                  className="rounded-xl border-slate-200 text-sm font-medium"
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                {editingCategory && (
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={() => {
+                      setCategoryName("");
+                      setCategorySlug("");
+                      setCategoryDesc("");
+                      setEditingCategory(null);
+                    }}
+                    className="h-11 rounded-xl font-bold text-xs"
+                  >
+                    Cancel
+                  </Button>
+                )}
+                <Button 
+                  type="submit" 
+                  className="h-11 rounded-xl font-bold text-xs bg-indigo-650 hover:bg-indigo-750 text-white"
+                >
+                  {editingCategory ? "Update Category" : "Add Category"}
+                </Button>
+              </div>
+            </form>
+
+            {/* Category List */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black uppercase text-slate-400 tracking-wider">
+                Existing Classifications ({dbCategories.length})
+              </h3>
+              
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                {dbCategories.map((cat: any) => {
+                  const details = getCategoryDetails(cat.name);
+                  const Icon = details.icon;
+                  return (
+                    <div key={cat.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center bg-slate-50 border border-slate-200`}>
+                          <Icon className="h-4.5 w-4.5 text-slate-500" />
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-xs text-slate-800">{cat.name}</p>
+                          <p className="text-[9px] font-bold text-slate-450 uppercase tracking-widest">slug: {cat.slug}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          type="button"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingCategory(cat);
+                            setCategoryName(cat.name);
+                            setCategorySlug(cat.slug);
+                            setCategoryDesc(cat.description || "");
+                          }}
+                          className="h-7 w-7 rounded-md text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 animate-none shrink-0"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          type="button"
+                          variant="ghost"
+                          onClick={() => handleDeleteCategory(cat.id)}
+                          className="h-7 w-7 rounded-md text-slate-500 hover:text-rose-600 hover:bg-rose-50 animate-none shrink-0"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

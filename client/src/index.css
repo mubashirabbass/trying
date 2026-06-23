@@ -275,3 +275,21 @@
 .animate-logo-circle {
   animation: rotate-circle 12s linear infinite;
 }
+
+@keyframes attention-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.15; }
+}
+
+.animate-attention-seeker {
+  animation: attention-blink 1.2s ease-in-out infinite;
+  transition: all 0.2s ease-in-out;
+}
+
+.animate-attention-seeker:hover {
+  animation-play-state: paused;
+  opacity: 1 !important;
+  transform: scale(1.05);
+}
+
+

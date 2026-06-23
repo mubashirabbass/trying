@@ -1,6 +1,6 @@
 import * as zod from "zod";
 import { Request, Response, Router, type IRouter } from "express";
-import { db, usersTable, branchesTable, coursesTable, paymentsTable, identityVerificationsTable, lessonCompletionsTable, quizResultsTable, videoAccessLogsTable, notificationsTable, messagesTable, messageThreadsTable, forumPostsTable, forumRepliesTable, enrollmentsTable, certificatesTable, assignmentSubmissionsTable } from "@workspace/db";
+import { db, usersTable, branchesTable, coursesTable, paymentsTable, identityVerificationsTable, lessonCompletionsTable, quizResultsTable, videoAccessLogsTable, notificationsTable, messagesTable, messageThreadsTable, forumPostsTable, forumRepliesTable, enrollmentsTable, certificatesTable, assignmentSubmissionsTable, attendanceTable } from "@workspace/db";
 import { eq, and, ilike, or, desc } from "drizzle-orm";
 import {
   ListUsersQueryParams,
@@ -345,6 +345,7 @@ router.delete(
     await db.update(coursesTable).set({ teacherId: null }).where(eq(coursesTable.teacherId, id));
     await db.update(paymentsTable).set({ reviewedBy: null }).where(eq(paymentsTable.reviewedBy, id));
     await db.update(identityVerificationsTable).set({ reviewedBy: null }).where(eq(identityVerificationsTable.reviewedBy, id));
+    await db.update(attendanceTable).set({ recordedById: null }).where(eq(attendanceTable.recordedById, id));
 
     // 2. Hard-delete child records (messages sub-tables first, then threads)
     await db.delete(messagesTable).where(eq(messagesTable.senderId, id));
@@ -362,6 +363,7 @@ router.delete(
     await db.delete(enrollmentsTable).where(eq(enrollmentsTable.userId, id));
     await db.delete(certificatesTable).where(eq(certificatesTable.userId, id));
     await db.delete(identityVerificationsTable).where(eq(identityVerificationsTable.userId, id));
+    await db.delete(attendanceTable).where(eq(attendanceTable.userId, id));
 
     // 4. Finally delete the user
     const [deleted] = await db.delete(usersTable).where(eq(usersTable.id, id)).returning();

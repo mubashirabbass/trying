@@ -188,6 +188,7 @@ const ADMIN_NAV_GROUPS = [
       { name: "Messages", path: "/admin/messages", icon: MessageCircle },
       { name: "Announcements", path: "/admin/announcements", icon: Megaphone },
       { name: "Forum", path: "/admin/forum", icon: MessageSquare },
+      { name: "Franchise Applications", path: "/admin/franchise-applications", icon: GraduationCap },
     ],
   },
   {
@@ -214,19 +215,32 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
   const [unreadMessages, setUnreadMessages] = useState<number>(() => {
     const val = localStorage.getItem("unread_messages_count");
-    return val !== null ? Number(val) : 2; // Default to 2 on first load
+    return val !== null ? Number(val) : 0;
   });
   const [pendingAssignments, setPendingAssignments] = useState<number>(0);
   const [pendingCourses, setPendingCourses] = useState<number>(0);
   const [attendanceStatus, setAttendanceStatus] = useState<"green" | "red" | null>(null);
   const [pendingQuizzes, setPendingQuizzes] = useState<number>(() => {
     const val = localStorage.getItem("unread_quizzes_count");
-    return val !== null ? Number(val) : 1; // Default to 1 on first load
+    return val !== null ? Number(val) : 0;
   });
   const [forumHasUpdates, setForumHasUpdates] = useState<boolean>(() => {
     const val = localStorage.getItem("unread_forum_has_updates");
-    return val !== null ? val === "true" : true; // Default to true on first load
+    return val !== null ? val === "true" : false;
   });
+
+  // One-time: clear any stale fake counts from old code defaults
+  useEffect(() => {
+    if (!localStorage.getItem("_badge_defaults_cleared")) {
+      localStorage.setItem("unread_messages_count", "0");
+      localStorage.setItem("unread_quizzes_count", "0");
+      localStorage.setItem("unread_forum_has_updates", "false");
+      localStorage.setItem("_badge_defaults_cleared", "1");
+      setUnreadMessages(0);
+      setPendingQuizzes(0);
+      setForumHasUpdates(false);
+    }
+  }, []);
 
   // Track location changes to clear counts/marks
   useEffect(() => {

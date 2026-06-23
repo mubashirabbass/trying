@@ -29,7 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 export default function AdminCourseEdit() {
   const { id } = useParams();
@@ -104,7 +104,14 @@ export default function AdminCourseEdit() {
     );
   }
 
-  const categories = ["IT", "Graphics", "Freelancing", "AI", "MS Office", "Web"];
+  const { data: dbCategories = [] } = useQuery<any[]>({
+    queryKey: ["course-categories"],
+    queryFn: async () => {
+      const res = await fetch("/api/course-categories");
+      if (!res.ok) throw new Error("Failed to fetch categories");
+      return res.json();
+    }
+  });
 
   return (
     <DashboardLayout>
@@ -176,8 +183,8 @@ export default function AdminCourseEdit() {
                       <SelectValue placeholder="Select Category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map(c => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      {dbCategories.map((c: any) => (
+                        <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

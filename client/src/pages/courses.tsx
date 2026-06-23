@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useListCourses, getListCoursesQueryKey } from "@workspace/api-client-react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { 
   Loader2, Search, Clock, GraduationCap, DollarSign, BookOpen, 
@@ -61,7 +62,25 @@ export default function Courses() {
     { query: { queryKey: getListCoursesQueryKey({ search: search || undefined, category }) } }
   );
 
-  const categories = ["IT", "Graphics", "Freelancing", "AI", "MS Office"];
+  const { data: dbCategories = [] } = useQuery<any[]>({
+    queryKey: ["course-categories"],
+    queryFn: async () => {
+      const res = await fetch("/api/course-categories");
+      if (!res.ok) throw new Error("Failed to fetch categories");
+      return res.json();
+    }
+  });
+
+  const getCategoryDetails = (catName: string) => {
+    const normalized = (catName || "").toLowerCase();
+    if (normalized.includes("web")) return CATEGORY_DETAILS.Web || CATEGORY_DETAILS.IT;
+    if (normalized.includes("ai") || normalized.includes("artificial")) return CATEGORY_DETAILS.AI;
+    if (normalized.includes("graphic") || normalized.includes("design")) return CATEGORY_DETAILS.Graphics;
+    if (normalized.includes("freelance") || normalized.includes("copy")) return CATEGORY_DETAILS.Freelancing;
+    if (normalized.includes("office") || normalized.includes("excel") || normalized.includes("word")) return CATEGORY_DETAILS["MS Office"];
+    if (normalized.includes("it") || normalized.includes("network") || normalized.includes("server")) return CATEGORY_DETAILS.IT;
+    return CATEGORY_DETAILS.Default;
+  };
 
   return (
     <MainLayout>
@@ -151,23 +170,23 @@ export default function Courses() {
                 All Specializations
               </Button>
 
-              {categories.map(c => {
-                const details = CATEGORY_DETAILS[c] || CATEGORY_DETAILS.Default;
+              {dbCategories.map(cat => {
+                const details = getCategoryDetails(cat.name);
                 const IconComponent = details.icon;
                 
                 return (
                   <Button 
-                    key={c}
-                    variant={category === c ? "default" : "outline"}
-                    onClick={() => setCategory(c)}
+                    key={cat.id}
+                    variant={category === cat.name ? "default" : "outline"}
+                    onClick={() => setCategory(cat.name)}
                     className={`h-11 rounded-xl px-5 text-xs font-bold transition-all shadow-none ${
-                      category === c 
+                      category === cat.name 
                         ? "bg-indigo-600 hover:bg-indigo-700 text-white border-none shadow-lg shadow-indigo-500/20"
                         : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
                     }`}
                   >
                     <IconComponent className="h-4 w-4 mr-2" />
-                    {c}
+                    {cat.name}
                   </Button>
                 );
               })}
@@ -199,7 +218,7 @@ export default function Courses() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {courses?.map((course) => {
-              const details = CATEGORY_DETAILS[course.category ?? ""] ?? CATEGORY_DETAILS.Default;
+              const details = getCategoryDetails(course.category ?? "");
               const IconComponent = details.icon;
               
               // Simulating realistic metadata based on course ID for enriched look

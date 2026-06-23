@@ -810,47 +810,58 @@ export default function AdminStudents() {
 
                           {/* 8. Actions */}
                           <TableCell className="text-center py-4">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-slate-100"><MoreVertical className="h-4 w-4" /></Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="rounded-xl w-48">
-                                <DropdownMenuLabel className="text-xs">Student Options</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setLocation(`/admin/users/${user.id}`)} className="text-xs font-bold gap-2"><Eye className="h-3.5 w-3.5 text-indigo-500" /> View Full Profile</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => {
-                                  setFormData({ 
-                                    name: user.name || "", 
-                                    email: user.email || "", 
-                                    phone: user.phone || "", 
-                                    role: user.role || "student", 
-                                    password: "", 
-                                    branchId: user.branchId ? user.branchId.toString() : "",
-                                    cnic: user.cnic || "",
-                                    dob: user.dob || "",
-                                    lastEducation: (user.lastEducation || "") as any,
-                                    educationStream: user.educationStream || "",
-                                    obtainedMarks: user.obtainedMarks ? user.obtainedMarks.toString() : "",
-                                    totalMarks: user.totalMarks ? user.totalMarks.toString() : "",
-                                    branchName: user.branchName || "Global"
-                                  });
-                                  setEditUser(user);
-                                }} className="text-xs font-bold gap-2"><Edit2 className="h-3.5 w-3.5" /> Edit Profile</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => {
-                                  setFormData(prev => ({ ...prev, password: "" }));
-                                  setResetPasswordUser(user);
-                                }} className="text-xs font-bold gap-2"><Key className="h-3.5 w-3.5" /> Reset Password</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setUserToDelete(user)} className="text-xs font-bold text-rose-600 hover:bg-rose-50 gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete Permanently</DropdownMenuItem>
-                                {user.isActive && (
-                                  <DropdownMenuItem onClick={() => disapproveStudent(user.id, user.name)} className="text-xs font-bold text-amber-600 hover:bg-amber-50 gap-2"><XCircle className="h-3.5 w-3.5" /> Disapprove & Deactivate</DropdownMenuItem>
-                                )}
-                                {!user.isActive && (
-                                  <DropdownMenuItem onClick={() => approveReg(user.id)} className="text-xs font-bold text-emerald-600 hover:bg-emerald-50 gap-2"><CheckCircle2 className="h-3.5 w-3.5" /> Re-Approve Account</DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="flex items-center justify-center gap-1">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-slate-100"><MoreVertical className="h-4 w-4" /></Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="rounded-xl w-48">
+                                  <DropdownMenuLabel className="text-xs">Student Options</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => setLocation(`/admin/users/${user.id}`)} className="text-xs font-bold gap-2"><Eye className="h-3.5 w-3.5 text-indigo-500" /> View Full Profile</DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => {
+                                    setFormData({ 
+                                      name: user.name || "", 
+                                      email: user.email || "", 
+                                      phone: user.phone || "", 
+                                      role: user.role || "student", 
+                                      password: "", 
+                                      branchId: user.branchId ? user.branchId.toString() : "",
+                                      cnic: user.cnic || "",
+                                      dob: user.dob || "",
+                                      lastEducation: (user.lastEducation || "") as any,
+                                      educationStream: user.educationStream || "",
+                                      obtainedMarks: user.obtainedMarks ? user.obtainedMarks.toString() : "",
+                                      totalMarks: user.totalMarks ? user.totalMarks.toString() : "",
+                                      branchName: user.branchName || "Global"
+                                    });
+                                    setEditUser(user);
+                                  }} className="text-xs font-bold gap-2"><Edit2 className="h-3.5 w-3.5" /> Edit Profile</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => {
+                                    setFormData(prev => ({ ...prev, password: "" }));
+                                    setResetPasswordUser(user);
+                                  }} className="text-xs font-bold gap-2"><Key className="h-3.5 w-3.5" /> Reset Password</DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => setUserToDelete(user)} className="text-xs font-bold text-rose-600 hover:bg-rose-50 gap-2"><Trash2 className="h-3.5 w-3.5" /> Delete Permanently</DropdownMenuItem>
+                                  {user.isActive && (
+                                    <DropdownMenuItem onClick={() => disapproveStudent(user.id, user.name)} className="text-xs font-bold text-amber-600 hover:bg-amber-50 gap-2"><XCircle className="h-3.5 w-3.5" /> Disapprove & Deactivate</DropdownMenuItem>
+                                  )}
+                                  {!user.isActive && (
+                                    <DropdownMenuItem onClick={() => approveReg(user.id)} className="text-xs font-bold text-emerald-600 hover:bg-emerald-50 gap-2"><CheckCircle2 className="h-3.5 w-3.5" /> Re-Approve Account</DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                                title="Delete Student permanently"
+                                onClick={() => setUserToDelete(user)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -924,7 +935,7 @@ export default function AdminStudents() {
                         <TableHead className="font-bold text-slate-700">Email Address</TableHead>
                         <TableHead className="font-bold text-slate-700">Enrolled Courses</TableHead>
                         <TableHead className="font-bold text-slate-700">Status</TableHead>
-                        <TableHead className="font-bold text-slate-700 text-center w-36">Profile Info</TableHead>
+                        <TableHead className="font-bold text-slate-700 text-right pr-6 w-28">Actions</TableHead>
                       </>
                     )}
                   </TableRow>
@@ -1097,17 +1108,47 @@ export default function AdminStudents() {
                                 Fully Enrolled
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-center py-2">
-                              <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                                <Button size="sm" variant="outline" className="rounded-lg h-7 px-2 text-[10px] font-black hover:bg-slate-900 hover:text-white border-slate-200" onClick={() => setLocation(`/admin/users/${u.id}`)}>
-                                  View <ExternalLink className="h-3 w-3 ml-1" />
+                            <TableCell className="text-right py-2 pr-6">
+                              <div className="flex justify-end items-center gap-1.5">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  title="Delete Student from LMS"
+                                  className="h-8 w-8 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl"
+                                  onClick={() => setUserToDelete(u)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
-                                {activeEnrollments.map((e: any) => (
-                                  <Button key={e.id} size="sm" variant="outline" className="rounded-lg h-7 px-2 text-[10px] font-bold text-rose-600 border-rose-200 hover:bg-rose-50" disabled={actioning === e.id} onClick={() => unenrollStudent(e.id, e.courseName || `Course #${e.courseId}`, u.name)}>
-                                    {actioning === e.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3 mr-1" />}
-                                    Unenroll
-                                  </Button>
-                                ))}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl border border-slate-200/60 hover:bg-slate-100 shadow-sm">
+                                      <MoreVertical className="h-4 w-4 text-slate-500" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
+                                    <DropdownMenuItem className="rounded-xl font-bold text-xs gap-2 py-2" onClick={() => setLocation(`/admin/users/${u.id}`)}>
+                                      <User className="h-4 w-4 text-slate-400" /> View Profile
+                                    </DropdownMenuItem>
+                                    
+                                    {activeEnrollments.length > 0 && (
+                                      <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuLabel className="text-[10px] font-black text-slate-400 uppercase px-2 py-1">Active Enrollments</DropdownMenuLabel>
+                                        {activeEnrollments.map((e: any) => (
+                                          <DropdownMenuItem 
+                                            key={e.id} 
+                                            className="rounded-xl font-bold text-xs gap-2 py-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50" 
+                                            disabled={actioning === e.id}
+                                            onClick={() => unenrollStudent(e.id, e.courseName || `Course #${e.courseId}`, u.name)}
+                                          >
+                                            <XCircle className="h-4 w-4" /> 
+                                            Unenroll: {e.courseName || `Course #${e.courseId}`}
+                                          </DropdownMenuItem>
+                                        ))}
+                                      </>
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -1755,9 +1796,9 @@ export default function AdminStudents() {
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader className="flex flex-col items-center text-center">
             <div className="h-12 w-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mb-2"><ShieldAlert className="h-6 w-6" /></div>
-            <DialogTitle>Confirm Permanently Delete</DialogTitle>
+            <DialogTitle>Are you sure you want to delete the student?</DialogTitle>
             <DialogDescription className="text-xs">
-              Are you absolute sure you wish to delete profile <strong>{userToDelete?.name}</strong>? All associated logs, grades, and enrollments will be wiped.
+              Are you sure you want to delete the student <strong>{userToDelete?.name}</strong>? This will permanently delete all of their data from the LMS.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex gap-2 justify-center sm:justify-center pt-2">

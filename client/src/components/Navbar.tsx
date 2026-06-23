@@ -60,12 +60,12 @@ export function Navbar() {
   const navLinks = [
     { name: "Home", path: "/" },
     { name: "Courses", path: "/courses" },
-    { name: "Trainings", path: "/trainings" },
     { name: "Success Stories", path: "/success-stories" },
     { name: "About", path: "/about" },
     { name: "Contact", path: "/contact" },
     { name: "Feedback", path: "/feedback" },
   ];
+
 
   return (
     <>
@@ -126,22 +126,26 @@ export function Navbar() {
 
             {/* ── Nav Links (desktop) ── */}
             <div className="hidden md:flex flex-1 items-center justify-center min-w-0 overflow-hidden">
-              <div className="flex items-center gap-0">
+              <div className="flex items-center gap-1.5">
                 {navLinks.map((link) => (
                   <Link
                     key={link.path}
                     href={link.path}
-                    className={`px-2.5 py-1.5 rounded-md text-[12.5px] font-medium whitespace-nowrap transition-colors ${
+                    className={`relative px-3 py-2 text-[13px] font-medium whitespace-nowrap transition-colors group ${
                       location === link.path
-                        ? "text-primary bg-primary/5 font-semibold"
-                        : "text-gray-600 hover:text-primary hover:bg-gray-50"
+                        ? "text-primary font-semibold"
+                        : "text-gray-600 hover:text-primary"
                     }`}
                   >
-                    {link.name}
+                    <span>{link.name}</span>
+                    <span className={`absolute bottom-0 left-3 right-3 h-0.5 bg-primary transform scale-x-0 origin-left transition-transform duration-300 group-hover:scale-x-100 ${
+                      location === link.path ? "scale-x-100" : ""
+                    }`} />
                   </Link>
                 ))}
               </div>
             </div>
+
 
             {/* ── Action Buttons (desktop) — separated by a border ── */}
             <div className="hidden md:flex items-center gap-1.5 shrink-0 border-l border-gray-200 pl-3">
@@ -174,10 +178,11 @@ export function Navbar() {
                   </Link>
                   <Link href="/register">
                     <Button
-                      className="bg-orange-500 hover:bg-orange-600 text-white font-semibold h-9 px-5 rounded-lg shadow-sm text-[13px] whitespace-nowrap">
+                      className="bg-orange-500 hover:bg-orange-600 text-white font-semibold h-9 px-5 rounded-lg shadow-sm text-[13px] whitespace-nowrap animate-attention-seeker">
                       Enroll Free
                     </Button>
                   </Link>
+
                 </>
               )}
             </div>
@@ -236,8 +241,9 @@ export function Navbar() {
                       <Button variant="outline" className="w-full text-sm font-semibold">Log in</Button>
                     </Link>
                     <Link href="/register" onClick={() => setIsOpen(false)}>
-                      <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold">Enroll Free</Button>
+                      <Button className="w-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold animate-attention-seeker">Enroll Free</Button>
                     </Link>
+
                   </>
                 )}
               </div>

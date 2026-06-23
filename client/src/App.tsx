@@ -16,8 +16,8 @@ import Contact from "@/pages/contact";
 import Courses from "@/pages/courses";
 import CourseDetail from "@/pages/course-detail";
 import VerifyCertificate from "@/pages/verify-certificate";
-import Trainings from "@/pages/trainings";
 import Services from "@/pages/services";
+
 import SuccessStories from "@/pages/success-stories";
 import SuccessStoryDetail from "@/pages/success-story-detail";
 import Resources from "@/pages/resources";
@@ -71,6 +71,7 @@ import LectureReviews from "@/pages/shared/reviews";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminUsers from "@/pages/admin/users";
 import AdminCourses from "@/pages/admin/courses";
+import AdminCourseCategories from "@/pages/admin/course-categories";
 import AdminPayments from "@/pages/admin/payments";
 import AdminBranches from "@/pages/admin/branches";
 import AdminSuccessStories from "@/pages/admin/success-stories";
@@ -93,6 +94,7 @@ import AdminLeaderboard from "@/pages/admin/leaderboard";
 import AdminFeaturedCourses from "@/pages/admin/featured-courses";
 import AdminArticles from "@/pages/admin/articles";
 import AdminFAQs from "@/pages/admin/faqs";
+import AdminFranchiseApplications from "@/pages/admin/franchise-applications";
 
 const queryClient = new QueryClient();
 
@@ -123,8 +125,8 @@ function Router() {
         <Route path="/about" component={About} />
         <Route path="/contact" component={Contact} />
         <Route path="/courses" component={Courses} />
-        <Route path="/trainings" component={Trainings} />
         <Route path="/services" component={Services} />
+
         <Route path="/success-stories" component={SuccessStories} />
         <Route path="/success-stories/:id" component={SuccessStoryDetail} />
         <Route path="/resources" component={Resources} />
@@ -264,6 +266,9 @@ function Router() {
         <Route path="/admin/courses/:id/content">
           <ProtectedRoute component={AdminCourseContent} />
         </Route>
+        <Route path="/admin/course-categories">
+          <ProtectedRoute component={AdminCourseCategories} />
+        </Route>
         <Route path="/admin/payments">
           <ProtectedRoute component={AdminPayments} />
         </Route>
@@ -326,6 +331,9 @@ function Router() {
         </Route>
         <Route path="/admin/reviews">
           <ProtectedRoute component={LectureReviews} />
+        </Route>
+        <Route path="/admin/franchise-applications">
+          <ProtectedRoute component={AdminFranchiseApplications} />
         </Route>
 
         <Route component={NotFound} />

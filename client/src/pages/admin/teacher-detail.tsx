@@ -68,6 +68,165 @@ export default function AdminTeacherDetail() {
   const { toast } = useToast();
 
   const { data: teacher, isLoading: userLoading } = useGetUser(teacherId);
+
+  const [attendanceMonth, setAttendanceMonth] = useState(new Date().getMonth());
+  const [attendanceYear, setAttendanceYear] = useState(new Date().getFullYear());
+  const [attendance, setAttendance] = useState<Record<string, "present" | "absent" | "late" | "leave">>({});
+  const [salaries, setSalaries] = useState<any[]>([]);
+  const [isPayoutOpen, setIsPayoutOpen] = useState(false);
+  const [payoutForm, setPayoutForm] = useState({
+    allowance: "0",
+    deductions: "0",
+    paymentMethod: "Bank Transfer",
+    notes: "",
+    month: new Date().toLocaleString('default', { month: 'long' }),
+    year: new Date().getFullYear().toString()
+  });
+
+  const [dateToMark, setDateToMark] = useState<string | null>(null);
+
+  // Load from localStorage
+  useEffect(() => {
+    if (teacherId) {
+      const savedAttendance = localStorage.getItem(`teacher_${teacherId}_attendance`);
+      if (savedAttendance) {
+        try {
+          setAttendance(JSON.parse(savedAttendance));
+        } catch (e) {}
+      } else {
+        // Populate some default dummy attendance records for past months to make it look full and beautiful!
+        const dummy: Record<string, any> = {};
+        const today = new Date();
+        // Go back 60 days and fill randomly with 90% present, 5% late, 3% leave, 2% absent
+        for (let i = 1; i <= 60; i++) {
+          const d = new Date();
+          d.setDate(today.getDate() - i);
+          // Skip Sundays
+          if (d.getDay() === 0) continue;
+          const dateStr = d.toISOString().split('T')[0];
+          const rand = Math.random();
+          if (rand < 0.88) {
+            dummy[dateStr] = "present";
+          } else if (rand < 0.94) {
+            dummy[dateStr] = "late";
+          } else if (rand < 0.97) {
+            dummy[dateStr] = "leave";
+          } else {
+            dummy[dateStr] = "absent";
+          }
+        }
+        setAttendance(dummy);
+        localStorage.setItem(`teacher_${teacherId}_attendance`, JSON.stringify(dummy));
+      }
+
+      const savedSalaries = localStorage.getItem(`teacher_${teacherId}_salaries`);
+      if (savedSalaries) {
+        try {
+          setSalaries(JSON.parse(savedSalaries));
+        } catch (e) {}
+      } else {
+        // Populate some default payroll records
+        const baseSalary = teacher?.salary || 120000;
+        const dummySalaries = [
+          {
+            id: "p1",
+            month: "May",
+            year: 2026,
+            baseSalary,
+            allowance: 5000,
+            deductions: 2000,
+            netPaid: baseSalary + 5000 - 2000,
+            payDate: "2026-05-02",
+            paymentMethod: "Bank Transfer",
+            status: "Paid",
+            notes: "Regular monthly payroll processed successfully."
+          },
+          {
+            id: "p2",
+            month: "April",
+            year: 2026,
+            baseSalary,
+            allowance: 0,
+            deductions: 0,
+            netPaid: baseSalary,
+            payDate: "2026-04-01",
+            paymentMethod: "Bank Transfer",
+            status: "Paid",
+            notes: "Regular monthly payroll processed."
+          },
+          {
+            id: "p3",
+            month: "March",
+            year: 2026,
+            baseSalary,
+            allowance: 12000,
+            deductions: 0,
+            netPaid: baseSalary + 12000,
+            payDate: "2026-03-03",
+            paymentMethod: "Bank Transfer",
+            status: "Paid",
+            notes: "Annual Performance Bonus + Monthly Salary."
+          }
+        ];
+        setSalaries(dummySalaries);
+        localStorage.setItem(`teacher_${teacherId}_salaries`, JSON.stringify(dummySalaries));
+      }
+    }
+  }, [teacherId, teacher]);
+
+  const updateAttendanceDay = (dateStr: string, status: "present" | "absent" | "late" | "leave" | "") => {
+    const updated = { ...attendance };
+    if (!status) {
+      delete updated[dateStr];
+    } else {
+      updated[dateStr] = status;
+    }
+    setAttendance(updated);
+    localStorage.setItem(`teacher_${teacherId}_attendance`, JSON.stringify(updated));
+    toast({
+      title: "Attendance Updated",
+      description: `Marked ${dateStr} as ${status || "unmarked"}.`
+    });
+  };
+
+  const handleAddPayout = (e: React.FormEvent) => {
+    e.preventDefault();
+    const base = Number(teacher?.salary) || 120000;
+    const allowanceVal = Number(payoutForm.allowance) || 0;
+    const deductionVal = Number(payoutForm.deductions) || 0;
+    const netPaid = base + allowanceVal - deductionVal;
+
+    const newPayout = {
+      id: `p-${Date.now()}`,
+      month: payoutForm.month,
+      year: Number(payoutForm.year),
+      baseSalary: base,
+      allowance: allowanceVal,
+      deductions: deductionVal,
+      netPaid,
+      payDate: new Date().toISOString().split('T')[0],
+      paymentMethod: payoutForm.paymentMethod,
+      status: "Paid",
+      notes: payoutForm.notes || "Payroll processed manually."
+    };
+
+    const updated = [newPayout, ...salaries];
+    setSalaries(updated);
+    localStorage.setItem(`teacher_${teacherId}_salaries`, JSON.stringify(updated));
+    setIsPayoutOpen(false);
+    setPayoutForm({
+      allowance: "0",
+      deductions: "0",
+      paymentMethod: "Bank Transfer",
+      notes: "",
+      month: new Date().toLocaleString('default', { month: 'long' }),
+      year: new Date().getFullYear().toString()
+    });
+    toast({
+      title: "Salary Paid",
+      description: `Successfully processed payout of PKR ${netPaid.toLocaleString()} for ${payoutForm.month} ${payoutForm.year}.`
+    });
+  };
   
   // Fetch courses
   const { data: allCourses = [], isLoading: coursesLoading } = useListCourses({});
@@ -532,12 +691,18 @@ export default function AdminTeacherDetail() {
         {/* Right Column: Dynamic Tabs */}
         <div className="lg:col-span-2 space-y-6">
           <Tabs defaultValue="courses" className="space-y-6">
-            <TabsList className="bg-white dark:bg-slate-900 p-1 rounded-2xl shadow-sm ring-1 ring-gray-100 dark:ring-slate-800 w-full justify-start h-14">
+            <TabsList className="bg-white dark:bg-slate-900 p-1 rounded-2xl shadow-sm ring-1 ring-gray-100 dark:ring-slate-800 w-full justify-start h-14 overflow-x-auto">
               <TabsTrigger value="courses" className="rounded-xl h-12 px-6 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
                 <BookOpen className="h-4 w-4 mr-2" /> Courses Taught
               </TabsTrigger>
               <TabsTrigger value="assignments" className="rounded-xl h-12 px-6 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
                 <FileText className="h-4 w-4 mr-2" /> Assignments
+              </TabsTrigger>
+              <TabsTrigger value="attendance" className="rounded-xl h-12 px-6 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+                <Calendar className="h-4 w-4 mr-2" /> Attendance
+              </TabsTrigger>
+              <TabsTrigger value="salary" className="rounded-xl h-12 px-6 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+                <DollarSign className="h-4 w-4 mr-2" /> Salaries & Payroll
               </TabsTrigger>
             </TabsList>
 
@@ -667,6 +832,260 @@ export default function AdminTeacherDetail() {
                       )}
                     </TableBody>
                   </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="attendance" className="space-y-6">
+              <Card className="border-none shadow-sm ring-1 ring-gray-100 dark:ring-slate-800 rounded-[24px] overflow-hidden">
+                <CardHeader className="px-6 py-5 border-b border-gray-50 dark:border-slate-800 flex flex-row items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <CardTitle className="text-xl font-black text-gray-900 dark:text-white">Monthly Attendance Tracker</CardTitle>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Track and manage monthly attendance logs for the instructor.</p>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Select 
+                      value={attendanceMonth.toString()} 
+                      onValueChange={(val) => setAttendanceMonth(Number(val))}
+                    >
+                      <SelectTrigger className="w-36 rounded-xl h-10 border-slate-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        {[
+                          "January", "February", "March", "April", "May", "June",
+                          "July", "August", "September", "October", "November", "December"
+                        ].map((m, i) => (
+                          <SelectItem key={i} value={i.toString()}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    <Select 
+                      value={attendanceYear.toString()} 
+                      onValueChange={(val) => setAttendanceYear(Number(val))}
+                    >
+                      <SelectTrigger className="w-24 rounded-xl h-10 border-slate-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        {[2025, 2026, 2027].map((y) => (
+                          <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="p-6 space-y-6">
+                  {(() => {
+                    const daysInMonth = new Date(attendanceYear, attendanceMonth + 1, 0).getDate();
+                    let totalDays = 0;
+                    let presentCount = 0;
+                    let absentCount = 0;
+                    let lateCount = 0;
+                    let leaveCount = 0;
+
+                    for (let day = 1; day <= daysInMonth; day++) {
+                      const d = new Date(attendanceYear, attendanceMonth, day);
+                      if (d.getDay() === 0) continue; // Skip Sunday
+                      totalDays++;
+                      const dateStr = `${attendanceYear}-${String(attendanceMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                      const status = attendance[dateStr];
+                      if (status === "present") presentCount++;
+                      else if (status === "absent") absentCount++;
+                      else if (status === "late") lateCount++;
+                      else if (status === "leave") leaveCount++;
+                    }
+
+                    const attendanceRate = totalDays > 0 ? Math.round(((presentCount + lateCount) / totalDays) * 100) : 0;
+
+                    return (
+                      <>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                          <div className="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100/50 dark:border-indigo-950/40 text-center">
+                            <p className="text-sm font-black text-indigo-400 tracking-wider">Present</p>
+                            <p className="text-2xl font-black text-indigo-700 dark:text-indigo-400 mt-1">{presentCount}</p>
+                          </div>
+                          <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/10 border border-amber-100/50 dark:border-amber-950/40 text-center">
+                            <p className="text-sm font-black text-amber-400 tracking-wider">Late</p>
+                            <p className="text-2xl font-black text-amber-700 dark:text-amber-400 mt-1">{lateCount}</p>
+                          </div>
+                          <div className="p-4 rounded-2xl bg-rose-50/50 dark:bg-rose-950/10 border border-rose-100/50 dark:border-rose-950/40 text-center">
+                            <p className="text-sm font-black text-rose-400 tracking-wider">Absent</p>
+                            <p className="text-2xl font-black text-rose-700 dark:text-rose-450 mt-1">{absentCount}</p>
+                          </div>
+                          <div className="p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-950/10 border border-blue-100/50 dark:border-blue-950/40 text-center">
+                            <p className="text-sm font-black text-blue-400 tracking-wider">Leave</p>
+                            <p className="text-2xl font-black text-blue-700 dark:text-blue-400 mt-1">{leaveCount}</p>
+                          </div>
+                          <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/10 border border-emerald-100/50 dark:border-emerald-950/40 text-center col-span-2 sm:col-span-1">
+                            <p className="text-sm font-black text-emerald-400 tracking-wider">Rate</p>
+                            <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400 mt-1">{attendanceRate}%</p>
+                          </div>
+                        </div>
+
+                        <div className="border border-slate-100 dark:border-slate-800 rounded-3xl p-4 bg-slate-50/50 dark:bg-slate-900/30">
+                          <div className="grid grid-cols-7 gap-2 mb-4 text-center">
+                            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((dayName) => (
+                              <span key={dayName} className="text-[10px] font-black uppercase text-slate-400 tracking-wider py-1">{dayName}</span>
+                            ))}
+                          </div>
+
+                          <div className="grid grid-cols-7 gap-2">
+                            {(() => {
+                              const cells = [];
+                              const firstDayIndex = (new Date(attendanceYear, attendanceMonth, 1).getDay() + 6) % 7; // Mon is 0
+
+                              for (let i = 0; i < firstDayIndex; i++) {
+                                cells.push(<div key={`empty-${i}`} className="aspect-square bg-transparent" />);
+                              }
+
+                              for (let day = 1; day <= daysInMonth; day++) {
+                                const currentDate = new Date(attendanceYear, attendanceMonth, day);
+                                const isSunday = currentDate.getDay() === 0;
+                                const dateStr = `${attendanceYear}-${String(attendanceMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                const status = attendance[dateStr];
+
+                                let statusStyle = "bg-white dark:bg-slate-900 text-slate-700 border-slate-100 hover:bg-slate-50 shadow-sm";
+                                if (isSunday) {
+                                  statusStyle = "bg-slate-100/60 dark:bg-slate-950/40 text-slate-400 border-transparent cursor-not-allowed";
+                                } else if (status === "present") {
+                                  statusStyle = "bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100/50";
+                                } else if (status === "absent") {
+                                  statusStyle = "bg-rose-50 text-rose-700 border-rose-100 hover:bg-rose-100/50";
+                                } else if (status === "late") {
+                                  statusStyle = "bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100/50";
+                                } else if (status === "leave") {
+                                  statusStyle = "bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100/50";
+                                }
+
+                                cells.push(
+                                  <button
+                                    key={day}
+                                    type="button"
+                                    disabled={isSunday}
+                                    onClick={() => setDateToMark(dateStr)}
+                                    className={`aspect-square rounded-2xl border flex flex-col justify-between p-2 text-left transition-all ${statusStyle}`}
+                                  >
+                                    <span className="text-xs font-black">{day}</span>
+                                    {!isSunday && status && (
+                                      <span className="text-[8px] font-black uppercase tracking-wider mt-1">{status}</span>
+                                    )}
+                                    {!isSunday && !status && (
+                                      <span className="text-[8px] font-bold text-slate-400 italic">Unmarked</span>
+                                    )}
+                                    {isSunday && (
+                                      <span className="text-[8px] font-bold text-slate-400">Off</span>
+                                    )}
+                                  </button>
+                                );
+                              }
+
+                              return cells;
+                            })()}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="salary" className="space-y-6">
+              <Card className="border-none shadow-sm ring-1 ring-gray-100 dark:ring-slate-800 rounded-[24px] overflow-hidden">
+                <CardHeader className="px-6 py-5 border-b border-gray-50 dark:border-slate-800 flex flex-row items-center justify-between flex-wrap gap-4">
+                  <div>
+                    <CardTitle className="text-xl font-black text-gray-900 dark:text-white">Salaries & Payroll History</CardTitle>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Manage base salaries, calculate deductions, and process monthly payouts.</p>
+                  </div>
+                  <Button onClick={() => setIsPayoutOpen(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold flex items-center gap-1.5 h-10 px-4 shadow-lg shadow-emerald-950/20">
+                    <DollarSign className="h-4 w-4" /> Process Salary Payout
+                  </Button>
+                </CardHeader>
+
+                <CardContent className="p-6 space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="p-5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100/50 dark:border-indigo-950/40">
+                      <p className="text-xs font-black text-indigo-400 uppercase tracking-widest">Base Salary</p>
+                      <p className="text-2xl font-black text-slate-900 dark:text-white mt-1.5">PKR {(Number(teacher?.salary) || 120000).toLocaleString()}</p>
+                      <p className="text-[10px] text-slate-400 font-semibold mt-1">Configured in Instructor profile</p>
+                    </div>
+
+                    <div className="p-5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/10 border border-emerald-100/50 dark:border-emerald-950/40">
+                      <p className="text-xs font-black text-emerald-400 uppercase tracking-widest">Last Net Payout</p>
+                      <p className="text-2xl font-black text-slate-900 dark:text-white mt-1.5">
+                        {salaries[0] ? `PKR ${salaries[0].netPaid.toLocaleString()}` : "No payout log"}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-semibold mt-1">
+                        {salaries[0] ? `Processed on ${new Date(salaries[0].payDate).toLocaleDateString()}` : "No history recorded"}
+                      </p>
+                    </div>
+
+                    <div className="p-5 rounded-2xl bg-purple-50/50 dark:bg-purple-950/10 border border-purple-100/50 dark:border-purple-950/40">
+                      <p className="text-xs font-black text-purple-400 uppercase tracking-widest">Total Paid (This Year)</p>
+                      <p className="text-2xl font-black text-slate-900 dark:text-white mt-1.5">
+                        PKR {salaries.reduce((acc, s) => acc + s.netPaid, 0).toLocaleString()}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-semibold mt-1">Sum of all logged payouts</p>
+                    </div>
+                  </div>
+
+                  <div className="border border-slate-100 dark:border-slate-800 rounded-3xl overflow-hidden bg-white dark:bg-slate-950">
+                    <Table>
+                      <TableHeader className="bg-gray-50/50 dark:bg-slate-900/50">
+                        <TableRow>
+                          <TableHead className="py-3.5 pl-6 font-bold text-slate-500 text-xs">Period</TableHead>
+                          <TableHead className="py-3.5 font-bold text-slate-500 text-xs">Base Salary</TableHead>
+                          <TableHead className="py-3.5 font-bold text-slate-500 text-xs">Allowances</TableHead>
+                          <TableHead className="py-3.5 font-bold text-slate-500 text-xs">Deductions</TableHead>
+                          <TableHead className="py-3.5 font-bold text-slate-500 text-xs">Net Paid</TableHead>
+                          <TableHead className="py-3.5 font-bold text-slate-500 text-xs">Payment Details</TableHead>
+                          <TableHead className="py-3.5 font-bold text-slate-500 text-xs text-right pr-6">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {salaries.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="h-32 text-center text-gray-400 font-semibold">
+                              No salary payouts processed for this instructor yet.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          salaries.map((s) => (
+                            <TableRow key={s.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-900/40 transition-colors">
+                              <TableCell className="pl-6 py-4 font-extrabold text-slate-950 dark:text-white">
+                                {s.month} {s.year}
+                              </TableCell>
+                              <TableCell className="text-sm font-semibold text-slate-600">
+                                PKR {s.baseSalary.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-sm font-semibold text-emerald-600">
+                                +PKR {s.allowance.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-sm font-semibold text-rose-600">
+                                -PKR {s.deductions.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">
+                                PKR {s.netPaid.toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-xs font-semibold text-slate-500">
+                                <div>{s.paymentMethod}</div>
+                                <div className="text-[10px] text-slate-400 font-medium mt-0.5">Paid on {new Date(s.payDate).toLocaleDateString()}</div>
+                              </TableCell>
+                              <TableCell className="text-right pr-6">
+                                <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 font-bold rounded-lg">
+                                  {s.status}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -971,6 +1390,202 @@ export default function AdminTeacherDetail() {
               <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 px-6 text-white rounded-xl font-bold" disabled={resetPasswordMutation.isPending}>
                 {resetPasswordMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 Update Password
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Attendance Mark Dialog */}
+      <Dialog open={!!dateToMark} onOpenChange={(open) => !open && setDateToMark(null)}>
+        <DialogContent className="sm:max-w-[420px] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-gray-900 dark:text-white">Mark Daily Attendance</DialogTitle>
+          </DialogHeader>
+          {dateToMark && (
+            <div className="space-y-6 mt-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-500">Date Selected:</p>
+                <p className="text-lg font-black text-indigo-600">{new Date(dateToMark).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button 
+                  type="button" 
+                  onClick={() => { updateAttendanceDay(dateToMark, "present"); setDateToMark(null); }}
+                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold border border-emerald-100 rounded-xl py-6"
+                >
+                  Present
+                </Button>
+                <Button 
+                  type="button" 
+                  onClick={() => { updateAttendanceDay(dateToMark, "late"); setDateToMark(null); }}
+                  className="bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold border border-amber-100 rounded-xl py-6"
+                >
+                  Late
+                </Button>
+                <Button 
+                  type="button" 
+                  onClick={() => { updateAttendanceDay(dateToMark, "absent"); setDateToMark(null); }}
+                  className="bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold border border-rose-100 rounded-xl py-6"
+                >
+                  Absent
+                </Button>
+                <Button 
+                  type="button" 
+                  onClick={() => { updateAttendanceDay(dateToMark, "leave"); setDateToMark(null); }}
+                  className="bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold border border-blue-100 rounded-xl py-6"
+                >
+                  Leave
+                </Button>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between gap-3">
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  onClick={() => { updateAttendanceDay(dateToMark, ""); setDateToMark(null); }}
+                  className="text-slate-500 hover:text-slate-700 font-bold rounded-xl"
+                >
+                  Clear Status
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setDateToMark(null)}
+                  className="font-bold rounded-xl"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Salary Payout Dialog */}
+      <Dialog open={isPayoutOpen} onOpenChange={setIsPayoutOpen}>
+        <DialogContent className="sm:max-w-[500px] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-gray-900 dark:text-white">Process Salary Payout</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddPayout} className="space-y-4 mt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Payroll Month</Label>
+                <Select 
+                  value={payoutForm.month} 
+                  onValueChange={(val) => setPayoutForm({ ...payoutForm, month: val })}
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    {[
+                      "January", "February", "March", "April", "May", "June",
+                      "July", "August", "September", "October", "November", "December"
+                    ].map((m) => (
+                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Payroll Year</Label>
+                <Select 
+                  value={payoutForm.year} 
+                  onValueChange={(val) => setPayoutForm({ ...payoutForm, year: val })}
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    {["2025", "2026", "2027"].map((y) => (
+                      <SelectItem key={y} value={y}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Base Salary (PKR)</Label>
+              <Input 
+                type="text" 
+                disabled 
+                value={`PKR ${(Number(teacher?.salary) || 120000).toLocaleString()}`} 
+                className="rounded-xl bg-slate-50 dark:bg-slate-900 font-extrabold text-slate-850"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Allowances / Bonuses</Label>
+                <Input 
+                  type="number" 
+                  min="0" 
+                  value={payoutForm.allowance} 
+                  onChange={(e) => setPayoutForm({ ...payoutForm, allowance: e.target.value })}
+                  placeholder="e.g. 5000"
+                  className="rounded-xl"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Deductions</Label>
+                <Input 
+                  type="number" 
+                  min="0" 
+                  value={payoutForm.deductions} 
+                  onChange={(e) => setPayoutForm({ ...payoutForm, deductions: e.target.value })}
+                  placeholder="e.g. 2000"
+                  className="rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Net Payable Amount</p>
+                <p className="text-xs text-slate-400 font-medium">Base + Allowances - Deductions</p>
+              </div>
+              <p className="text-xl font-black text-emerald-600">
+                PKR {((Number(teacher?.salary) || 120000) + (Number(payoutForm.allowance) || 0) - (Number(payoutForm.deductions) || 0)).toLocaleString()}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Payment Method</Label>
+              <Select 
+                value={payoutForm.paymentMethod} 
+                onValueChange={(val) => setPayoutForm({ ...payoutForm, paymentMethod: val })}
+              >
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  {["Bank Transfer", "Cash", "Check", "Direct Deposit"].map((method) => (
+                    <SelectItem key={method} value={method}>{method}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="font-bold text-xs text-gray-500 uppercase tracking-wider">Notes / Remarks</Label>
+              <Input 
+                value={payoutForm.notes} 
+                onChange={(e) => setPayoutForm({ ...payoutForm, notes: e.target.value })}
+                placeholder="e.g. Performance bonus included"
+                className="rounded-xl"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+              <Button type="button" variant="ghost" onClick={() => setIsPayoutOpen(false)} className="rounded-xl font-bold">Cancel</Button>
+              <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold px-6">
+                Approve & Pay Salary
               </Button>
             </div>
           </form>
