@@ -238,31 +238,6 @@ router.get("/courses/reviews", authenticate, authorize("admin", "teacher"), asyn
       .where(and(...conditions))
       .orderBy(desc(lessonCompletionsTable.completedAt));
 
-    // Enrich with teacherName
-    const enriched = await Promise.all(reviews.map(async (review) => {
-      let teacherName = "Unassigned";
-      if (review.teacherId) {
-        const [teacher] = await db
-          .select({ name: usersTable.name })
-          .from(usersTable)
-          .where(eq(usersTable.id, review.teacherId));
-        if (teacher) {
-          teacherName = teacher.name;
-        }
-      }
-      return {
-        ...review,
-        teacherName,
-      };
-    }));
-
-    // Fetch all courses in the system (or assigned to this teacher)
-    let coursesQuery = db.select({ id: coursesTable.id, title: coursesTable.title }).from(coursesTable);
-    if (isTeacher) {
-      coursesQuery = coursesQuery.where(eq(coursesTable.teacherId, teacherId)) as any;
-    }
-    const allCoursesList = await coursesQuery;
-
     // Fetch all teachers in the system
     let allTeachersList: { id: number; name: string }[] = [];
     if (isTeacher) {
@@ -273,6 +248,27 @@ router.get("/courses/reviews", authenticate, authorize("admin", "teacher"), asyn
         .from(usersTable)
         .where(eq(usersTable.role, "teacher"));
     }
+
+    const teacherMap = new Map<number, string>();
+    for (const t of allTeachersList) {
+      teacherMap.set(t.id, t.name);
+    }
+
+    // Enrich with teacherName using O(1) memory lookup map
+    const enriched = reviews.map((review) => {
+      const teacherName = review.teacherId ? (teacherMap.get(review.teacherId) || "Unassigned") : "Unassigned";
+      return {
+        ...review,
+        teacherName,
+      };
+    });
+
+    // Fetch all courses in the system (or assigned to this teacher)
+    let coursesQuery = db.select({ id: coursesTable.id, title: coursesTable.title }).from(coursesTable);
+    if (isTeacher) {
+      coursesQuery = coursesQuery.where(eq(coursesTable.teacherId, teacherId)) as any;
+    }
+    const allCoursesList = await coursesQuery;
 
     // Fetch all students enrolled in any course (or this teacher's courses)
     let studentsQuery;

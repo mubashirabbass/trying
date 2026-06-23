@@ -278,7 +278,11 @@ export default function LectureReviews() {
             <CardContent className="p-6 flex items-center justify-between">
               <div>
                 <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Total Reviews</p>
-                <h3 className="text-4xl font-black text-slate-900 dark:text-white mt-2">{totalReviews}</h3>
+                {isLoading ? (
+                  <div className="h-10 w-24 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse mt-2" />
+                ) : (
+                  <h3 className="text-4xl font-black text-slate-900 dark:text-white mt-2">{totalReviews}</h3>
+                )}
                 <p className="text-xs text-slate-500 mt-1">All-time reviews collected</p>
               </div>
               <div className="h-12 w-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
@@ -292,11 +296,20 @@ export default function LectureReviews() {
             <CardContent className="p-6 flex items-center justify-between">
               <div>
                 <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Average Rating</p>
-                <div className="flex items-baseline gap-2 mt-2">
-                  <h3 className="text-4xl font-black text-slate-900 dark:text-white">{averageRating}</h3>
-                  <span className="text-sm text-slate-400">/ 5.0</span>
-                </div>
-                <div className="mt-1.5">{renderStars(Math.round(Number(averageRating)), "h-3.5 w-3.5")}</div>
+                {isLoading ? (
+                  <div className="space-y-2 mt-2">
+                    <div className="h-10 w-32 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+                    <div className="h-4 w-24 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-baseline gap-2 mt-2">
+                      <h3 className="text-4xl font-black text-slate-900 dark:text-white">{averageRating}</h3>
+                      <span className="text-sm text-slate-400">/ 5.0</span>
+                    </div>
+                    <div className="mt-1.5">{renderStars(Math.round(Number(averageRating)), "h-3.5 w-3.5")}</div>
+                  </>
+                )}
               </div>
               <div className="h-12 w-12 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center">
                 <TrendingUp className="h-6 w-6" />
@@ -308,24 +321,36 @@ export default function LectureReviews() {
           <Card className="border-none shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 rounded-[24px]">
             <CardContent className="p-6">
               <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Rating Breakdown</p>
-              <div className="space-y-1.5">
-                {[5, 4, 3, 2, 1].map((ratingVal) => {
-                  const count = ratingDistribution[ratingVal as keyof typeof ratingDistribution] || 0;
-                  const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
-                  return (
-                    <div key={ratingVal} className="flex items-center gap-3 text-xs">
-                      <span className="w-3 font-bold text-slate-600 dark:text-slate-400">{ratingVal}★</span>
-                      <div className="flex-1 bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-amber-400 h-full rounded-full transition-all duration-500" 
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                      <span className="w-6 text-right text-slate-400">{count}</span>
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[5, 4, 3, 2, 1].map((ratingVal) => (
+                    <div key={ratingVal} className="flex items-center gap-3">
+                      <span className="w-6 h-3 bg-slate-100 dark:bg-slate-850 rounded animate-pulse text-transparent">5★</span>
+                      <div className="flex-1 bg-slate-100 dark:bg-slate-800 h-2 rounded-full animate-pulse" />
+                      <span className="w-6 h-3 bg-slate-100 dark:bg-slate-850 rounded animate-pulse text-transparent">0</span>
                     </div>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {[5, 4, 3, 2, 1].map((ratingVal) => {
+                    const count = ratingDistribution[ratingVal as keyof typeof ratingDistribution] || 0;
+                    const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
+                    return (
+                      <div key={ratingVal} className="flex items-center gap-3 text-xs">
+                        <span className="w-3 font-bold text-slate-600 dark:text-slate-400">{ratingVal}★</span>
+                        <div className="flex-1 bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-amber-400 h-full rounded-full transition-all duration-500" 
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                        <span className="w-6 text-right text-slate-400">{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -474,7 +499,13 @@ export default function LectureReviews() {
         {/* Reviews Table */}
         <Card className="border-none shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 rounded-[24px] overflow-hidden bg-white dark:bg-slate-950">
           <CardContent className="p-0">
-            {filteredReviews.length === 0 ? (
+            {isLoading ? (
+              <div className="py-24 text-center">
+                <Loader2 className="h-10 w-10 animate-spin text-indigo-600 mx-auto opacity-50 mb-3" />
+                <h3 className="text-sm font-bold text-slate-650 dark:text-slate-350">Loading Lecture Reviews</h3>
+                <p className="text-xs text-slate-400 mt-1">Please wait while the feedback is fetched...</p>
+              </div>
+            ) : filteredReviews.length === 0 ? (
               <div className="py-16 text-center">
                 <Star className="h-12 w-12 text-slate-300 dark:text-slate-700 mx-auto mb-4" />
                 <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">No Matching Reviews</h3>
