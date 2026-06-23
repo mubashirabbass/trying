@@ -21,6 +21,12 @@ export interface UpdateUserBody {
   totalMarks?: number;
   identityDocumentUrl?: string;
   educationDocumentUrl?: string;
-  address?: string;
-  gender?: string;
+  nameUrdu?: string;
+  fatherName?: string;
+  session?: string;
+  semesterTerm?: string;
+  shift?: string;
+  rollNo?: string;
+  regNo?: string;
+  department?: string;
 }

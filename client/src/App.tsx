@@ -43,13 +43,13 @@ import StudentCertificates from "@/pages/student/certificates";
 import StudentMessages from "@/pages/student/messages";
 import StudentForum from "@/pages/student/forum";
 import StudentLeaderboard from "@/pages/student/leaderboard";
-import VerifyIdentity from "@/pages/student/verify-identity";
 import StudentPayment from "@/pages/student/payment";
 import QuizPlayer from "@/pages/student/quiz-player";
 import StudentProfile from "@/pages/student/profile";
 import StudentProgress from "@/pages/student/progress";
 import StudentBrowse from "@/pages/student/browse";
 import QuizResultPage from "@/pages/student/quiz-result";
+import StudentCard from "@/pages/student/student-card";
 
 // Teacher Pages
 import TeacherDashboard from "@/pages/teacher/dashboard";
@@ -79,7 +79,6 @@ import AdminTestimonials from "@/pages/admin/testimonials";
 import AdminSettings from "@/pages/admin/settings";
 import AdminAnnouncements from "@/pages/admin/announcements";
 import AdminEnrollments from "@/pages/admin/enrollments";
-import AdminIdentityVerifications from "@/pages/admin/identity-verifications";
 import AdminTeachers from "@/pages/admin/teachers";
 import AdminCertificates from "@/pages/admin/certificates";
 import AdminReports from "@/pages/admin/reports";
@@ -178,9 +177,6 @@ function Router() {
         <Route path="/dashboard/leaderboard">
           <ProtectedRoute component={StudentLeaderboard} />
         </Route>
-        <Route path="/dashboard/verify-identity">
-          <ProtectedRoute component={VerifyIdentity} />
-        </Route>
         <Route path="/dashboard/payment/:courseId">
           <ProtectedRoute component={StudentPayment} />
         </Route>
@@ -198,6 +194,9 @@ function Router() {
         </Route>
         <Route path="/dashboard/live-classes">
           <ProtectedRoute component={StudentLiveClasses} />
+        </Route>
+        <Route path="/dashboard/student-card">
+          <ProtectedRoute component={StudentCard} />
         </Route>
 
         {/* Teacher Protected Routes */}
@@ -292,9 +291,6 @@ function Router() {
         </Route>
         <Route path="/admin/messages">
           <ProtectedRoute component={AdminMessages} />
-        </Route>
-        <Route path="/admin/identity-verifications">
-          <ProtectedRoute component={AdminIdentityVerifications} />
         </Route>
         <Route path="/admin/enrollments">
           <ProtectedRoute component={AdminEnrollments} />

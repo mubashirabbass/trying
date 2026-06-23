@@ -36,7 +36,8 @@ import {
   Moon,
   CalendarRange,
   Video,
-  Newspaper
+  Newspaper,
+  IdCard
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -176,9 +177,8 @@ const ADMIN_NAV_GROUPS = [
     ],
   },
   {
-    label: "VERIFICATION",
+    label: "CERTIFICATES",
     items: [
-      { name: "Identity Verifications", path: "/admin/identity-verifications", icon: ShieldCheck },
       { name: "Certificates", path: "/admin/certificates", icon: BadgeCheck },
     ],
   },
@@ -328,7 +328,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           { name: "Messages", path: "/dashboard/messages", icon: MessageCircle },
           { name: "Leaderboard", path: "/dashboard/leaderboard", icon: Trophy },
           { name: "Certificates", path: "/dashboard/certificates", icon: Award },
-          { name: "Verify Identity", path: "/dashboard/verify-identity", icon: ShieldCheck },
+          { name: "Student Card", path: "/dashboard/student-card", icon: IdCard },
           { name: "My Profile", path: "/dashboard/profile", icon: User },
         ];
       case "teacher":

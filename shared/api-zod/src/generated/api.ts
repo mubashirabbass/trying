@@ -51,7 +51,15 @@ export const LoginResponse = zod.object({
   "address": zod.string().optional(),
   "designation": zod.string().optional(),
   "gender": zod.string().optional(),
-  "joiningDate": zod.string().optional()
+  "joiningDate": zod.string().optional(),
+  "nameUrdu": zod.string().optional(),
+  "fatherName": zod.string().optional(),
+  "session": zod.string().optional(),
+  "semesterTerm": zod.string().optional(),
+  "shift": zod.string().optional(),
+  "rollNo": zod.string().optional(),
+  "regNo": zod.string().optional(),
+  "department": zod.string().optional()
 }),
   "token": zod.string()
 })
@@ -75,7 +83,7 @@ export const RegisterBody = zod.object({
   "totalMarks": zod.number().optional(),
   "educationDocumentUrl": zod.string().optional(),
   "branchId": zod.number().optional(),
-  "avatar": zod.string().optional(),
+  "avatar": zod.string().optional()
 })
 
 
@@ -116,7 +124,15 @@ export const GetMeResponse = zod.object({
   "address": zod.string().optional(),
   "designation": zod.string().optional(),
   "gender": zod.string().optional(),
-  "joiningDate": zod.string().optional()
+  "joiningDate": zod.string().optional(),
+  "nameUrdu": zod.string().optional(),
+  "fatherName": zod.string().optional(),
+  "session": zod.string().optional(),
+  "semesterTerm": zod.string().optional(),
+  "shift": zod.string().optional(),
+  "rollNo": zod.string().optional(),
+  "regNo": zod.string().optional(),
+  "department": zod.string().optional()
 })
 
 
@@ -974,7 +990,15 @@ export const ListUsersResponseItem = zod.object({
   "address": zod.string().optional(),
   "designation": zod.string().optional(),
   "gender": zod.string().optional(),
-  "joiningDate": zod.string().optional()
+  "joiningDate": zod.string().optional(),
+  "nameUrdu": zod.string().optional(),
+  "fatherName": zod.string().optional(),
+  "session": zod.string().optional(),
+  "semesterTerm": zod.string().optional(),
+  "shift": zod.string().optional(),
+  "rollNo": zod.string().optional(),
+  "regNo": zod.string().optional(),
+  "department": zod.string().optional()
 })
 export const ListUsersResponse = zod.array(ListUsersResponseItem)
 
@@ -1413,7 +1437,15 @@ export const GetUserResponse = zod.object({
   "address": zod.string().optional(),
   "designation": zod.string().optional(),
   "gender": zod.string().optional(),
-  "joiningDate": zod.string().optional()
+  "joiningDate": zod.string().optional(),
+  "nameUrdu": zod.string().optional(),
+  "fatherName": zod.string().optional(),
+  "session": zod.string().optional(),
+  "semesterTerm": zod.string().optional(),
+  "shift": zod.string().optional(),
+  "rollNo": zod.string().optional(),
+  "regNo": zod.string().optional(),
+  "department": zod.string().optional()
 })
 
 
@@ -1439,8 +1471,14 @@ export const UpdateUserBody = zod.object({
   "totalMarks": zod.number().optional(),
   "identityDocumentUrl": zod.string().optional(),
   "educationDocumentUrl": zod.string().optional(),
-  "address": zod.string().optional(),
-  "gender": zod.string().optional()
+  "nameUrdu": zod.string().optional(),
+  "fatherName": zod.string().optional(),
+  "session": zod.string().optional(),
+  "semesterTerm": zod.string().optional(),
+  "shift": zod.string().optional(),
+  "rollNo": zod.string().optional(),
+  "regNo": zod.string().optional(),
+  "department": zod.string().optional()
 })
 
 export const UpdateUserResponse = zod.object({
@@ -1469,7 +1507,15 @@ export const UpdateUserResponse = zod.object({
   "address": zod.string().optional(),
   "designation": zod.string().optional(),
   "gender": zod.string().optional(),
-  "joiningDate": zod.string().optional()
+  "joiningDate": zod.string().optional(),
+  "nameUrdu": zod.string().optional(),
+  "fatherName": zod.string().optional(),
+  "session": zod.string().optional(),
+  "semesterTerm": zod.string().optional(),
+  "shift": zod.string().optional(),
+  "rollNo": zod.string().optional(),
+  "regNo": zod.string().optional(),
+  "department": zod.string().optional()
 })
 
 

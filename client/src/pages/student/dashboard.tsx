@@ -393,36 +393,52 @@ export default function StudentDashboard() {
                     <h2 className="text-2xl font-bold text-slate-800 leading-tight">
                       {user?.name || "John Doe"}
                     </h2>
+                    {(user as any)?.fatherName && (
+                      <p className="text-xs font-semibold text-slate-400">
+                        S/O {(user as any).fatherName}
+                      </p>
+                    )}
                     <p className="text-sm font-semibold text-slate-400">
-                      Student ID: GC-S100{user?.id || "12345"}
+                      {(user as any)?.regNo ? `Reg No: ${(user as any).regNo}` : `Student ID: GC-S100${user?.id || "12345"}`}
                     </p>
-                    <Badge className="bg-blue-50 hover:bg-blue-50 text-blue-600 border border-blue-100/60 rounded-full font-bold px-3 py-0.5 text-xs shadow-none">
-                      Branch: {(user as any)?.branchName || "Faisalabad"}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge className="bg-blue-50 hover:bg-blue-50 text-blue-600 border border-blue-100/60 rounded-full font-bold px-3 py-0.5 text-xs shadow-none">
+                        Branch: {(user as any)?.branchName || "Faisalabad"}
+                      </Badge>
+                      {(user as any)?.department && (
+                        <Badge className="bg-purple-50 hover:bg-purple-50 text-purple-600 border border-purple-100/60 rounded-full font-bold px-3 py-0.5 text-xs shadow-none">
+                          {(user as any).department}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Useful details on the right of the profile card */}
+                {/* Right side: session/shift details & student card link */}
                 <div className="flex flex-col md:items-end gap-2 shrink-0">
                   <div className="flex items-center gap-1.5 justify-start md:justify-end">
                     <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                     <span className="text-xs font-bold text-slate-500">Academic Status: Active</span>
                   </div>
+                  {(user as any)?.session && (
+                    <div className="text-xs font-semibold text-slate-500 md:text-right">
+                      Session: {(user as any).session}
+                      {(user as any)?.semesterTerm ? ` | ${(user as any).semesterTerm}` : ""}
+                      {(user as any)?.shift ? ` | ${(user as any).shift}` : ""}
+                    </div>
+                  )}
+                  {(user as any)?.rollNo && (
+                    <div className="text-xs font-semibold text-slate-400 md:text-right">
+                      Roll No: {(user as any).rollNo}
+                    </div>
+                  )}
                   <div className="text-xs font-semibold text-slate-400 md:text-right">
                     Joined: {user?.createdAt ? new Date(user.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : 'May 2026'}
                   </div>
-                  <Link href="/dashboard/verify-identity">
-                    <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded cursor-pointer transition-colors ${
-                      user?.isIdentityVerified 
-                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 hover:bg-emerald-100/50' 
-                        : 'bg-amber-50 text-amber-600 border border-amber-100 hover:bg-amber-100/50 animate-pulse'
-                    }`}>
-                      {user?.isIdentityVerified ? (
-                        <>✓ Verified Student</>
-                      ) : (
-                        <>⚠ Verify Identity</>
-                      )}
-                    </span>
+                  <Link href="/dashboard/student-card">
+                    <Button variant="outline" className="mt-1 h-8 px-4 text-xs font-bold rounded-lg border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 gap-1.5">
+                      🪪 Student Card
+                    </Button>
                   </Link>
                 </div>
               </CardContent>

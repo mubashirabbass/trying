@@ -2145,6 +2145,22 @@ components:
           type: string
         joiningDate:
           type: string
+        nameUrdu:
+          type: string
+        fatherName:
+          type: string
+        session:
+          type: string
+        semesterTerm:
+          type: string
+        shift:
+          type: string
+        rollNo:
+          type: string
+        regNo:
+          type: string
+        department:
+          type: string
       required: [id, name, email, role, isActive, createdAt]
 
     CreateUserBody:
@@ -2197,6 +2213,22 @@ components:
         identityDocumentUrl:
           type: string
         educationDocumentUrl:
+          type: string
+        nameUrdu:
+          type: string
+        fatherName:
+          type: string
+        session:
+          type: string
+        semesterTerm:
+          type: string
+        shift:
+          type: string
+        rollNo:
+          type: string
+        regNo:
+          type: string
+        department:
           type: string
 
     Course:

@@ -35,9 +35,12 @@ import {
   Edit2,
   Key,
   Plus,
-  GraduationCap
+  GraduationCap,
+  Calendar,
+  IdCard,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GcufCard } from "@/pages/student/student-card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -104,7 +107,16 @@ export default function AdminStudentDetail() {
     lastEducation: "" as "Matric" | "Intermediate" | "BS" | "",
     educationStream: "",
     obtainedMarks: "",
-    totalMarks: ""
+    totalMarks: "",
+    // Student Card fields
+    nameUrdu: "",
+    fatherName: "",
+    regNo: "",
+    rollNo: "",
+    session: "",
+    semesterTerm: "",
+    shift: "",
+    department: "",
   });
   const [cnicFile, setCnicFile] = useState<File | null>(null);
   const [educationFile, setEducationFile] = useState<File | null>(null);
@@ -125,7 +137,16 @@ export default function AdminStudentDetail() {
       lastEducation: (student.qualification || "") as any,
       educationStream: student.specialization || "",
       obtainedMarks: student.obtainedMarks ? String(student.obtainedMarks) : "",
-      totalMarks: student.totalMarks ? String(student.totalMarks) : ""
+      totalMarks: student.totalMarks ? String(student.totalMarks) : "",
+      // Student Card fields
+      nameUrdu: (student as any).nameUrdu || "",
+      fatherName: (student as any).fatherName || "",
+      regNo: (student as any).regNo || "",
+      rollNo: (student as any).rollNo || "",
+      session: (student as any).session || "",
+      semesterTerm: (student as any).semesterTerm || "",
+      shift: (student as any).shift || "",
+      department: (student as any).department || "",
     });
     setCnicFile(null);
     setEducationFile(null);
@@ -147,19 +168,7 @@ export default function AdminStudentDetail() {
       if (!res.ok) throw new Error("Approval failed");
       toast({ title: "✅ Student Approved!", description: "The account is now active and verified." });
       
-      // Try to auto-approve identity verification record if present
-      if (identityDocs.length > 0) {
-        const pendingDoc = identityDocs.find((d: any) => d.status === "pending");
-        if (pendingDoc) {
-          await fetch(`/api/admin/identity-verifications/${pendingDoc.id}/approve`, {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${token}` }
-          });
-        }
-      }
-
       queryClient.invalidateQueries({ queryKey: getGetUserQueryKey(studentId) });
-      queryClient.invalidateQueries({ queryKey: ['identity-verification', studentId] });
     } catch (err: any) {
       toast({ title: "Failed to approve student", description: err.message, variant: "destructive" });
     } finally {
@@ -306,7 +315,16 @@ export default function AdminStudentDetail() {
           obtainedMarks: formData.obtainedMarks ? Number(formData.obtainedMarks) : undefined,
           totalMarks: formData.totalMarks ? Number(formData.totalMarks) : undefined,
           identityDocumentUrl: identityDocumentUrl || undefined,
-          educationDocumentUrl: educationDocumentUrl || undefined
+          educationDocumentUrl: educationDocumentUrl || undefined,
+          // Student Card fields
+          nameUrdu: formData.nameUrdu || undefined,
+          fatherName: formData.fatherName || undefined,
+          regNo: formData.regNo || undefined,
+          rollNo: formData.rollNo || undefined,
+          session: formData.session || undefined,
+          semesterTerm: formData.semesterTerm || undefined,
+          shift: formData.shift || undefined,
+          department: formData.department || undefined,
         })
       });
       if (!res.ok) throw new Error("Update failed");
@@ -455,6 +473,28 @@ export default function AdminStudentDetail() {
                   <p className="font-bold text-gray-900">{student.branchName || "Global / Online"}</p>
                 </div>
               </div>
+              {student.cnic && (
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-violet-50 flex items-center justify-center text-violet-600">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase">CNIC / Form-B</p>
+                    <p className="font-bold text-gray-900">{student.cnic}</p>
+                  </div>
+                </div>
+              )}
+              {student.dob && (
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+                    <Calendar className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase">Date of Birth</p>
+                    <p className="font-bold text-gray-900">{new Date(student.dob).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -516,44 +556,7 @@ export default function AdminStudentDetail() {
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-sm ring-1 ring-gray-100 rounded-[24px] bg-gradient-to-br from-slate-900 to-slate-800 text-white">
-            <CardHeader>
-              <CardTitle className="text-sm font-black text-slate-400 uppercase tracking-widest">Identity & Verification</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
-                <ShieldCheck className={`h-6 w-6 shrink-0 ${student.isIdentityVerified ? "text-emerald-400" : "text-amber-400"}`} />
-                <div>
-                  <p className="font-bold text-sm">{student.isIdentityVerified ? "Identity Verified" : "Verification Pending"}</p>
-                  <p className="text-xs text-slate-400">Status: {student.identityVerificationStatus || (student.isIdentityVerified ? "verified" : "unverified")}</p>
-                </div>
-              </div>
 
-              {student.cnic && (
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CNIC / B-Form Number</p>
-                  <p className="font-mono text-sm font-bold tracking-wider">{student.cnic}</p>
-                </div>
-              )}
-
-              {student.identityDocumentUrl && (
-                <div className="pt-2">
-                  <a 
-                    href={student.identityDocumentUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-between p-3 rounded-xl bg-white/10 hover:bg-white/15 transition-colors text-white group"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <FileText className="h-4 w-4 text-slate-300 group-hover:text-white" />
-                      <span className="text-xs font-bold truncate max-w-[180px]">CNIC / B-Form Document</span>
-                    </div>
-                    <ExternalLink className="h-3.5 w-3.5 text-slate-300 group-hover:text-white" />
-                  </a>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
         {/* Right Column: Content Tabs */}
@@ -568,6 +571,9 @@ export default function AdminStudentDetail() {
               </TabsTrigger>
               <TabsTrigger value="documents" className="rounded-xl h-12 px-6 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
                 <FileText className="h-4 w-4 mr-2" /> Documents
+              </TabsTrigger>
+              <TabsTrigger value="student-card" className="rounded-xl h-12 px-6 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
+                <IdCard className="h-4 w-4 mr-2" /> Student Card
               </TabsTrigger>
               <TabsTrigger value="activity" className="rounded-xl h-12 px-6 font-bold data-[state=active]:bg-primary data-[state=active]:text-white">
                 <Clock className="h-4 w-4 mr-2" /> Activity
@@ -717,63 +723,8 @@ export default function AdminStudentDetail() {
                         </div>
                       )}
 
-                      {/* Identity Verification Documents */}
-                      {identityDocs.length > 0 ? (
-                        identityDocs.map((doc: any) => (
-                          <div key={doc.id} className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-100">
-                            <div className="flex items-center gap-4">
-                              <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600">
-                                <ShieldCheck className="h-6 w-6" />
-                              </div>
-                              <div>
-                                <h4 className="font-bold text-gray-900">{doc.documentType || "Identity Document"}</h4>
-                                <p className="text-xs text-gray-500 font-medium">
-                                  {doc.cnicNumber || "CNIC / B-Form verification document"}
-                                </p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge className={
-                                    doc.status === 'verified' ? "bg-emerald-100 text-emerald-700 border-emerald-200" :
-                                    doc.status === 'pending' ? "bg-amber-100 text-amber-700 border-amber-200" :
-                                    "bg-rose-100 text-rose-700 border-rose-200"
-                                  }>
-                                    {doc.status}
-                                  </Badge>
-                                  <span className="text-xs text-gray-400">
-                                    Submitted {doc.submittedAt ? new Date(doc.submittedAt).toLocaleDateString() : "—"}
-                                  </span>
-                                </div>
-                                {doc.rejectionReason && (
-                                  <p className="text-xs text-rose-600 font-medium mt-1">
-                                    Reason: {doc.rejectionReason}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <a 
-                                href={doc.documentUrl} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="h-10 w-10 rounded-xl bg-white hover:bg-purple-100 flex items-center justify-center text-purple-600 transition-colors"
-                                title="View Document"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </a>
-                              <a 
-                                href={doc.documentUrl} 
-                                download
-                                className="h-10 w-10 rounded-xl bg-white hover:bg-purple-100 flex items-center justify-center text-purple-600 transition-colors"
-                                title="Download Document"
-                              >
-                                <Download className="h-4 w-4" />
-                              </a>
-                            </div>
-                          </div>
-                        ))
-                      ) : null}
-
                       {/* No Documents Message */}
-                      {!student?.educationDocumentUrl && identityDocs.length === 0 && (
+                      {!student?.educationDocumentUrl && (
                         <div className="text-center py-12">
                           <File className="h-16 w-16 mx-auto text-gray-200 mb-4" />
                           <h3 className="text-lg font-bold text-gray-900 mb-2">No Documents Uploaded</h3>
@@ -784,34 +735,14 @@ export default function AdminStudentDetail() {
                       )}
 
                       {/* Document Summary */}
-                      {(student?.educationDocumentUrl || identityDocs.length > 0) && (
+                      {student?.educationDocumentUrl && (
                         <div className="mt-6 p-4 rounded-2xl bg-gray-50 border border-gray-100">
                           <div className="flex items-center justify-between">
                             <div>
                               <h4 className="font-bold text-gray-900 text-sm">Document Summary</h4>
                               <p className="text-xs text-gray-500 mt-1">
-                                Total documents: {(student?.educationDocumentUrl ? 1 : 0) + identityDocs.length}
+                                Total documents: 1
                               </p>
-                            </div>
-                            <div className="flex items-center gap-4 text-xs font-bold">
-                              {identityDocs.filter((d: any) => d.status === 'verified').length > 0 && (
-                                <div className="flex items-center gap-1 text-emerald-600">
-                                  <CheckCircle2 className="h-4 w-4" />
-                                  {identityDocs.filter((d: any) => d.status === 'verified').length} Verified
-                                </div>
-                              )}
-                              {identityDocs.filter((d: any) => d.status === 'pending').length > 0 && (
-                                <div className="flex items-center gap-1 text-amber-600">
-                                  <AlertCircle className="h-4 w-4" />
-                                  {identityDocs.filter((d: any) => d.status === 'pending').length} Pending
-                                </div>
-                              )}
-                              {identityDocs.filter((d: any) => d.status === 'rejected').length > 0 && (
-                                <div className="flex items-center gap-1 text-rose-600">
-                                  <XCircle className="h-4 w-4" />
-                                  {identityDocs.filter((d: any) => d.status === 'rejected').length} Rejected
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>
@@ -820,6 +751,98 @@ export default function AdminStudentDetail() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="student-card">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                {/* Visual Card Preview */}
+                <Card className="border-none shadow-sm ring-1 ring-gray-100 rounded-[24px] overflow-hidden">
+                  <div className="h-1.5 bg-gradient-to-r from-red-600 to-red-400" />
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base font-bold text-gray-700 flex items-center gap-2">
+                      <IdCard className="h-5 w-5 text-red-600" /> Card Visual Preview
+                    </CardTitle>
+                    <CardDescription>Visual replica of the official student identity card.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex justify-center py-8 bg-slate-50 border-t border-slate-100">
+                    <div className="scale-95 sm:scale-100 origin-center">
+                      <GcufCard user={student} />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Details and Edit Action */}
+                <Card className="border-none shadow-sm ring-1 ring-gray-100 rounded-[24px] overflow-hidden">
+                  <div className="h-1.5 bg-gradient-to-r from-blue-600 to-indigo-500" />
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                    <div>
+                      <CardTitle className="text-base font-bold text-gray-700">Student Card Information</CardTitle>
+                      <CardDescription>Metadata displayed on the physical student card.</CardDescription>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      className="rounded-xl font-bold h-9 border-slate-200 text-xs text-slate-700 hover:bg-slate-50"
+                      onClick={initEditForm}
+                    >
+                      <Edit2 className="h-3.5 w-3.5 mr-1.5 text-slate-500" /> Edit Card Fields
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="p-0 border-t border-slate-100">
+                    <Table>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="font-bold text-xs text-gray-500 uppercase tracking-wider py-3 px-6">Name (Urdu)</TableCell>
+                          <TableCell className="text-sm font-semibold py-3 px-6 text-right" dir="rtl">
+                            {student.nameUrdu || <span className="text-gray-300 font-normal italic">Not set</span>}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-bold text-xs text-gray-500 uppercase tracking-wider py-3 px-6">Father's Name</TableCell>
+                          <TableCell className="text-sm font-semibold py-3 px-6">
+                            {student.fatherName || <span className="text-gray-300 font-normal italic">Not set</span>}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-bold text-xs text-gray-500 uppercase tracking-wider py-3 px-6">Registration No</TableCell>
+                          <TableCell className="text-sm font-semibold py-3 px-6">
+                            {student.regNo || <span className="text-gray-300 font-normal italic">Not set</span>}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-bold text-xs text-gray-500 uppercase tracking-wider py-3 px-6">Roll No</TableCell>
+                          <TableCell className="text-sm font-semibold py-3 px-6">
+                            {student.rollNo || <span className="text-gray-300 font-normal italic">Not set</span>}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-bold text-xs text-gray-500 uppercase tracking-wider py-3 px-6">Session</TableCell>
+                          <TableCell className="text-sm font-semibold py-3 px-6">
+                            {student.session || <span className="text-gray-300 font-normal italic">Not set</span>}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-bold text-xs text-gray-500 uppercase tracking-wider py-3 px-6">Term / Semester</TableCell>
+                          <TableCell className="text-sm font-semibold py-3 px-6">
+                            {student.semesterTerm || <span className="text-gray-300 font-normal italic">Not set</span>}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-bold text-xs text-gray-500 uppercase tracking-wider py-3 px-6">Shift</TableCell>
+                          <TableCell className="text-sm font-semibold py-3 px-6">
+                            {student.shift || <span className="text-gray-300 font-normal italic">Not set</span>}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="font-bold text-xs text-gray-500 uppercase tracking-wider py-3 px-6">Department</TableCell>
+                          <TableCell className="text-sm font-semibold py-3 px-6">
+                            {student.department || <span className="text-gray-300 font-normal italic">Not set</span>}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
 
             <TabsContent value="activity">
@@ -893,11 +916,7 @@ export default function AdminStudentDetail() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-600">Update CNIC / Form-B Photo</Label>
-                <Input type="file" accept="image/*" onChange={e => setCnicFile(e.target.files?.[0] || null)} className="rounded-xl bg-white pt-2 text-xs" />
-                <p className="text-[10px] text-slate-400">Leave blank to keep existing document</p>
-              </div>
+
 
               <div className="space-y-1">
                 <Label className="text-xs font-bold text-slate-600">Last Completed Education Level</Label>
@@ -940,6 +959,67 @@ export default function AdminStudentDetail() {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Student Card Section */}
+            <div className="bg-red-50/40 border border-red-100 p-4 rounded-xl flex flex-col gap-4">
+              <h3 className="text-xs font-black text-red-800 uppercase tracking-wider flex items-center gap-1">
+                🪪 Student Card Details
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">Registration No (Reg No)</Label>
+                  <Input placeholder="e.g. 2024-GCUF-00419" value={formData.regNo} onChange={e => setFormData(prev => ({ ...prev, regNo: e.target.value }))} className="rounded-xl bg-white" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">Roll No</Label>
+                  <Input placeholder="e.g. 240468" value={formData.rollNo} onChange={e => setFormData(prev => ({ ...prev, rollNo: e.target.value }))} className="rounded-xl bg-white" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">Session (e.g. 2024-2028)</Label>
+                  <Input placeholder="2024-2028" value={formData.session} onChange={e => setFormData(prev => ({ ...prev, session: e.target.value }))} className="rounded-xl bg-white" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">Semester / Term</Label>
+                  <Select value={formData.semesterTerm} onValueChange={val => setFormData(prev => ({ ...prev, semesterTerm: val }))}>
+                    <SelectTrigger className="rounded-xl bg-white"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Spring">Spring</SelectItem>
+                      <SelectItem value="Fall">Fall</SelectItem>
+                      <SelectItem value="Summer">Summer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">Shift</Label>
+                  <Select value={formData.shift} onValueChange={val => setFormData(prev => ({ ...prev, shift: val }))}>
+                    <SelectTrigger className="rounded-xl bg-white"><SelectValue placeholder="Select..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Morning">Morning</SelectItem>
+                      <SelectItem value="Evening">Evening</SelectItem>
+                      <SelectItem value="Self-Support">Self-Support</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">Department</Label>
+                  <Input placeholder="e.g. Computer Science" value={formData.department} onChange={e => setFormData(prev => ({ ...prev, department: e.target.value }))} className="rounded-xl bg-white" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">Father's Name</Label>
+                  <Input placeholder="Father's full name" value={formData.fatherName} onChange={e => setFormData(prev => ({ ...prev, fatherName: e.target.value }))} className="rounded-xl bg-white" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">Name in Urdu (اردو نام)</Label>
+                  <Input placeholder="اردو میں نام" value={formData.nameUrdu} onChange={e => setFormData(prev => ({ ...prev, nameUrdu: e.target.value }))} className="rounded-xl bg-white" dir="rtl" />
+                </div>
+              </div>
             </div>
 
             <DialogFooter className="pt-3 border-t border-slate-100 flex gap-2">

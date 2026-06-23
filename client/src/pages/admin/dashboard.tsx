@@ -81,12 +81,11 @@ export default function AdminDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {[
             { label: "Users", href: "/admin/users", icon: Users, color: "bg-blue-600" },
             { label: "Courses", href: "/admin/courses", icon: BookOpen, color: "bg-emerald-600" },
             { label: "Payments", href: "/admin/payments", icon: CreditCard, color: "bg-orange-600" },
-            { label: "Verification", href: "/admin/identity-verifications", icon: ShieldCheck, color: "bg-violet-600" },
             { label: "Branches", href: "/admin/branches", icon: Building2, color: "bg-cyan-600" },
             { label: "Announce", href: "/admin/announcements", icon: Megaphone, color: "bg-rose-600" },
           ].map(({ label, href, icon: Icon, color }) => (
@@ -244,7 +243,6 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent className="p-8 space-y-6">
               {[
-                { title: "Verification Requests", desc: "Identity documents pending review", count: (dashboard as any)?.pendingVerifications ?? 0, color: "text-blue-500 bg-blue-50" },
                 { title: "Pending Fee Receipts", desc: "Payments awaiting confirmation", count: (dashboard as any)?.pendingPayments ?? 0, color: "text-amber-500 bg-amber-50" },
                 { title: "Platform Announcements", desc: "Active system announcements", count: (dashboard as any)?.activeAnnouncements ?? 0, color: "text-rose-500 bg-rose-50" }
               ].map((item) => (

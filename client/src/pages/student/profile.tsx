@@ -78,6 +78,8 @@ export default function StudentProfile() {
     gender: "",
     address: "",
     avatar: "",
+    fatherName: "",
+    nameUrdu: "",
   });
 
   const [educationForm, setEducationForm] = useState({
@@ -115,6 +117,8 @@ export default function StudentProfile() {
             gender: freshUserData.gender || "",
             address: freshUserData.address || "",
             avatar: freshUserData.avatar || "",
+            fatherName: freshUserData.fatherName || "",
+            nameUrdu: freshUserData.nameUrdu || "",
           });
           
           setEducationForm({
@@ -182,6 +186,8 @@ export default function StudentProfile() {
         gender: user.gender || "",
         address: user.address || "",
         avatar: user.avatar || "",
+        fatherName: (user as any).fatherName || "",
+        nameUrdu: (user as any).nameUrdu || "",
       });
       setEducationForm({
         qualification: user.qualification || "",
@@ -347,6 +353,8 @@ export default function StudentProfile() {
       payload.gender = profileForm.gender || null;
       payload.address = profileForm.address || null;
       payload.avatar = profileForm.avatar || null;
+      payload.fatherName = profileForm.fatherName || null;
+      payload.nameUrdu = profileForm.nameUrdu || null;
 
       const r = await fetch(`${BASE}/api/users/${user?.id}`, {
         method: "PUT",
@@ -366,6 +374,8 @@ export default function StudentProfile() {
           gender: updatedUserData.gender || "",
           address: updatedUserData.address || "",
           avatar: updatedUserData.avatar || "",
+          fatherName: updatedUserData.fatherName || "",
+          nameUrdu: updatedUserData.nameUrdu || "",
         });
         
         // Update AuthContext with the new user data to persist changes everywhere
@@ -601,7 +611,7 @@ export default function StudentProfile() {
               <div className="h-1.5 bg-gradient-to-r from-blue-500 to-purple-500" />
               <CardContent className="p-6">
                 <h3 className="font-black text-slate-900 text-lg mb-3">Academic Overview</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl">
                     <span className="text-xs font-bold text-slate-400 block uppercase">BRANCH</span>
                     <span className="font-black text-slate-700 text-sm truncate block mt-0.5">
@@ -612,18 +622,6 @@ export default function StudentProfile() {
                     <span className="text-xs font-bold text-slate-400 block uppercase">DEGREE LEVEL</span>
                     <span className="font-black text-slate-700 text-sm truncate block mt-0.5">
                       {user?.qualification || "Not provided"}
-                    </span>
-                  </div>
-                  <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl col-span-2 sm:col-span-1">
-                    <span className="text-xs font-bold text-slate-400 block uppercase">IDENTITY</span>
-                    <span className={`inline-flex items-center gap-1 font-extrabold text-xs px-2.5 py-0.5 rounded-full mt-1.5 ${
-                      user?.isIdentityVerified 
-                        ? 'bg-purple-100 text-purple-800' 
-                        : user?.identityVerificationStatus === 'pending'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      {user?.isIdentityVerified ? "Verified" : user?.identityVerificationStatus === 'pending' ? "Pending Review" : "Unverified"}
                     </span>
                   </div>
                 </div>
@@ -693,17 +691,6 @@ export default function StudentProfile() {
                     <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold px-3 py-1">
                       Active Portal
                     </Badge>
-                    {user?.isIdentityVerified ? (
-                      <Badge className="bg-purple-50 text-purple-700 border-purple-200 font-bold px-3 py-1 flex items-center gap-1">
-                        <CheckCircle className="h-3.5 w-3.5" />
-                        Verified Profile
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-slate-100 text-slate-600 border-slate-200 font-bold px-3 py-1 flex items-center gap-1">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        Unverified ID
-                      </Badge>
-                    )}
                   </div>
                 </div>
                 
@@ -741,7 +728,7 @@ export default function StudentProfile() {
 
           <Tabs defaultValue="profile" className="space-y-6">
             <div className="bg-white rounded-2xl border-2 border-slate-100 p-2 shadow-sm">
-              <TabsList className="bg-slate-50 rounded-xl p-1 w-full grid grid-cols-2 md:grid-cols-4 gap-1">
+              <TabsList className="bg-slate-50 rounded-xl p-1 w-full grid grid-cols-3 gap-1">
                 <TabsTrigger 
                   value="profile" 
                   className="rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm flex items-center gap-2 justify-center py-2.5"
@@ -753,12 +740,6 @@ export default function StudentProfile() {
                   className="rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm flex items-center gap-2 justify-center py-2.5"
                 >
                   <GraduationCap className="h-4 w-4" /> Education
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="identity" 
-                  className="rounded-lg font-bold data-[state=active]:bg-white data-[state=active]:shadow-sm flex items-center gap-2 justify-center py-2.5"
-                >
-                  <IdCard className="h-4 w-4" /> Identity
                 </TabsTrigger>
                 <TabsTrigger 
                   value="security" 
@@ -862,6 +843,33 @@ export default function StudentProfile() {
                         value={profileForm.name}
                         onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
                         placeholder="Your full name"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="font-bold text-slate-700 flex items-center gap-2">
+                        <User className="h-4 w-4 text-slate-400" />
+                        Father's Name
+                      </Label>
+                      <Input
+                        className="h-11 rounded-xl border-2 border-slate-200 focus:border-primary font-medium"
+                        value={profileForm.fatherName}
+                        onChange={(e) => setProfileForm({ ...profileForm, fatherName: e.target.value })}
+                        placeholder="Father's full name"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="font-bold text-slate-700 flex items-center gap-2">
+                        <User className="h-4 w-4 text-slate-400" />
+                        Name in Urdu (اردو نام)
+                      </Label>
+                      <Input
+                        className="h-11 rounded-xl border-2 border-slate-200 focus:border-primary font-medium text-right"
+                        value={profileForm.nameUrdu}
+                        onChange={(e) => setProfileForm({ ...profileForm, nameUrdu: e.target.value })}
+                        placeholder="اردو میں نام"
+                        dir="rtl"
                       />
                     </div>
 
@@ -1163,182 +1171,6 @@ export default function StudentProfile() {
                       Save Education Details
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Identity Verification Tab */}
-            <TabsContent value="identity">
-              <Card className="border-2 border-slate-100 shadow-sm rounded-2xl bg-white">
-                <CardHeader className="px-6 pt-6 pb-4 sm:px-8 sm:pt-8 bg-gradient-to-br from-purple-50 to-white">
-                  <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                      <IdCard className="h-6 w-6 text-purple-600" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl font-black text-slate-900">Identity Verification</CardTitle>
-                      <CardDescription className="font-semibold">Verify your identity to unlock premium features and certificate eligibility</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-6 sm:p-8 space-y-6">
-                  {/* Verification Status */}
-                  <div className="bg-slate-50 border-2 border-slate-200/60 rounded-2xl p-6">
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className={`h-14 w-14 rounded-xl flex items-center justify-center shrink-0 ${
-                          user?.isIdentityVerified 
-                            ? 'bg-emerald-100' 
-                            : user?.identityVerificationStatus === 'pending'
-                            ? 'bg-amber-100'
-                            : 'bg-slate-200'
-                        }`}>
-                          {user?.isIdentityVerified ? (
-                            <CheckCircle className="h-7 w-7 text-emerald-600" />
-                          ) : user?.identityVerificationStatus === 'pending' ? (
-                            <Clock className="h-7 w-7 text-amber-600" />
-                          ) : (
-                            <AlertCircle className="h-7 w-7 text-slate-500" />
-                          )}
-                        </div>
-                        <div className="text-center sm:text-left">
-                          <h3 className="font-black text-slate-900 text-lg">Verification Status</h3>
-                          <p className="text-sm text-slate-500 font-semibold mt-0.5">
-                            {user?.isIdentityVerified 
-                              ? 'Your student identity has been verified successfully' 
-                              : user?.identityVerificationStatus === 'pending'
-                              ? 'Your document has been submitted and is under review'
-                              : 'Identity verification document not submitted yet'}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge className={`text-sm font-bold px-3 py-1 rounded-full ${
-                        user?.isIdentityVerified 
-                          ? 'bg-emerald-500 hover:bg-emerald-600 text-white' 
-                          : user?.identityVerificationStatus === 'pending'
-                          ? 'bg-amber-500 hover:bg-amber-600 text-white'
-                          : 'bg-slate-500 hover:bg-slate-600 text-white'
-                      }`}>
-                        {user?.isIdentityVerified 
-                          ? 'Verified' 
-                          : user?.identityVerificationStatus === 'pending'
-                          ? 'Pending'
-                          : 'Not Verified'}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {!user?.isIdentityVerified && (
-                    <>
-                      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5">
-                        <h4 className="font-extrabold text-blue-900 mb-2 flex items-center gap-2">
-                          <Shield className="h-5 w-5 text-blue-700" />
-                          Why verify your student profile identity?
-                        </h4>
-                        <ul className="space-y-2 text-sm text-blue-800 font-semibold">
-                          <li className="flex items-start gap-2">
-                            <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-blue-600" />
-                            <span>Qualify for formal course completion diplomas</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-blue-600" />
-                            <span>Unlock verified student records shareable on LinkedIn</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <CheckCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-blue-600" />
-                            <span>Establish institutional records for offline classes</span>
-                          </li>
-                        </ul>
-                      </div>
-
-                      <Separator />
-
-                      <div className="space-y-3">
-                        <Label className="font-bold text-slate-700 flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-slate-400" />
-                          Identity Document (CNIC, Passport, or ID Card)
-                        </Label>
-                        <div className="flex gap-3">
-                          <Input
-                            className="h-12 rounded-xl border-2 border-slate-200 bg-slate-50 flex-1 font-medium text-slate-600"
-                            value={identityForm.identityDocumentUrl ? "Document uploaded" : "No document uploaded"}
-                            readOnly
-                          />
-                          <label className="relative">
-                            <input
-                              type="file"
-                              accept=".pdf"
-                              onChange={(e) => handleDocumentUpload(e, "identity")}
-                              className="hidden"
-                              disabled={uploadingIdentityDoc}
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="h-12 px-6 rounded-xl font-bold border-2 active:scale-95 transition-all duration-200"
-                              disabled={uploadingIdentityDoc}
-                              asChild
-                            >
-                              <span>
-                                {uploadingIdentityDoc ? (
-                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                ) : (
-                                  <Upload className="h-4 w-4 mr-2" />
-                                )}
-                                Upload PDF
-                              </span>
-                            </Button>
-                          </label>
-                        </div>
-                        {identityForm.identityDocumentUrl && (
-                          <a
-                            href={identityForm.identityDocumentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-primary hover:underline font-bold flex items-center gap-1 w-fit"
-                          >
-                            <FileText className="h-4 w-4" />
-                            View uploaded document
-                          </a>
-                        )}
-                        <p className="text-xs text-slate-500 font-medium">Upload a clear scan of your CNIC, passport, or government ID (PDF, max 5MB)</p>
-                      </div>
-
-                      <div className="flex justify-end pt-4">
-                        <Button
-                          onClick={handleSaveIdentity}
-                          disabled={savingIdentity || !identityForm.identityDocumentUrl}
-                          className="px-8 h-12 rounded-xl font-bold shadow-lg shadow-primary/20 animate-none"
-                        >
-                          {savingIdentity ? (
-                            <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                          ) : (
-                            <Shield className="h-5 w-5 mr-2" />
-                          )}
-                          Submit for Verification
-                        </Button>
-                      </div>
-                    </>
-                  )}
-
-                  {user?.isIdentityVerified && user?.identityDocumentUrl && (
-                    <div className="text-center py-8">
-                      <div className="inline-flex items-center gap-3 bg-emerald-50 border-2 border-emerald-200 rounded-2xl px-6 py-4">
-                        <CheckCircle className="h-8 w-8 text-emerald-600 shrink-0" />
-                        <div className="text-left">
-                          <p className="font-black text-emerald-900 text-base">Identity Verified Successfully!</p>
-                          <a
-                            href={user.identityDocumentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-emerald-700 hover:underline font-bold flex items-center gap-1 mt-0.5"
-                          >
-                            View your verified document
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </TabsContent>

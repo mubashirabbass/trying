@@ -22,4 +22,5 @@ export interface RegisterBody {
   totalMarks?: number;
   educationDocumentUrl?: string;
   branchId?: number;
+  avatar?: string;
 }

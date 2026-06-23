@@ -34,4 +34,12 @@ export interface User {
   designation?: string;
   gender?: string;
   joiningDate?: string;
+  nameUrdu?: string;
+  fatherName?: string;
+  session?: string;
+  semesterTerm?: string;
+  shift?: string;
+  rollNo?: string;
+  regNo?: string;
+  department?: string;
 }

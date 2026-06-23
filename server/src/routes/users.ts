@@ -97,6 +97,14 @@ router.get(
         designation: usersTable.designation,
         gender: usersTable.gender,
         joiningDate: usersTable.joiningDate,
+        nameUrdu: usersTable.nameUrdu,
+        fatherName: usersTable.fatherName,
+        session: usersTable.session,
+        semesterTerm: usersTable.semesterTerm,
+        shift: usersTable.shift,
+        rollNo: usersTable.rollNo,
+        regNo: usersTable.regNo,
+        department: usersTable.department,
       })
       .from(usersTable)
       .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
@@ -223,6 +231,14 @@ router.get(
         isIdentityVerified: usersTable.isIdentityVerified,
         identityDocumentUrl: identityVerificationsTable.documentUrl,
         identityVerificationStatus: identityVerificationsTable.status,
+        nameUrdu: usersTable.nameUrdu,
+        fatherName: usersTable.fatherName,
+        session: usersTable.session,
+        semesterTerm: usersTable.semesterTerm,
+        shift: usersTable.shift,
+        rollNo: usersTable.rollNo,
+        regNo: usersTable.regNo,
+        department: usersTable.department,
       })
       .from(usersTable)
       .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
