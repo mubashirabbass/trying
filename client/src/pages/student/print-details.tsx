@@ -7,6 +7,7 @@ import {
   Printer,
   Download,
   ArrowLeft,
+  Loader2,
 } from "lucide-react";
 
 const BASE = window.location.origin;
@@ -39,12 +40,14 @@ export default function PrintDetails() {
   const { user, token } = useAuth();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!user?.id || !token) return;
 
+      setLoading(true);
       try {
         const headers = { Authorization: `Bearer ${token}` };
 
@@ -63,6 +66,8 @@ export default function PrintDetails() {
         }
       } catch (error) {
         console.error("Failed to fetch data:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -315,15 +320,25 @@ export default function PrintDetails() {
           <div className="flex items-center gap-2">
             <Button
               onClick={handlePrint}
-              disabled={isPrinting}
+              disabled={loading || isPrinting}
               className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-9 px-4 text-xs gap-1.5 shadow-sm rounded-lg"
             >
-              <Printer className="h-3.5 w-3.5" />
-              Print Page
+              {loading ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <Printer className="h-3.5 w-3.5" />
+                  Print Page
+                </>
+              )}
             </Button>
             <Button
               onClick={handleDownloadImage}
               variant="outline"
+              disabled={loading}
               className="font-bold h-9 px-4 text-xs gap-1.5 border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg"
             >
               <Download className="h-3.5 w-3.5" />
@@ -407,10 +422,14 @@ export default function PrintDetails() {
                 <div className="flex justify-between items-center w-full">
                   <div className="flex-[2] flex items-center">
                     <span className="font-bold whitespace-nowrap uppercase tracking-tight">PROGRAM :</span>
-                    <span className="flex-1 ml-2 font-bold uppercase border-b border-black pl-1 pb-0.5">
-                      {enrollments.length > 0
-                        ? enrollments.map((e) => e.courseName || `Course #${e.courseId}`).join(", ")
-                        : "N/A"}
+                    <span className="flex-1 ml-2 font-bold uppercase border-b border-black pl-1 pb-0.5 min-h-[20px] flex items-center">
+                      {loading ? (
+                        <span className="h-3 bg-slate-200 animate-pulse rounded w-48 inline-block"></span>
+                      ) : enrollments.length > 0 ? (
+                        enrollments.map((e) => e.courseName || `Course #${e.courseId}`).join(", ")
+                      ) : (
+                        "N/A"
+                      )}
                     </span>
                   </div>
                   <div className="w-6"></div>
@@ -487,7 +506,17 @@ export default function PrintDetails() {
                     </tr>
                   </thead>
                   <tbody>
-                    {enrollments.length === 0 ? (
+                    {loading ? (
+                      [1, 2].map((i) => (
+                        <tr key={i} className="border-b border-black animate-pulse">
+                          <td className="py-2 px-2 border-r border-black"><div className="h-3 bg-slate-200 rounded w-4 mx-auto"></div></td>
+                          <td className="py-2 px-3 border-r border-black"><div className="h-3 bg-slate-200 rounded w-64"></div></td>
+                          <td className="py-2 px-2 border-r border-black"><div className="h-3 bg-slate-200 rounded w-12 mx-auto"></div></td>
+                          <td className="py-2 px-2 border-r border-black"><div className="h-3 bg-slate-200 rounded w-20 mx-auto"></div></td>
+                          <td className="py-2 px-2"><div className="h-3 bg-slate-200 rounded w-16 mx-auto"></div></td>
+                        </tr>
+                      ))
+                    ) : enrollments.length === 0 ? (
                       <tr>
                         <td colspan={5} className="py-6 px-4 text-center italic font-semibold text-slate-500">
                           No active academic course enrollments found.
@@ -542,7 +571,19 @@ export default function PrintDetails() {
                     </tr>
                   </thead>
                   <tbody>
-                    {payments.length === 0 ? (
+                    {loading ? (
+                      [1, 2].map((i) => (
+                        <tr key={i} className="border-b border-black animate-pulse">
+                          <td className="py-2 px-2 border-r border-black"><div className="h-3 bg-slate-200 rounded w-4 mx-auto"></div></td>
+                          <td className="py-2 px-3 border-r border-black"><div className="h-3 bg-slate-200 rounded w-60"></div></td>
+                          <td className="py-2 px-2 border-r border-black"><div className="h-3 bg-slate-200 rounded w-16 mx-auto"></div></td>
+                          <td className="py-2 px-2 border-r border-black"><div className="h-3 bg-slate-200 rounded w-16 mx-auto"></div></td>
+                          <td className="py-2 px-2 border-r border-black"><div className="h-3 bg-slate-200 rounded w-20 mx-auto"></div></td>
+                          <td className="py-2 px-2 border-r border-black"><div className="h-3 bg-slate-200 rounded w-24 mx-auto"></div></td>
+                          <td className="py-2 px-2"><div className="h-3 bg-slate-200 rounded w-12 mx-auto"></div></td>
+                        </tr>
+                      ))
+                    ) : payments.length === 0 ? (
                       <tr>
                         <td colspan={7} className="py-6 px-4 text-center italic font-semibold text-slate-500">
                           No financial transaction records found.

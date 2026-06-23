@@ -329,7 +329,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           { name: "Messages", path: "/dashboard/messages", icon: MessageCircle },
           { name: "Leaderboard", path: "/dashboard/leaderboard", icon: Trophy },
           { name: "Certificates", path: "/dashboard/certificates", icon: Award },
-          { name: "My Profile", path: "/dashboard/profile", icon: User },
+          { name: "Settings", path: "/dashboard/profile", icon: Settings },
         ];
       case "teacher":
         return [

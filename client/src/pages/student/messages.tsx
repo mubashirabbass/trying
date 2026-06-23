@@ -86,33 +86,67 @@ export default function StudentMessages() {
   const authHeaders = { Authorization: `Bearer ${token}` };
   const headers = { ...authHeaders, "Content-Type": "application/json" };
 
-  const fetchThreads = async () => {
+  const cacheKey = user?.id ? `msg_threads_${user.id}` : null;
+
+  const fetchThreads = async (silent = false) => {
     try {
       const r = await fetch(`${BASE}/api/messages/threads?userId=${user?.id}`, { headers });
-      if (r.ok) setThreads(await r.json());
-      else setThreads([]);
+      if (r.ok) {
+        const data = await r.json();
+        setThreads(data);
+        // Persist to localStorage for instant next-load
+        if (cacheKey) {
+          try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch {}
+        }
+      } else if (!silent) setThreads([]);
     } catch {
-      setThreads([]);
+      if (!silent) setThreads([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchMessages = async (threadId: number) => {
+  const msgCacheKey = (threadId: number) => `msg_messages_${user?.id}_${threadId}`;
+
+  const fetchMessages = async (threadId: number, silent = false) => {
     const r = await fetch(`${BASE}/api/messages/threads/${threadId}?viewerId=${user?.id}`, { headers });
-    if (r.ok) setMessages(await r.json());
+    if (r.ok) {
+      const data = await r.json();
+      setMessages(data);
+      // Persist to localStorage for instant next-load
+      try { localStorage.setItem(msgCacheKey(threadId), JSON.stringify(data)); } catch {}
+    }
   };
 
-  const markThreadRead = async (threadId: number) => {
+  const markThreadRead = (threadId: number) => {
     if (!user?.id) return;
-    await fetch(`${BASE}/api/messages/threads/${threadId}/read`, {
+    // Fire-and-forget — don't block message rendering
+    fetch(`${BASE}/api/messages/threads/${threadId}/read`, {
       method: "PATCH",
       headers,
       body: JSON.stringify({ userId: user.id }),
     }).catch(() => {});
   };
 
-  useEffect(() => { fetchThreads(); }, []);
+  // On mount: load from cache instantly, then refresh in background
+  useEffect(() => {
+    if (!user?.id) return;
+    if (cacheKey) {
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached) as Thread[];
+          setThreads(parsed);
+          setLoading(false);
+          // Silently refresh in background
+          fetchThreads(true);
+          return;
+        }
+      } catch {}
+    }
+    // No cache — show spinner and fetch normally
+    fetchThreads(false);
+  }, [user?.id]);
 
   useEffect(() => {
     if (!isNewChatOpen || !user?.id) return;
@@ -134,7 +168,23 @@ export default function StudentMessages() {
   }, [selectedThread, threads]);
   useEffect(() => {
     if (!selectedThread) return;
-    markThreadRead(selectedThread.id).finally(() => fetchMessages(selectedThread.id));
+    const threadId = selectedThread.id;
+    // Fire mark-as-read immediately without blocking
+    markThreadRead(threadId);
+    // Load from cache instantly if available
+    const cached = (() => {
+      try {
+        const raw = localStorage.getItem(msgCacheKey(threadId));
+        return raw ? (JSON.parse(raw) as Message[]) : null;
+      } catch { return null; }
+    })();
+    if (cached) {
+      setMessages(cached);
+      // Silently refresh in background
+      fetchMessages(threadId, true);
+    } else {
+      fetchMessages(threadId, false);
+    }
   }, [selectedThread?.id, user?.id]);
   useEffect(() => {
     if (!selectedThread || !user?.id || !token) return;

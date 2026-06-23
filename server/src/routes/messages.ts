@@ -119,6 +119,11 @@ router.get("/messages/threads", async (req, res): Promise<void> => {
     return;
   }
 
+  if (threads.length === 0) {
+    res.json([]);
+    return;
+  }
+
   // 1. Bulk query all users associated with these threads to avoid N+1 queries
   const studentIds = threads.map(t => t.studentId);
   const teacherIds = threads.map(t => t.teacherId);
@@ -129,24 +134,48 @@ router.get("/messages/threads", async (req, res): Promise<void> => {
     : [];
   const userMap = new Map(users.map(u => [u.id, u.name]));
 
-  // 2. Fetch last messages and counts in parallel with light weight selects
-  const threadsWithDetails = await Promise.all(threads.map(async (t) => {
+  // 2. Fetch last messages and counts in parallel bulk queries
+  const threadIds = threads.map(t => t.id);
+
+  // Fetch last message for each thread using a window partition query in 1 query
+  const lastMessages = await db.execute<{ thread_id: number; body: string; attachment_type: string | null }>(sql`
+    SELECT thread_id, body, attachment_type 
+    FROM (
+      SELECT thread_id, body, attachment_type,
+             ROW_NUMBER() OVER (PARTITION BY thread_id ORDER BY created_at DESC) as rn
+      FROM messages
+      WHERE thread_id IN (${sql.join(threadIds, sql`, `)})
+    ) t 
+    WHERE rn = 1
+  `);
+
+  const lastMsgMap = new Map<number, { body: string; attachmentType: string | null }>();
+  lastMessages.rows.forEach((row: any) => {
+    lastMsgMap.set(Number(row.thread_id), {
+      body: row.body || "",
+      attachmentType: row.attachment_type || null
+    });
+  });
+
+  // Fetch unread/message count per thread grouped in 1 query
+  const messageCounts = await db.select({
+    threadId: messagesTable.threadId,
+    count: sql<number>`cast(count(*) as integer)`
+  })
+    .from(messagesTable)
+    .where(inArray(messagesTable.threadId, threadIds))
+    .groupBy(messagesTable.threadId);
+
+  const countMap = new Map<number, number>();
+  messageCounts.forEach((c) => {
+    countMap.set(c.threadId, c.count);
+  });
+
+  const threadsWithDetails = threads.map((t) => {
     const studentName = userMap.get(t.studentId);
     const teacherName = userMap.get(t.teacherId);
-    
-    const [lastMsg] = await db.select({
-      body: messagesTable.body,
-      attachmentType: messagesTable.attachmentType,
-      createdAt: messagesTable.createdAt
-    }).from(messagesTable)
-      .where(eq(messagesTable.threadId, t.id))
-      .orderBy(desc(messagesTable.createdAt))
-      .limit(1);
-      
-    const [countResult] = await db.select({
-      count: sql<number>`cast(count(*) as integer)`
-    }).from(messagesTable)
-      .where(eq(messagesTable.threadId, t.id));
+    const lastMsg = lastMsgMap.get(t.id);
+    const count = countMap.get(t.id) || 0;
 
     return { 
       ...t, 
@@ -155,10 +184,10 @@ router.get("/messages/threads", async (req, res): Promise<void> => {
       studentOnline: isOnline(t.studentId),
       teacherOnline: isOnline(t.teacherId),
       lastMessagePreview: lastMsg?.body || (lastMsg?.attachmentType === "image" ? "Image" : lastMsg?.attachmentType === "audio" ? "Voice note" : ""),
-      messageCount: countResult?.count || 0,
+      messageCount: count,
       courseName: t.courseName || "General Support"
     };
-  }));
+  });
 
   res.json(threadsWithDetails);
 });
@@ -225,10 +254,13 @@ router.get("/messages/threads/:threadId", async (req, res): Promise<void> => {
   const viewerId = req.query.viewerId ? Number(req.query.viewerId) : null;
   const [thread] = await db.select().from(messageThreadsTable).where(eq(messageThreadsTable.id, threadId));
   if (viewerId && thread) {
-    const existing = await db.select().from(messagesTable).where(eq(messagesTable.threadId, threadId));
-    await Promise.all(existing
-      .filter((message) => message.senderId !== viewerId && !message.isRead)
-      .map((message) => db.update(messagesTable).set({ isRead: true }).where(eq(messagesTable.id, message.id))));
+    await db.update(messagesTable)
+      .set({ isRead: true })
+      .where(and(
+        eq(messagesTable.threadId, threadId),
+        sql`${messagesTable.senderId} != ${viewerId}`,
+        eq(messagesTable.isRead, false)
+      ));
   }
 
   const msgs = await db.select({
@@ -300,10 +332,13 @@ router.post("/messages/threads/:threadId/messages", async (req, res): Promise<vo
 router.patch("/messages/threads/:threadId/read", async (req, res): Promise<void> => {
   const threadId = Number(req.params.threadId);
   const { userId } = req.body;
-  const msgs = await db.select().from(messagesTable).where(eq(messagesTable.threadId, threadId));
-  await Promise.all(msgs
-    .filter((message) => !userId || message.senderId !== Number(userId))
-    .map((message) => db.update(messagesTable).set({ isRead: true }).where(eq(messagesTable.id, message.id))));
+  await db.update(messagesTable)
+    .set({ isRead: true })
+    .where(and(
+      eq(messagesTable.threadId, threadId),
+      userId ? sql`${messagesTable.senderId} != ${Number(userId)}` : sql`true`,
+      eq(messagesTable.isRead, false)
+    ));
   res.json({ success: true });
 });
 
