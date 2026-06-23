@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import { Link } from "wouter";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,14 @@ import {
   CalendarDays,
   GraduationCap,
   Clock,
+  Home,
+  Mail,
+  Phone,
+  MapPin,
+  CreditCard,
+  FileText,
+  ChevronRight,
+  Sparkles,
 } from "lucide-react";
 
 // ─── GCUF Student Card Component (visual replica) ──────────────────────────
@@ -265,10 +274,8 @@ export function GcufCard({ user }: { user: any }) {
   );
 }
 
-// ─── Main Page ──────────────────────────────────────────────────────────────
 export default function StudentCard() {
   const { user, refreshUser } = useAuth();
-  const cardRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
 
   // Always fetch the latest data from the server when this page loads,
@@ -280,7 +287,6 @@ export default function StudentCard() {
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      // Dynamically import html2canvas
       const { default: html2canvas } = await import("html2canvas");
       const el = document.getElementById("student-card-printable");
       if (!el) return;
@@ -349,6 +355,8 @@ export default function StudentCard() {
     setTimeout(() => { win.print(); win.close(); }, 400);
   };
 
+
+
   const isEmpty = (v: any) => !v || String(v).trim() === "";
   const missingFields = [
     { label: "Registration No", missing: isEmpty(user?.regNo) },
@@ -360,114 +368,303 @@ export default function StudentCard() {
     { label: "Profile Photo", missing: isEmpty(user?.avatar) },
   ].filter((f) => f.missing);
 
+  const formatDob = (dobString: any) => {
+    if (!dobString) return "Not provided";
+    try {
+      const d = new Date(dobString);
+      if (isNaN(d.getTime())) return dobString;
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}-${month}-${year}`;
+    } catch {
+      return dobString;
+    }
+  };
+
   return (
     <DashboardLayout>
-      <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
-        {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3">
-              <IdCard className="h-8 w-8 text-red-600" />
-              Student Card
-            </h1>
-            <p className="text-slate-500 mt-1 text-sm">
-              Your official Global College student identification card.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handlePrint}
-              className="gap-2 border-2"
-            >
-              <Printer className="h-4 w-4" />
-              Print
-            </Button>
-            <Button
-              onClick={handleDownload}
-              disabled={downloading}
-              className="gap-2 bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-200"
-            >
-              <Download className="h-4 w-4" />
-              {downloading ? "Generating…" : "Download PNG"}
-            </Button>
+      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        {/* Breadcrumb style navigation header */}
+        <div className="flex items-center gap-2 text-sm text-slate-500 font-semibold px-1">
+          <Link href="/dashboard" className="flex items-center gap-1.5 text-slate-400 hover:text-primary transition-colors cursor-pointer">
+            <Home className="h-4 w-4" />
+            <span className="hidden sm:inline text-xs font-bold">Home</span>
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5 text-slate-300" />
+          <span className="text-slate-800 font-bold">Profile</span>
+        </div>
+
+        {/* Welcome Notice alert */}
+        <div className="bg-[#d9edf7] border border-[#bce8f1] text-[#31708f] rounded-lg p-4 text-sm font-semibold leading-relaxed shadow-sm">
+          Welcome to the Global College Student Portal! Here, you can access detailed information about your enrolled degree, including course schedules, academic progress, and more.
+        </div>
+
+        {/* Attendance criteria red warning alert with marquee ticker */}
+        <div className="bg-[#c0392b] text-white rounded-lg overflow-hidden shadow-md flex items-center h-10">
+          <span className="bg-[#922b21] px-4 h-full flex items-center text-xs font-black uppercase tracking-widest shrink-0 border-r border-[#7b241c]">
+            📢 Notice
+          </span>
+          <div className="flex-1 overflow-hidden relative">
+            <style>{`
+              @keyframes marquee-scroll {
+                0%   { transform: translateX(100%); }
+                100% { transform: translateX(-100%); }
+              }
+              .marquee-text {
+                display: inline-block;
+                white-space: nowrap;
+                animation: marquee-scroll 18s linear infinite;
+              }
+            `}</style>
+            <span className="marquee-text text-xs sm:text-sm font-bold">
+              Important Note: Attendance criteria for Spring, 2026 is 75%.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Important Note: Attendance criteria for Spring, 2026 is 75%.
+            </span>
           </div>
         </div>
 
-        {/* Card Preview */}
-        <Card className="border-2 border-slate-100 shadow-sm rounded-2xl overflow-hidden">
-          <div className="h-1.5 bg-gradient-to-r from-red-600 to-red-400" />
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-slate-700">Card Preview</CardTitle>
-            <CardDescription>This is how your student card will look when downloaded.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center py-6 bg-slate-50 rounded-b-xl">
-            <div ref={cardRef}>
-              <GcufCard user={user} />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Info & Missing Fields */}
-        {missingFields.length > 0 && (
-          <Card className="border-2 border-amber-100 bg-amber-50/60 rounded-2xl overflow-hidden">
-            <CardContent className="p-5 flex gap-3">
-              <Info className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-bold text-amber-800 text-sm">Complete your profile for a full card</p>
-                <p className="text-xs text-amber-700 mt-1">
-                  The following fields are missing. Contact your administrator to fill them in:
-                </p>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {missingFields.map((f) => (
-                    <Badge key={f.label} className="bg-amber-200 text-amber-900 border-amber-300 text-xs">
-                      {f.label}
-                    </Badge>
-                  ))}
-                </div>
+        {/* Main responsive grid columns layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          {/* Left Column: Student Profile Details Card */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
+              
+              {/* College brick architecture arches illustration */}
+              <div className="h-28 sm:h-32 bg-gradient-to-r from-[#dfd2c0] to-[#c7b299] relative overflow-hidden">
+                <svg className="absolute inset-0 w-full h-full opacity-20 text-slate-900" viewBox="0 0 500 150" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+                  <path d="M 0,150 L 0,80 Q 20,60 40,80 L 40,150" fill="currentColor" />
+                  <path d="M 60,150 L 60,70 Q 90,40 120,70 L 120,150" fill="currentColor" />
+                  <path d="M 140,150 L 140,60 Q 180,20 220,60 L 220,150" fill="currentColor" />
+                  <path d="M 240,150 L 240,70 Q 270,40 300,70 L 300,150" fill="currentColor" />
+                  <path d="M 320,150 L 320,80 Q 340,60 360,80 L 360,150" fill="currentColor" />
+                  <path d="M 380,150 L 380,50 Q 430,0 480,50 L 480,150" fill="currentColor" />
+                </svg>
               </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Full Student Details Panel */}
-        <Card className="border-2 border-slate-100 shadow-sm rounded-2xl overflow-hidden">
-          <div className="h-1.5 bg-gradient-to-r from-blue-600 to-indigo-500" />
-          <CardHeader>
-            <CardTitle className="text-base font-bold text-slate-700 flex items-center gap-2">
-              <User className="h-4 w-4 text-blue-600" />
-              Student Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {[
-                { icon: User, label: "Full Name", value: user?.name },
-                { icon: User, label: "Name (Urdu)", value: user?.nameUrdu },
-                { icon: User, label: "Father's Name", value: user?.fatherName },
-                { icon: Hash, label: "Registration No", value: user?.regNo },
-                { icon: Hash, label: "Roll No", value: user?.rollNo },
-                { icon: Building2, label: "Department", value: user?.department },
-                { icon: GraduationCap, label: "Programme", value: user?.qualification || user?.specialization },
-                { icon: CalendarDays, label: "Session", value: user?.session },
-                { icon: Clock, label: "Term / Semester", value: user?.semesterTerm },
-                { icon: Clock, label: "Shift", value: user?.shift },
-                { icon: Building2, label: "Branch", value: user?.branchName },
-                { icon: User, label: "Gender", value: user?.gender },
-              ].map(({ icon: Icon, label, value }) => (
-                <div key={label} className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <Icon className="h-4 w-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</div>
-                    <div className="text-sm font-semibold text-slate-800 mt-0.5 break-words">
-                      {value || <span className="text-slate-300 font-normal italic">Not provided</span>}
+              {/* Identity Header & Avatar Overlap */}
+              <div className="px-6 pb-6 relative">
+                
+                {/* Photo box matching passport style blue bg and thick white border */}
+                <div className="absolute -top-14 sm:-top-16 left-6 h-24 w-20 sm:h-28 sm:w-24 border-[3px] border-white rounded-lg overflow-hidden shadow-lg bg-[#d9e8fb] flex items-center justify-center">
+                  {user?.avatar ? (
+                    <img src={user.avatar} alt="Student Profile" className="h-full w-full object-cover" />
+                  ) : (
+                    <User className="h-12 w-12 text-[#31708f]" />
+                  )}
+                </div>
+
+                {/* Name & Father Name aligned to the right of avatar */}
+                <div className="pl-28 sm:pl-32 pt-3 min-h-[56px] flex flex-col justify-center">
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <h2 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">
+                      {user?.name?.toUpperCase() || "STUDENT NAME"}
+                    </h2>
+                    {user?.nameUrdu && (
+                      <span className="text-base sm:text-lg font-bold text-slate-600 font-urdu" dir="rtl">
+                        ({user.nameUrdu})
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs sm:text-sm font-bold text-slate-500 mt-0.5">
+                    S/O {user?.fatherName || "FATHER'S NAME"}
+                  </p>
+                </div>
+
+                {/* Structured detailed profile information table/grid */}
+                <div className="mt-8 border border-slate-150 rounded-xl overflow-hidden divide-y divide-slate-150 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-150">
+                    <div className="p-3.5 flex items-center gap-3 bg-slate-50/50">
+                      <CreditCard className="h-4.5 w-4.5 text-slate-400 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">CNIC / ID No</div>
+                        <div className="font-semibold text-slate-700 mt-0.5">{user?.cnic || "Not provided"}</div>
+                      </div>
+                    </div>
+                    <div className="p-3.5 flex items-center gap-3 bg-slate-50/50">
+                      <Mail className="h-4.5 w-4.5 text-slate-400 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Email Address</div>
+                        <div className="font-semibold text-slate-700 mt-0.5 break-all">{user?.email || "Not provided"}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-150">
+                    <div className="p-3.5 flex items-center gap-3 bg-slate-50/50">
+                      <User className="h-4.5 w-4.5 text-slate-400 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gender</div>
+                        <div className="font-semibold text-slate-700 mt-0.5">{user?.gender || "Not provided"}</div>
+                      </div>
+                    </div>
+                    <div className="p-3.5 flex items-center gap-3 bg-slate-50/50">
+                      <CalendarDays className="h-4.5 w-4.5 text-slate-400 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Date of Birth</div>
+                        <div className="font-semibold text-slate-700 mt-0.5">{formatDob(user?.dob)}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-150">
+                    <div className="p-3.5 flex items-center gap-3 bg-slate-50/50">
+                      <Phone className="h-4.5 w-4.5 text-slate-400 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Phone / Mobile</div>
+                        <div className="font-semibold text-slate-700 mt-0.5">{user?.phone || "Not provided"}</div>
+                      </div>
+                    </div>
+                    <div className="p-3.5 flex items-center gap-3 bg-slate-50/50">
+                      <MapPin className="h-4.5 w-4.5 text-slate-400 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">City / Campus</div>
+                        <div className="font-semibold text-slate-700 mt-0.5">{user?.branchName || "Not provided"}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 flex items-start gap-3 bg-slate-50/50">
+                    <Home className="h-4.5 w-4.5 text-slate-400 shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Home Address</div>
+                      <div className="font-semibold text-slate-700 mt-0.5 leading-relaxed">{user?.address || "Not provided"}</div>
                     </div>
                   </div>
                 </div>
-              ))}
+
+                {/* Edit Profile Action Link Button */}
+                <div className="mt-6">
+                  <Link href="/dashboard/profile">
+                    <Button className="w-full bg-[#5cb85c] hover:bg-[#4cae4c] border-none text-white font-bold h-11 rounded-xl shadow-sm hover:shadow transition-all duration-200 gap-2">
+                      <FileText className="h-4 w-4" />
+                      Edit Profile
+                    </Button>
+                  </Link>
+                </div>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+
+            {/* Profile incomplete warning alert box */}
+            {missingFields.length > 0 && (
+              <Card className="border border-amber-200 bg-amber-50/60 rounded-2xl overflow-hidden shadow-sm">
+                <CardContent className="p-5 flex gap-3">
+                  <Info className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-bold text-amber-800 text-sm">Complete your profile for a full card</p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      The following registration fields are missing. Contact your administrator to populate them:
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {missingFields.map((f) => (
+                        <Badge key={f.label} className="bg-amber-100 text-amber-900 hover:bg-amber-200 border-amber-200 text-xs font-semibold px-2 py-0.5">
+                          {f.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Right Column: Enrollment Programs & Registration Card Preview */}
+          <div className="lg:col-span-5 space-y-6">
+            
+            {/* Degree Program Card */}
+            <Card className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-white">
+              <div className="bg-[#dff0d8] border-b border-[#d6e9c6] text-[#3c763d] px-5 py-3 font-bold text-xs uppercase tracking-wider leading-relaxed">
+                Programs You Are Enrolled In at Government College University Faisalabad
+              </div>
+              <CardContent className="p-5 space-y-6">
+                <div className="flex gap-4 items-start">
+                  <div className="h-12 w-12 rounded-full bg-[#337ab7]/10 flex items-center justify-center text-[#337ab7] shrink-0 shadow-inner">
+                    <GraduationCap className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-black text-slate-800 text-lg leading-tight">
+                      {user?.qualification || user?.specialization || "BS Computer Science"}
+                    </h3>
+                    <div className="text-xs text-slate-500 space-y-1 mt-2.5 font-semibold">
+                      <div>
+                        <span className="font-bold text-slate-400 uppercase tracking-wide">Session:</span>{" "}
+                        <span className="text-slate-700 uppercase">
+                          {user?.session || "2024-2028"}{user?.semesterTerm ? ` | ${user.semesterTerm}` : ""}{user?.shift ? ` | ${user.shift}` : ""}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="font-bold text-slate-400 uppercase tracking-wide">Roll No:</span>{" "}
+                        <span className="text-slate-700 font-mono">{user?.rollNo || "Not assigned"}</span>
+                      </div>
+                      <div>
+                        <span className="font-bold text-slate-400 uppercase tracking-wide">Reg No:</span>{" "}
+                        <span className="text-slate-700 font-mono">{user?.regNo || "Not assigned"}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Print Detail & Registration Card side-by-side action buttons */}
+                <div className="flex gap-2 items-center pt-2">
+                  <Link href="/dashboard/print-details" className="flex-1">
+                    <Button
+                      className="w-full bg-[#337ab7] hover:bg-[#286090] border-none text-white font-bold h-10 rounded-lg text-xs sm:text-sm shadow-sm gap-1.5 transition-colors duration-200"
+                    >
+                      <Printer className="h-4 w-4" />
+                      Print Detail
+                    </Button>
+                  </Link>
+                  <span className="text-slate-300 font-medium">-</span>
+                  <Button
+                    onClick={handlePrint}
+                    className="flex-1 bg-[#5cb85c] hover:bg-[#4cae4c] border-none text-white font-bold h-10 rounded-lg text-xs sm:text-sm shadow-sm gap-1.5 transition-colors duration-200"
+                  >
+                    <IdCard className="h-4 w-4" />
+                    Registration Card
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Registration Card Visual Preview card */}
+            <Card className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-white">
+              <CardHeader className="pb-2 bg-slate-50/50 border-b border-slate-100">
+                <CardTitle className="text-xs sm:text-sm font-bold text-slate-700 flex items-center gap-2">
+                  <IdCard className="h-4 w-4 text-[#c0392b]" />
+                  Registration Card Preview
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center justify-center p-6 bg-slate-50/10">
+                
+                {/* Embedded dynamic replica of GCUF Student Card */}
+                <div className="scale-[0.88] sm:scale-100 origin-center transition-transform py-2">
+                  <GcufCard user={user} />
+                </div>
+                
+                {/* Print and PNG download buttons for the Student Card */}
+                <div className="w-full flex gap-3 mt-6 border-t border-slate-100 pt-5">
+                  <Button
+                    variant="outline"
+                    onClick={handlePrint}
+                    className="flex-1 gap-2 border-2 hover:bg-slate-50 h-10 font-bold text-xs"
+                  >
+                    <Printer className="h-3.5 w-3.5 text-slate-500" />
+                    Print Card
+                  </Button>
+                  <Button
+                    onClick={handleDownload}
+                    disabled={downloading}
+                    className="flex-1 gap-2 bg-[#c0392b] hover:bg-[#922b21] border-none text-white font-bold h-10 text-xs shadow-md shadow-red-100/50"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    {downloading ? "Generating…" : "Download PNG"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+          </div>
+        </div>
       </div>
     </DashboardLayout>
   );

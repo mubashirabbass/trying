@@ -435,11 +435,18 @@ export default function StudentDashboard() {
                   <div className="text-xs font-semibold text-slate-400 md:text-right">
                     Joined: {user?.createdAt ? new Date(user.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : 'May 2026'}
                   </div>
-                  <Link href="/dashboard/student-card">
-                    <Button variant="outline" className="mt-1 h-8 px-4 text-xs font-bold rounded-lg border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 gap-1.5">
-                      🪪 Student Card
-                    </Button>
-                  </Link>
+                  <div className="flex flex-wrap gap-2">
+                    <Link href="/dashboard/student-card">
+                      <Button variant="outline" className="mt-1 h-8 px-4 text-xs font-bold rounded-lg border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 gap-1.5">
+                        🪪 Student Card
+                      </Button>
+                    </Link>
+                    <Link href="/dashboard/print-details">
+                      <Button variant="outline" className="mt-1 h-8 px-4 text-xs font-bold rounded-lg border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 gap-1.5">
+                        📄 Print Details
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </CardContent>
             </Card>

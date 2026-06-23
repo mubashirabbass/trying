@@ -50,6 +50,7 @@ import StudentProgress from "@/pages/student/progress";
 import StudentBrowse from "@/pages/student/browse";
 import QuizResultPage from "@/pages/student/quiz-result";
 import StudentCard from "@/pages/student/student-card";
+import StudentPrintDetails from "@/pages/student/print-details";
 
 // Teacher Pages
 import TeacherDashboard from "@/pages/teacher/dashboard";
@@ -197,6 +198,9 @@ function Router() {
         </Route>
         <Route path="/dashboard/student-card">
           <ProtectedRoute component={StudentCard} />
+        </Route>
+        <Route path="/dashboard/print-details">
+          <ProtectedRoute component={StudentPrintDetails} />
         </Route>
 
         {/* Teacher Protected Routes */}

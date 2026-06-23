@@ -37,7 +37,7 @@ import {
   CalendarRange,
   Video,
   Newspaper,
-  IdCard
+  IdCard,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -317,6 +317,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       case "student":
         return [
           { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
+          { name: "Profile", path: "/dashboard/student-card", icon: IdCard },
           { name: "Browse Courses", path: "/dashboard/browse", icon: Compass },
           { name: "My Courses", path: "/dashboard/courses", icon: BookOpen },
           { name: "Live Classes", path: "/dashboard/live-classes", icon: Video },
@@ -328,7 +329,6 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           { name: "Messages", path: "/dashboard/messages", icon: MessageCircle },
           { name: "Leaderboard", path: "/dashboard/leaderboard", icon: Trophy },
           { name: "Certificates", path: "/dashboard/certificates", icon: Award },
-          { name: "Student Card", path: "/dashboard/student-card", icon: IdCard },
           { name: "My Profile", path: "/dashboard/profile", icon: User },
         ];
       case "teacher":
