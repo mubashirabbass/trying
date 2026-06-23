@@ -29,6 +29,7 @@ export async function createNotification({
     return notif;
   } catch (error) {
     logger.error(`Failed to create notification for userId=${userId}:`, error);
+    return null;
   }
 }
 

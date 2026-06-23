@@ -266,7 +266,7 @@ export async function generateCertificatePDF(data: CertificateData): Promise<Buf
   try {
     const page = await browser.newPage();
     await page.setViewport({ width: 1120, height: 790 });
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.setContent(html, { waitUntil: 'networkidle0' as any });
 
     const pdf = await page.pdf({
       width: '1120px',

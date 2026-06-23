@@ -67,7 +67,7 @@ router.post("/enrollments", async (req: any, res): Promise<void> => {
     await db.insert(paymentsTable).values({
       userId,
       courseId,
-      amount: course.price || 0,
+      amount: course.fee || 0,
       method: "manual_enrollment",
       status: paymentRecordStatus,
       notes: paymentNotes

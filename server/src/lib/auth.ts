@@ -21,12 +21,12 @@ export async function verifyPassword(password: string, stored: string): Promise<
 
 export function createToken(userId: number, role: string, rememberMe: boolean = false): string {
   const expiresIn = rememberMe ? "30d" : (process.env.JWT_ACCESS_EXPIRY || "7d");
-  return jwt.sign({ sub: userId, role }, JWT_SECRET, { expiresIn });
+  return jwt.sign({ sub: userId, role }, JWT_SECRET, { expiresIn: expiresIn as any });
 }
 
 export function verifyToken(token: string): { sub: number; role: string } {
   try {
-    return jwt.verify(token, JWT_SECRET) as { sub: number; role: string };
+    return jwt.verify(token, JWT_SECRET) as unknown as { sub: number; role: string };
   } catch (err) {
     throw new AppError("Invalid or expired token", 401);
   }

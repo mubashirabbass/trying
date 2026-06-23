@@ -136,11 +136,11 @@ router.post("/auth/verify-email", catchAsync(async (req: Request, res: Response)
   const { token } = req.body;
   if (!token) throw new AppError("Token is required", 400);
   const payload = verifyToken(token);
-  if (!payload || !payload.id) throw new AppError("Invalid or expired token", 400);
+  if (!payload || !payload.sub) throw new AppError("Invalid or expired token", 400);
 
   const [user] = await db.update(usersTable)
     .set({ isEmailVerified: true })
-    .where(eq(usersTable.id, payload.id))
+    .where(eq(usersTable.id, payload.sub))
     .returning();
 
   if (!user) throw new AppError("User not found", 404);
@@ -206,7 +206,7 @@ router.post("/auth/reset-password/:token", catchAsync(async (req: Request, res: 
   if (!token || !newPassword) { res.status(400).json({ error: "Token and new password are required" }); return; }
   if (newPassword.length < 8) { res.status(400).json({ error: "Password must be at least 8 characters" }); return; }
 
-  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const tokenHash = crypto.createHash("sha256").update(token as string).digest("hex");
   const [user] = await db.select().from(usersTable).where(eq((usersTable as any).passwordResetToken, tokenHash));
 
   if (!user) { res.status(400).json({ error: "Invalid or expired reset token" }); return; }

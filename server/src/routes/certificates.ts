@@ -82,7 +82,7 @@ router.get("/certificates", authenticate, async (req: AuthRequest, res): Promise
 });
 
 router.get("/certificates/:id/download", authenticate, async (req: AuthRequest, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
   const userId = req.user?.id;

@@ -1,7 +1,7 @@
-import puppeteer from "puppeteer";
+import puppeteer, { type PDFOptions } from "puppeteer";
 import { logger } from "./logger";
 
-export async function generatePdf(html: string, options: puppeteer.PDFOptions = {}) {
+export async function generatePdf(html: string, options: PDFOptions = {}) {
   let browser;
   try {
     browser = await puppeteer.launch({
@@ -11,7 +11,7 @@ export async function generatePdf(html: string, options: puppeteer.PDFOptions = 
     const page = await browser.newPage();
     
     // Set content and wait for it to be loaded
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "networkidle0" as any });
     
     // Generate PDF buffer
     const pdfBuffer = await page.pdf({

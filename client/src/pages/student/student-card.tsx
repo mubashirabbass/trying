@@ -35,6 +35,8 @@ export function GcufCard({ user }: { user: any }) {
         background: "#fff",
         flexShrink: 0,
         userSelect: "none",
+        WebkitPrintColorAdjust: "exact",
+        printColorAdjust: "exact",
       }}
     >
       {/* ── Header Band ─────────────────────────────────────────────── */}
@@ -44,6 +46,8 @@ export function GcufCard({ user }: { user: any }) {
           padding: "8px 12px 24px",
           position: "relative",
           minHeight: "72px",
+          WebkitPrintColorAdjust: "exact",
+          printColorAdjust: "exact",
         }}
       >
         {/* Decorative circle */}
@@ -305,14 +309,40 @@ export default function StudentCard() {
     const win = window.open("", "_blank", "width=500,height=400");
     if (!win) return;
     win.document.write(`
-      <html><head><title>Student Card</title>
-      <style>
-        body { margin: 20px; display: flex; justify-content: center; align-items: center; }
-        @media print { body { margin: 0; } }
-      </style>
-      </head><body>
+      <html>
+      <head>
+        <title>Student Card</title>
+        <style>
+          html, body {
+            color-scheme: light !important;
+            background: #ffffff !important;
+            margin: 0;
+            padding: 0;
+          }
+          body { 
+            margin: 20px; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+          }
+          @media print { 
+            body { 
+              margin: 0; 
+            } 
+            #student-card-printable {
+              box-shadow: none !important;
+            }
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        </style>
+      </head>
+      <body>
         ${el.outerHTML}
-      </body></html>
+      </body>
+      </html>
     `);
     win.document.close();
     win.focus();
