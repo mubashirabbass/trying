@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fee Slip – Global College</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #f0f0f0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 16px;
+  }
+  .slip-wrapper {
+    width: 640px;
+    background: #fff;
+    border: 3px solid #1a2fa0;
+    border-radius: 4px;
+    position: relative;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .corner { position: absolute; width: 44px; height: 44px; }
+  .tl { top:7px; left:7px;   border-top:2px solid #1a2fa0; border-left:2px solid #1a2fa0; }
+  .tr { top:7px; right:7px;  border-top:2px solid #1a2fa0; border-right:2px solid #1a2fa0; }
+  .bl { bottom:7px; left:7px;  border-bottom:2px solid #1a2fa0; border-left:2px solid #1a2fa0; }
+  .br { bottom:7px; right:7px; border-bottom:2px solid #1a2fa0; border-right:2px solid #1a2fa0; }
+  .inner { margin:12px; border:1.5px solid #1a2fa0; padding:16px 28px 18px; }
+  .row-table { width:100%; border-collapse:collapse; margin-bottom:12px; }
+  .row-table td { padding:0; vertical-align:bottom; }
+  .field-table { width:100%; border-collapse:collapse; }
+  .field-table td { padding:0; vertical-align:bottom; }
+  .lbl { white-space:nowrap; font-size:13px; font-weight:700; color:#1a2fa0; padding-right:6px; width:1%; }
+  .uline { border-bottom:1.5px solid #1a2fa0; }
+  .pad-l { padding-left:16px; }
+  .pad-m { padding:0 8px; }
+  .urdu { border-top:1px solid #b0b8e0; padding-top:10px; text-align:center; direction:rtl;
+          font-size:13px; color:#1a2fa0; font-family:'Noto Nastaliq Urdu',serif; line-height:2; margin-top:4px; }
+  .actions { display:flex; justify-content:center; gap:12px; margin-top:22px; }
+  .btn { padding:10px 28px; border-radius:8px; font-size:13px; font-weight:600;
+         cursor:pointer; border:none; font-family:sans-serif; transition:opacity .15s; }
+  .btn:hover { opacity:.85; }
+  .btn-p { background:#1a2fa0; color:#fff; }
+  .btn-s { background:#fff; color:#1a2fa0; border:1.5px solid #c0c8e0; }
+  @media print { body { background:#fff; padding:0; } .actions { display:none; } }
+</style>
+</head>
+<body>
+
+<div class="slip-wrapper">
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+
+  <div class="inner">
+    <div style="text-align:center;font-size:58px;font-weight:900;color:#1a2fa0;letter-spacing:8px;line-height:1;margin-bottom:2px;">GLOBAL</div>
+    <div style="text-align:center;font-size:17px;font-weight:700;color:#1a2fa0;margin-bottom:6px;">College of Computer Science &amp; Commerce</div>
+    <div style="text-align:center;margin-bottom:16px;">
+      <span style="background:#1a2fa0;color:#fff;font-size:14px;font-weight:700;padding:4px 26px;border-radius:20px;letter-spacing:1px;">Fee Slip</span>
+    </div>
+
+    <!-- Sr. No | Date -->
+    <table class="row-table">
+      <tr>
+        <td style="width:50%;">
+          <table class="field-table"><tr><td class="lbl">Sr. No.</td><td class="uline"></td></tr></table>
+        </td>
+        <td style="width:50%;" class="pad-l">
+          <table class="field-table"><tr><td class="lbl">Date</td><td class="uline"></td></tr></table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Name | Father's Name -->
+    <table class="row-table">
+      <tr>
+        <td style="width:50%;">
+          <table class="field-table"><tr><td class="lbl">Name</td><td class="uline"></td></tr></table>
+        </td>
+        <td style="width:50%;" class="pad-l">
+          <table class="field-table"><tr><td class="lbl">Father's Name</td><td class="uline"></td></tr></table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Class | Section | Roll No -->
+    <table class="row-table">
+      <tr>
+        <td style="width:33%;">
+          <table class="field-table"><tr><td class="lbl">Class</td><td class="uline"></td></tr></table>
+        </td>
+        <td style="width:34%;" class="pad-m">
+          <table class="field-table"><tr><td class="lbl">Section</td><td class="uline"></td></tr></table>
+        </td>
+        <td style="width:33%;">
+          <table class="field-table"><tr><td class="lbl">Roll No.</td><td class="uline"></td></tr></table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Monthly Fee | Admission Fee -->
+    <table class="row-table">
+      <tr>
+        <td style="width:50%;">
+          <table class="field-table"><tr><td class="lbl">Monthly Fee</td><td class="uline"></td></tr></table>
+        </td>
+        <td style="width:50%;" class="pad-l">
+          <table class="field-table"><tr><td class="lbl">Admission Fee</td><td class="uline"></td></tr></table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Fee Month | Total -->
+    <table class="row-table">
+      <tr>
+        <td style="width:50%;">
+          <table class="field-table"><tr><td class="lbl">Fee Month</td><td class="uline"></td></tr></table>
+        </td>
+        <td style="width:50%;" class="pad-l">
+          <table class="field-table"><tr><td class="lbl">Total</td><td class="uline"></td></tr></table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Accountant Sign | Sign Manager -->
+    <table class="row-table" style="margin-bottom:14px;">
+      <tr>
+        <td style="width:50%;">
+          <table class="field-table"><tr><td class="lbl">Accountant Sign</td><td class="uline"></td></tr></table>
+        </td>
+        <td style="width:50%;" class="pad-l">
+          <table class="field-table"><tr><td class="lbl">Sign Manager</td><td class="uline"></td></tr></table>
+        </td>
+      </tr>
+    </table>
+
+    <div class="urdu">فیس رسید ادارہ ہٰذا کے سربراہ کے دستخط اور مہر ضرور چیک کر لیں اور اسے سنبھال کر رکھیں۔</div>
+  </div>
+</div>
+
+<div class="actions">
+  <button class="btn btn-s" onclick="window.print()">🖨️ Print</button>
+  <button class="btn btn-p" onclick="alert('Wire this to your LMS PDF generator.')">⬇️ Download PDF</button>
+</div>
+
+</body>
+</html>

@@ -58,10 +58,10 @@ router.post("/auth/login", loginRateLimiter, catchAsync(async (req: Request, res
   }
   
   if (!user.isActive) {
-    if (user.role === "student") {
+    if (user.role === "student" && !user.rollNo) {
       res.status(403).json({ error: "Your student registration is pending administrator approval. You will receive an email once it is approved." });
     } else {
-      res.status(403).json({ error: "Your account has been deactivated. Please contact the administrator." });
+      res.status(403).json({ error: "Your login is suspended by the admin please contact admin" });
     }
     return;
   }

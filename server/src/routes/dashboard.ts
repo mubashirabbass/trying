@@ -46,6 +46,7 @@ router.get("/dashboard/admin", async (req, res): Promise<void> => {
     }).from(enrollmentsTable)
       .leftJoin(coursesTable, eq(enrollmentsTable.courseId, coursesTable.id))
       .leftJoin(usersTable, eq(enrollmentsTable.userId, usersTable.id))
+      .orderBy(desc(enrollmentsTable.enrolledAt))
       .limit(5),
     db.select({
       id: paymentsTable.id,
@@ -61,6 +62,7 @@ router.get("/dashboard/admin", async (req, res): Promise<void> => {
     }).from(paymentsTable)
       .leftJoin(usersTable, eq(paymentsTable.userId, usersTable.id))
       .leftJoin(coursesTable, eq(paymentsTable.courseId, coursesTable.id))
+      .orderBy(desc(paymentsTable.createdAt))
       .limit(5),
     db.select({
       id: notificationsTable.id,

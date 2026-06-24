@@ -101,6 +101,7 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const loginMutation = useLogin();
+  const [isSuspended, setIsSuspended] = useState(false);
 
   const cfg = roleConfigs[selectedRole];
 
@@ -125,11 +126,16 @@ export default function Login() {
           else setLocation("/dashboard");
         },
         onError: (error: any) => {
-          toast({
-            title: "Authentication Failed",
-            description: error.message || "Invalid credentials. Please try again.",
-            variant: "destructive",
-          });
+          const errMsg = error.message || "";
+          if (errMsg.toLowerCase().includes("suspended") || errMsg.toLowerCase().includes("deactivated")) {
+            setIsSuspended(true);
+          } else {
+            toast({
+              title: "Authentication Failed",
+              description: errMsg || "Invalid credentials. Please try again.",
+              variant: "destructive",
+            });
+          }
         },
       }
     );
@@ -332,93 +338,114 @@ export default function Login() {
                   ))}
                 </div>
 
-                <form className="space-y-5" onSubmit={handleSubmit}>
-                  {/* Email */}
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      Email Address
-                    </Label>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                      <Input
-                        id="email"
-                        type="email"
-                        autoComplete="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-slate-300 focus-visible:ring-0 focus-visible:ring-offset-0 transition-all rounded-xl pl-11 font-semibold text-slate-800 placeholder:text-slate-300 placeholder:font-normal"
-                        placeholder="your@email.com"
-                      />
+                {isSuspended ? (
+                  <div className="space-y-6 text-center py-6 px-4 bg-rose-50/50 rounded-2xl border border-rose-100/60 shadow-inner">
+                    <div className="mx-auto h-16 w-16 bg-rose-100 rounded-2xl flex items-center justify-center border border-rose-200 shadow-sm animate-pulse">
+                      <ShieldCheck className="h-8 w-8 text-rose-600" />
                     </div>
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-black text-rose-700">Login Suspended</h3>
+                      <p className="text-xs text-slate-600 font-bold leading-relaxed">
+                        Your login has been suspended by the admin. Please contact admin.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsSuspended(false)}
+                      className="w-full h-11 font-black rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 mt-4 shadow-sm"
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-2" /> Back to Sign In
+                    </Button>
                   </div>
-
-                  {/* Password */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        Password
+                ) : (
+                  <form className="space-y-5" onSubmit={handleSubmit}>
+                    {/* Email */}
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Email Address
                       </Label>
-                      <Link href="/forgot-password" className="text-xs font-bold text-slate-400 hover:text-slate-700 transition-colors">
-                        Forgot?
-                      </Link>
+                      <div className="relative">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                        <Input
+                          id="email"
+                          type="email"
+                          autoComplete="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-slate-300 focus-visible:ring-0 focus-visible:ring-offset-0 transition-all rounded-xl pl-11 font-semibold text-slate-800 placeholder:text-slate-300 placeholder:font-normal"
+                          placeholder="your@email.com"
+                        />
+                      </div>
                     </div>
-                    <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        autoComplete="current-password"
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-slate-300 focus-visible:ring-0 focus-visible:ring-offset-0 transition-all rounded-xl pl-11 pr-12 font-semibold text-slate-800 placeholder:text-slate-300 placeholder:font-normal"
-                        placeholder="••••••••"
+
+                    {/* Password */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                          Password
+                        </Label>
+                        <Link href="/forgot-password" className="text-xs font-bold text-slate-400 hover:text-slate-700 transition-colors">
+                          Forgot?
+                        </Link>
+                      </div>
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          autoComplete="current-password"
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="h-12 bg-slate-50 border-slate-200 focus:bg-white focus:border-slate-300 focus-visible:ring-0 focus-visible:ring-offset-0 transition-all rounded-xl pl-11 pr-12 font-semibold text-slate-800 placeholder:text-slate-300 placeholder:font-normal"
+                          placeholder="••••••••"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Remember me */}
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        id="remember"
+                        checked={rememberMe}
+                        onCheckedChange={(c) => setRememberMe(c as boolean)}
+                        className="rounded-md border-slate-300"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
+                      <label htmlFor="remember" className="text-sm font-medium text-slate-500 cursor-pointer select-none">
+                        Keep me signed in for 30 days
+                      </label>
                     </div>
-                  </div>
 
-                  {/* Remember me */}
-                  <div className="flex items-center gap-3">
-                    <Checkbox
-                      id="remember"
-                      checked={rememberMe}
-                      onCheckedChange={(c) => setRememberMe(c as boolean)}
-                      className="rounded-md border-slate-300"
-                    />
-                    <label htmlFor="remember" className="text-sm font-medium text-slate-500 cursor-pointer select-none">
-                      Keep me signed in for 30 days
-                    </label>
-                  </div>
-
-                  {/* Submit — inline style avoids Tailwind purging */}
-                  <button
-                    type="submit"
-                    disabled={loginMutation.isPending}
-                    className="w-full h-12 font-black rounded-xl text-sm text-white flex items-center justify-center gap-2 shadow-lg transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed group"
-                    style={{ background: cfg.accentBg, boxShadow: `0 4px 20px ${cfg.leftGlow}40` }}
-                  >
-                    {loginMutation.isPending ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Authenticating...
-                      </>
-                    ) : (
-                      <>
-                        <ShieldCheck className="h-4 w-4" />
-                        Sign in as {cfg.label}
-                        <ArrowRight className="h-4 w-4 ml-auto group-hover:translate-x-0.5 transition-transform" />
-                      </>
-                    )}
-                  </button>
-                </form>
+                    {/* Submit — inline style avoids Tailwind purging */}
+                    <button
+                      type="submit"
+                      disabled={loginMutation.isPending}
+                      className="w-full h-12 font-black rounded-xl text-sm text-white flex items-center justify-center gap-2 shadow-lg transition-all duration-200 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed group"
+                      style={{ background: cfg.accentBg, boxShadow: `0 4px 20px ${cfg.leftGlow}40` }}
+                    >
+                      {loginMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Authenticating...
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="h-4 w-4" />
+                          Sign in as {cfg.label}
+                          <ArrowRight className="h-4 w-4 ml-auto group-hover:translate-x-0.5 transition-transform" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                )}
 
                 {/* Footer */}
                 <div className="mt-6 pt-5 border-t border-slate-100 text-center space-y-3">

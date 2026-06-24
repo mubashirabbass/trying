@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { FeeReceipt } from "@/components/FeeReceipt";
 import { useAuth } from "@/lib/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useListEnrollments, useListCourses, useListPayments, useListSettings } from "@workspace/api-client-react";
@@ -14,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import {
   CreditCard, Wallet, Calendar, AlertCircle, Info, CheckCircle2,
   Clock, XCircle, ArrowUpRight, DollarSign, Loader2, Upload,
-  Smartphone, Copy, ShieldAlert, Award, FileText
+  Smartphone, Copy, ShieldAlert, Award, FileText, Receipt
 } from "lucide-react";
 
 const BASE = window.location.origin;
@@ -75,6 +76,10 @@ export default function StudentFees() {
   const [receiptUrl, setReceiptUrl] = useState("");
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Receipt display
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptData, setReceiptData] = useState<any>(null);
 
   const getSetting = (key: string) => settings?.find((s: any) => s.key === key)?.value || "Not configured";
   const selectedMethod = METHODS.find(m => m.id === method) || METHODS[0];
@@ -416,25 +421,45 @@ export default function StudentFees() {
                             ) : (
                               <div className="divide-y divide-slate-100 max-h-64 overflow-y-auto">
                                 {coursePayments.map((p: any) => (
-                                  <div key={p.id} className="p-3.5 flex items-center justify-between text-xs hover:bg-slate-50 transition-colors">
-                                    <div>
-                                      <div className="font-bold text-slate-800">
-                                        {p.paymentPlan === "monthly" ? `Installment #${p.installmentNumber}` : "Full Course Fee"}
+                                  <div key={p.id} className="p-3.5 hover:bg-slate-50 transition-colors">
+                                    <div className="flex items-center justify-between text-xs mb-2">
+                                      <div>
+                                        <div className="font-bold text-slate-800">
+                                          {p.paymentPlan === "monthly" ? `Installment #${p.installmentNumber}` : "Full Course Fee"}
+                                        </div>
+                                        <div className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                                          {new Date(p.createdAt).toLocaleDateString()} &bull; {p.method.toUpperCase()}
+                                        </div>
                                       </div>
-                                      <div className="text-[10px] text-slate-400 font-semibold mt-0.5">
-                                        {new Date(p.createdAt).toLocaleDateString()} &bull; {p.method.toUpperCase()}
+                                      <div className="text-right">
+                                        <div className="font-black text-slate-900">Rs. {p.amount.toLocaleString()}</div>
+                                        <Badge className={`mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                                          p.status === 'verified' ? 'bg-emerald-55 text-emerald-700 border border-emerald-100' :
+                                          p.status === 'pending' ? 'bg-amber-55 text-amber-700 border border-amber-100' :
+                                          'bg-rose-55 text-rose-700 border border-rose-100'
+                                        }`}>
+                                          {p.status}
+                                        </Badge>
                                       </div>
                                     </div>
-                                    <div className="text-right">
-                                      <div className="font-black text-slate-900">Rs. {p.amount.toLocaleString()}</div>
-                                      <Badge className={`mt-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
-                                        p.status === 'verified' ? 'bg-emerald-55 text-emerald-700 border border-emerald-100' :
-                                        p.status === 'pending' ? 'bg-amber-55 text-amber-700 border border-amber-100' :
-                                        'bg-rose-55 text-rose-700 border border-rose-100'
-                                      }`}>
-                                        {p.status}
-                                      </Badge>
-                                    </div>
+                                    {p.status === 'verified' && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="w-full h-7 text-[10px] font-bold rounded-lg border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                                        onClick={() => {
+                                          setReceiptData({
+                                            ...p,
+                                            userName: user?.name || "Student",
+                                            courseName: course.title,
+                                          });
+                                          setShowReceipt(true);
+                                        }}
+                                      >
+                                        <Receipt className="h-3 w-3 mr-1" />
+                                        View Receipt
+                                      </Button>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -679,6 +704,23 @@ export default function StudentFees() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Fee Receipt Modal */}
+      {showReceipt && receiptData && (
+        <FeeReceipt
+          payment={receiptData}
+          institute={{
+            name: "Global College",
+            address: "Main Campus, City Center, Pakistan",
+            phone: "+92-XXX-XXXXXXX",
+            email: "info@globalcollege.edu.pk",
+          }}
+          onClose={() => {
+            setShowReceipt(false);
+            setReceiptData(null);
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }

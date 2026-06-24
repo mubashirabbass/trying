@@ -27,7 +27,10 @@ export default function AdminDashboard() {
   const { user } = useAuth();
 
   const { data: dashboard, isLoading } = useGetAdminDashboard({
-    query: { queryKey: getGetAdminDashboardQueryKey() },
+    query: { 
+      queryKey: getGetAdminDashboardQueryKey(),
+      staleTime: 30000, // Cache for 30 seconds
+    },
   });
 
   if (isLoading) {

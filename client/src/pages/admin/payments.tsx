@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { FeeReceipt } from "@/components/FeeReceipt";
 import { useListPayments, useVerifyPayment, getListPaymentsQueryKey, useListCourses, useListEnrollments } from "@workspace/api-client-react";
 import {
   Loader2, CheckCircle2, XCircle, Clock, ExternalLink, AlertTriangle,
@@ -14,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/AuthContext";
@@ -51,6 +53,10 @@ export default function AdminPayments() {
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [search, setSearch] = useState("");
   
+  // Filters
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
+  
   // Manual payment recording
   const [isManualPaymentOpen, setIsManualPaymentOpen] = useState(false);
   const [manualPaymentStudent, setManualPaymentStudent] = useState<any>(null);
@@ -58,12 +64,26 @@ export default function AdminPayments() {
   const [manualMethod, setManualMethod] = useState<string>("cash");
   const [manualNotes, setManualNotes] = useState<string>("");
 
+  // Receipt display
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptData, setReceiptData] = useState<any>(null);
+
   const isLoading = paymentsLoading || coursesLoading || enrollmentsLoading;
 
   const handleVerify = async (id: number, status: "verified" | "rejected") => {
     setIsSubmitting(true);
     try {
       await verifyPayment.mutateAsync({ id, data: { status, notes } });
+      
+      if (status === "verified" && reviewPayment) {
+        // Show receipt after verification
+        setReceiptData({
+          ...reviewPayment,
+          verifiedAt: new Date().toISOString(),
+        });
+        setShowReceipt(true);
+      }
+      
       toast({
         title: status === "verified" ? "✅ Payment Verified!" : "❌ Payment Rejected",
         description: status === "verified"
@@ -130,6 +150,19 @@ export default function AdminPayments() {
         } 
       });
 
+      // Show receipt after manual payment
+      setReceiptData({
+        id: payment.id,
+        userName: manualPaymentStudent.userName,
+        courseName: manualPaymentStudent.courseName,
+        amount: parseFloat(manualAmount),
+        method: manualMethod,
+        installmentNumber: monthNum,
+        createdAt: new Date().toISOString(),
+        verifiedAt: new Date().toISOString(),
+        notes: manualNotes,
+      });
+
       toast({
         title: "✅ Payment Recorded Successfully!",
         description: `Rs. ${parseFloat(manualAmount).toLocaleString()} recorded for ${manualPaymentStudent.userName}`,
@@ -141,8 +174,54 @@ export default function AdminPayments() {
       setManualAmount("");
       setManualMethod("cash");
       setManualNotes("");
+      
+      // Show receipt
+      setShowReceipt(true);
     } catch (err: any) {
       toast({ title: err?.message || "Failed to record payment", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBulkVerify = async () => {
+    if (selectedStudents.length === 0) {
+      toast({ title: "Please select students to verify", variant: "destructive" });
+      return;
+    }
+
+    const pendingPayments = filteredStudents.filter(s => 
+      selectedStudents.includes(s.userId) && s.monthPending
+    );
+
+    if (pendingPayments.length === 0) {
+      toast({ title: "No pending payments selected", variant: "destructive" });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const verifyPromises = pendingPayments.map(student =>
+        verifyPayment.mutateAsync({
+          id: student.monthPayment.id,
+          data: {
+            status: "verified",
+            notes: `Bulk verified by admin on ${new Date().toLocaleDateString()}`
+          }
+        })
+      );
+
+      await Promise.all(verifyPromises);
+
+      toast({
+        title: "✅ Bulk Verification Complete!",
+        description: `${pendingPayments.length} payment(s) verified successfully`,
+      });
+
+      queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey({}) });
+      setSelectedStudents([]);
+    } catch (err: any) {
+      toast({ title: "Bulk verification failed", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -238,12 +317,29 @@ export default function AdminPayments() {
   }, [selectedCourse, selectedMonth, paymentsArr, enrollmentsArr, coursesArr]);
 
   const filteredStudents = useMemo(() => {
-    if (!search.trim()) return studentPaymentList;
-    const searchTerm = search.toLowerCase();
-    return studentPaymentList.filter(s => 
-      s.userName.toLowerCase().includes(searchTerm)
-    );
-  }, [studentPaymentList, search]);
+    let filtered = studentPaymentList;
+    
+    // Search filter
+    if (search.trim()) {
+      const searchTerm = search.toLowerCase();
+      filtered = filtered.filter(s => 
+        s.userName.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Status filter
+    if (statusFilter !== "all") {
+      if (statusFilter === "paid") {
+        filtered = filtered.filter(s => s.monthPaid);
+      } else if (statusFilter === "pending") {
+        filtered = filtered.filter(s => s.monthPending);
+      } else if (statusFilter === "unpaid") {
+        filtered = filtered.filter(s => !s.monthPaid && !s.monthPending);
+      }
+    }
+    
+    return filtered;
+  }, [studentPaymentList, search, statusFilter]);
 
   const stats = useMemo(() => {
     if (!selectedCourse || !selectedMonth) return null;
@@ -296,103 +392,219 @@ export default function AdminPayments() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+      <div className="space-y-6">
+        {/* Header */}
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900">Course-Wise Fee Collection</h1>
-          <p className="text-gray-500 mt-1">Select course and month to collect fees systematically</p>
+          <p className="text-gray-500 mt-1">Select course and month to view and collect student payments</p>
         </div>
-      </div>
 
-      <Card className="border-none shadow-sm ring-1 ring-gray-100 mb-6">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            Select Course & Month
-          </CardTitle>
-          <CardDescription>Choose a course and month to view student payment status</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-slate-600">Course *</Label>
-              <Select value={selectedCourse} onValueChange={(val) => { setSelectedCourse(val); setSelectedMonth(""); }}>
-                <SelectTrigger className="h-11 rounded-xl border-slate-200">
-                  <GraduationCap className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Select a course" />
-                </SelectTrigger>
-                <SelectContent>
-                  {paidCourses.length === 0 ? (
-                    <SelectItem value="none" disabled>No courses available</SelectItem>
-                  ) : (
-                    paidCourses.map((course: any) => (
-                      <SelectItem key={course.id} value={String(course.id)}>
-                        {course.title}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+        {/* Filters Card - Fee Tracker Style */}
+        <Card className="border-none shadow-sm ring-1 ring-gray-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 px-6 py-4 border-b border-gray-100">
+            <div className="flex items-center gap-2 text-gray-700">
+              <Filter className="h-5 w-5" />
+              <h2 className="font-bold text-sm uppercase tracking-wider">Select Course & Month</h2>
             </div>
+            <p className="text-xs text-gray-500 mt-1">Choose a course and month to view student payment status</p>
+          </div>
+          
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Course Selector */}
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Course *</Label>
+                <div className="relative">
+                  <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Select value={selectedCourse} onValueChange={(val) => { setSelectedCourse(val); setSelectedMonth(""); setSelectedStudents([]); }}>
+                    <SelectTrigger className="h-11 pl-10 rounded-xl border-gray-200 hover:border-indigo-300 transition-colors">
+                      <SelectValue placeholder="Select a course" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paidCourses.length === 0 ? (
+                        <SelectItem value="none" disabled>No courses available</SelectItem>
+                      ) : (
+                        paidCourses.map((course: any) => (
+                          <SelectItem key={course.id} value={String(course.id)}>
+                            {course.title}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-slate-600">Month *</Label>
-              <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={!selectedCourse}>
-                <SelectTrigger className="h-11 rounded-xl border-slate-200">
-                  <CalendarDays className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder={selectedCourse ? "Select month" : "Select course first"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableMonths.map((month) => (
-                    <SelectItem key={month.value} value={String(month.value)}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Month Selector */}
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Month *</Label>
+                <div className="relative">
+                  <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Select value={selectedMonth} onValueChange={(val) => { setSelectedMonth(val); setSelectedStudents([]); }} disabled={!selectedCourse}>
+                    <SelectTrigger className="h-11 pl-10 rounded-xl border-gray-200 hover:border-indigo-300 transition-colors disabled:opacity-50">
+                      <SelectValue placeholder={selectedCourse ? "Select month" : "Select course first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableMonths.map((month) => (
+                        <SelectItem key={month.value} value={String(month.value)}>
+                          {month.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-slate-600">Search Student</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search by name..."
-                  className="pl-9 h-11 rounded-xl border-slate-200"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  disabled={!selectedCourse || !selectedMonth}
-                />
+              {/* Search Student */}
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Search Student</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search by name..."
+                    className="h-11 pl-10 rounded-xl border-gray-200 hover:border-indigo-300 transition-colors"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    disabled={!selectedCourse || !selectedMonth}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-          {[
-            { label: "Total Students", value: stats.totalStudents, icon: Users, bg: "bg-blue-50", icon_c: "text-blue-500", val_c: "text-blue-700" },
-            { label: "Paid", value: stats.paidCount, icon: CheckCircle2, bg: "bg-emerald-50", icon_c: "text-emerald-500", val_c: "text-emerald-700" },
-            { label: "Pending", value: stats.pendingCount, icon: Clock, bg: "bg-amber-50", icon_c: "text-amber-500", val_c: "text-amber-700" },
-            { label: "Unpaid", value: stats.unpaidCount, icon: XCircle, bg: "bg-rose-50", icon_c: "text-rose-500", val_c: "text-rose-700" },
-            { label: "Collected", value: `Rs. ${stats.collectedAmount.toLocaleString()}`, icon: TrendingUp, bg: "bg-purple-50", icon_c: "text-purple-500", val_c: "text-purple-700" },
-          ].map((stat) => (
-            <Card key={stat.label} className="border-none shadow-sm ring-1 ring-gray-100">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className={`h-10 w-10 rounded-xl ${stat.bg} flex items-center justify-center shrink-0`}>
-                    <stat.icon className={`h-5 w-5 ${stat.icon_c}`} />
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 font-medium">{stat.label}</p>
-                    <p className={`text-xl font-extrabold ${stat.val_c}`}>{stat.value}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+        {/* Stats Cards - Fee Tracker Style */}
+        {stats && (
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            {[
+              { 
+                label: "Total Students", 
+                value: stats.totalStudents, 
+                icon: Users, 
+                bg: "bg-blue-500", 
+                lightBg: "bg-blue-50",
+                iconColor: "text-blue-500"
+              },
+              { 
+                label: "Paid", 
+                value: stats.paidCount, 
+                icon: CheckCircle2, 
+                bg: "bg-emerald-500", 
+                lightBg: "bg-emerald-50",
+                iconColor: "text-emerald-500"
+              },
+              { 
+                label: "Pending", 
+                value: stats.pendingCount, 
+                icon: Clock, 
+                bg: "bg-amber-500", 
+                lightBg: "bg-amber-50",
+                iconColor: "text-amber-500"
+              },
+              { 
+                label: "Unpaid", 
+                value: stats.unpaidCount, 
+                icon: XCircle, 
+                bg: "bg-rose-500", 
+                lightBg: "bg-rose-50",
+                iconColor: "text-rose-500"
+              },
+              { 
+                label: "Collected", 
+                value: `Rs. ${stats.collectedAmount.toLocaleString()}`, 
+                icon: TrendingUp, 
+                bg: "bg-purple-500", 
+                lightBg: "bg-purple-50",
+                iconColor: "text-purple-500"
+              },
+            ].map((stat) => {
+              const valStr = String(stat.value);
+              let fontSizeClass = "text-base sm:text-lg xl:text-xl";
+              if (valStr.length > 15) {
+                fontSizeClass = "text-[10px] xs:text-xs sm:text-sm xl:text-base";
+              } else if (valStr.length > 10) {
+                fontSizeClass = "text-xs sm:text-sm xl:text-lg";
+              }
+
+              return (
+                <Card key={stat.label} className="border-none shadow-sm ring-1 ring-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+                  <CardContent className="p-0">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 p-3 sm:p-4">
+                      <div className={`h-9 w-9 sm:h-12 sm:w-12 rounded-xl ${stat.lightBg} flex items-center justify-center shrink-0`}>
+                        <stat.icon className={`h-4.5 w-4.5 sm:h-6 sm:w-6 ${stat.iconColor}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[9px] sm:text-xs text-gray-500 font-medium uppercase tracking-wide whitespace-nowrap">{stat.label}</p>
+                        <p className={`${fontSizeClass} font-black ${stat.iconColor} mt-0.5 whitespace-nowrap`}>{stat.value}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Tabs & Filters Bar - Fee Tracker Style */}
+        {stats && (
+          <div className="flex flex-wrap items-center gap-3 bg-white rounded-xl p-4 shadow-sm ring-1 ring-gray-100">
+            {/* Status Tabs */}
+            <div className="flex items-center gap-2 flex-1">
+              {[
+                { value: "all", label: "All Status", count: stats.totalStudents },
+                { value: "paid", label: "Paid", count: stats.paidCount, color: "emerald" },
+                { value: "pending", label: "Pending", count: stats.pendingCount, color: "amber" },
+                { value: "unpaid", label: "Unpaid", count: stats.unpaidCount, color: "rose" },
+              ].map((tab) => (
+                <button
+                  key={tab.value}
+                  onClick={() => { setStatusFilter(tab.value); setSelectedStudents([]); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                    statusFilter === tab.value
+                      ? tab.color 
+                        ? `bg-${tab.color}-100 text-${tab.color}-700 ring-2 ring-${tab.color}-200`
+                        : "bg-gray-100 text-gray-700 ring-2 ring-gray-200"
+                      : "text-gray-500 hover:bg-gray-50"
+                  }`}
+                >
+                  {tab.label}
+                  <span className="ml-1.5 text-xs opacity-75">({tab.count})</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Bulk Actions */}
+            {selectedStudents.length > 0 && (
+              <div className="flex items-center gap-2 ml-auto">
+                <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 font-bold px-3 py-1">
+                  {selectedStudents.length} selected
+                </Badge>
+                <Button
+                  size="sm"
+                  className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-sm"
+                  onClick={handleBulkVerify}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                  )}
+                  Verify Selected
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-lg font-bold"
+                  onClick={() => setSelectedStudents([])}
+                >
+                  Clear
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <Card className="border-none shadow-xl ring-1 ring-gray-100 overflow-hidden">
         <CardContent className="p-0">
@@ -414,29 +626,60 @@ export default function AdminPayments() {
             <Table>
               <TableHeader className="bg-gray-50/50">
                 <TableRow>
+                  <TableHead className="py-4 font-semibold w-12">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300"
+                      checked={selectedStudents.length === filteredStudents.length && filteredStudents.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedStudents(filteredStudents.map(s => s.userId));
+                        } else {
+                          setSelectedStudents([]);
+                        }
+                      }}
+                    />
+                  </TableHead>
                   <TableHead className="py-4 font-semibold">Student</TableHead>
                   <TableHead className="py-4 font-semibold">Amount Due</TableHead>
                   <TableHead className="py-4 font-semibold">Month Status</TableHead>
                   <TableHead className="py-4 font-semibold">Total Paid</TableHead>
                   <TableHead className="py-4 font-semibold">Installments</TableHead>
                   <TableHead className="py-4 font-semibold">Last Payment</TableHead>
+                  <TableHead className="py-4 font-semibold">Receipt</TableHead>
                   <TableHead className="py-4 font-semibold text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredStudents.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-16 text-center">
+                    <TableCell colSpan={9} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-3 opacity-30">
                         <Users className="h-12 w-12" />
                         <p className="font-semibold text-lg">No students found</p>
-                        <p className="text-sm text-gray-500">No students enrolled in this course yet</p>
+                        <p className="text-sm text-gray-500">
+                          {search || statusFilter !== "all" ? "Try adjusting your filters" : "No students enrolled in this course yet"}
+                        </p>
                       </div>
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredStudents.map((student) => (
                     <TableRow key={student.userId} className="hover:bg-gray-50/50 transition-colors">
+                      <TableCell className="py-4">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-gray-300"
+                          checked={selectedStudents.includes(student.userId)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedStudents([...selectedStudents, student.userId]);
+                            } else {
+                              setSelectedStudents(selectedStudents.filter(id => id !== student.userId));
+                            }
+                          }}
+                        />
+                      </TableCell>
                       <TableCell className="py-4">
                         <div className="flex items-center gap-3">
                           <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
@@ -460,35 +703,62 @@ export default function AdminPayments() {
                           ? new Date(student.lastPaymentDate).toLocaleDateString("en-PK", { day: "2-digit", month: "short" })
                           : "No payments"}
                       </TableCell>
+                      <TableCell>
+                        {student.monthPayment?.receiptUrl ? (
+                          <div
+                            className="h-12 w-12 rounded-lg overflow-hidden border-2 border-slate-200 cursor-pointer hover:border-indigo-400 transition-all"
+                            onClick={() => {
+                              setReviewPayment(student.monthPayment);
+                              setIsReviewOpen(true);
+                              setNotes(student.monthPayment?.notes || "");
+                            }}
+                          >
+                            <img
+                              src={student.monthPayment.receiptUrl}
+                              alt="Receipt"
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         {student.monthPending ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="rounded-xl border-amber-300 text-amber-700 text-xs font-bold hover:bg-amber-600 hover:text-white transition-all"
-                            onClick={() => { 
-                              setReviewPayment(student.monthPayment); 
-                              setIsReviewOpen(true); 
-                              setNotes(student.monthPayment?.notes || ""); 
-                            }}
-                          >
-                            <Receipt className="h-3 w-3 mr-1" />
-                            Review Receipt →
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-xl border-amber-300 text-amber-700 text-xs font-bold hover:bg-amber-600 hover:text-white transition-all"
+                              onClick={() => { 
+                                setReviewPayment(student.monthPayment); 
+                                setIsReviewOpen(true); 
+                                setNotes(student.monthPayment?.notes || ""); 
+                              }}
+                            >
+                              <Receipt className="h-3 w-3 mr-1" />
+                              Review Receipt
+                            </Button>
+                          </div>
                         ) : student.monthPaid ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="rounded-xl border-slate-200 text-xs font-bold"
-                            onClick={() => { 
-                              setReviewPayment(student.monthPayment); 
-                              setIsReviewOpen(true); 
-                              setNotes(student.monthPayment?.notes || ""); 
-                            }}
-                          >
-                            <Receipt className="h-3 w-3 mr-1" />
-                            View Receipt
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-xl border-emerald-300 text-emerald-700 text-xs font-bold hover:bg-emerald-600 hover:text-white transition-all"
+                              onClick={() => {
+                                setReceiptData({
+                                  ...student.monthPayment,
+                                  userName: student.userName,
+                                  courseName: student.courseName,
+                                });
+                                setShowReceipt(true);
+                              }}
+                            >
+                              <Receipt className="h-3 w-3 mr-1" />
+                              View Receipt
+                            </Button>
+                          </div>
                         ) : (
                           <Button
                             size="sm"
@@ -739,6 +1009,23 @@ export default function AdminPayments() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Fee Receipt Modal */}
+      {showReceipt && receiptData && (
+        <FeeReceipt
+          payment={receiptData}
+          institute={{
+            name: "Global College",
+            address: "Main Campus, City Center, Pakistan",
+            phone: "+92-XXX-XXXXXXX",
+            email: "info@globalcollege.edu.pk",
+          }}
+          onClose={() => {
+            setShowReceipt(false);
+            setReceiptData(null);
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }
