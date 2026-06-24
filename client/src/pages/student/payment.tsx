@@ -39,6 +39,20 @@ const parseDurationMonths = (durationStr: string): number => {
   return 3; // Default default
 };
 
+// Utility: Calculate month name based on course creation date
+const getMonthName = (courseCreatedAt: string | Date | null | undefined, installmentNumber: number): string => {
+  if (!courseCreatedAt) return `Month #${installmentNumber}`;
+  
+  const startDate = new Date(courseCreatedAt);
+  const targetDate = new Date(startDate);
+  targetDate.setMonth(startDate.getMonth() + (installmentNumber - 1));
+  
+  const monthName = targetDate.toLocaleString("en-US", { month: "long" });
+  const year = targetDate.getFullYear();
+  
+  return `${monthName} ${year}`;
+};
+
 export default function StudentPayment() {
   const { courseId } = useParams();
   const [, setLocation] = useLocation();
@@ -186,7 +200,7 @@ export default function StudentPayment() {
           installmentNumber: nextInstallmentNumber,
           method,
           receiptUrl,
-          notes: `${plan === "monthly" ? `Monthly plan - Installment ${nextInstallmentNumber} of ${installmentMonths}` : "Full payment"} | Student: ${studentInfo.name} | CNIC: ${studentInfo.cnic}`,
+          notes: `${plan === "monthly" ? `Monthly plan - ${getMonthName(course?.createdAt, nextInstallmentNumber)} (Installment ${nextInstallmentNumber} of ${installmentMonths})` : "Full payment"} | Student: ${studentInfo.name} | CNIC: ${studentInfo.cnic}`,
         }),
       });
       if (!res.ok) throw new Error("Submission failed");

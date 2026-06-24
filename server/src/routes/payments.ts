@@ -46,18 +46,21 @@ router.get("/payments", async (req, res): Promise<void> => {
 });
 
 router.post("/payments", async (req: AuthRequest, res): Promise<void> => {
-  const userId = req.user?.id;
-  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+  const authenticatedUserId = req.user?.id;
+  if (!authenticatedUserId) { res.status(401).json({ error: "Unauthorized" }); return; }
 
   const {
     courseId, amount, method, receiptUrl,
     paymentPlan, installmentMonths, installmentNumber,
-    totalFee, remainingFee, notes,
+    totalFee, remainingFee, notes, userId: requestUserId,
   } = req.body;
 
   if (!courseId || !amount || !method) {
     res.status(400).json({ error: "courseId, amount and method are required" }); return;
   }
+
+  // Use userId from request body if provided (admin recording for student), otherwise use authenticated user
+  const userId = requestUserId ? Number(requestUserId) : authenticatedUserId;
 
   const [payment] = await db.insert(paymentsTable)
     .values({
