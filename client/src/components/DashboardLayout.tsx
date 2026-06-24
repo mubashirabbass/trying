@@ -174,6 +174,7 @@ const ADMIN_NAV_GROUPS = [
     label: "PAYMENTS",
     items: [
       { name: "Manual Enrollment", path: "/admin/enrollments", icon: ClipboardList },
+      { name: "Fee Tracker", path: "/admin/fees", icon: CreditCard },
     ],
   },
   {
@@ -320,6 +321,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           { name: "Profile", path: "/dashboard/student-card", icon: IdCard },
           { name: "Browse Courses", path: "/dashboard/browse", icon: Compass },
           { name: "My Courses", path: "/dashboard/courses", icon: BookOpen },
+          { name: "Fee Payments", path: "/dashboard/fees", icon: CreditCard },
           { name: "Live Classes", path: "/dashboard/live-classes", icon: Video },
           { name: "Attendance", path: "/dashboard/attendance", icon: CalendarRange },
           { name: "Progress", path: "/dashboard/progress", icon: BarChart3 },

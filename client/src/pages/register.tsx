@@ -238,7 +238,7 @@ export default function Register() {
             phone,
             cnic,
             dob,
-            avatar: uploadedAvatarUrl,
+            avatar: uploadedAvatarUrl || avatarUrl || avatarPreview || "",
             lastEducation,
             educationStream,
             obtainedMarks,
@@ -279,8 +279,27 @@ export default function Register() {
 
             <div className="flex flex-col items-center text-center mb-8">
               {registeredData.avatar ? (
-                <div className="h-24 w-24 rounded-full overflow-hidden border-4 border-white shadow-xl mb-4">
-                  <img src={registeredData.avatar} alt="Profile photo" className="w-full h-full object-cover" />
+                <div className="h-24 w-24 rounded-full overflow-hidden border-4 border-emerald-500 shadow-xl mb-4 ring-4 ring-emerald-100">
+                  <img 
+                    src={registeredData.avatar} 
+                    alt="Profile photo" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback if image fails to load
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement!.innerHTML = `
+                        <div class="w-full h-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-4xl font-black">
+                          ${registeredData.name?.charAt(0).toUpperCase() || 'S'}
+                        </div>
+                      `;
+                    }}
+                  />
+                </div>
+              ) : registeredData.name ? (
+                <div className="h-24 w-24 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center border-4 border-emerald-500 shadow-xl mb-4 ring-4 ring-emerald-100">
+                  <span className="text-white text-4xl font-black">
+                    {registeredData.name.charAt(0).toUpperCase()}
+                  </span>
                 </div>
               ) : (
                 <div className="h-20 w-20 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-100 shadow-lg shadow-emerald-500/10 mb-4 animate-bounce">

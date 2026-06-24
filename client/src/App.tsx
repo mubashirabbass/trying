@@ -44,6 +44,7 @@ import StudentMessages from "@/pages/student/messages";
 import StudentForum from "@/pages/student/forum";
 import StudentLeaderboard from "@/pages/student/leaderboard";
 import StudentPayment from "@/pages/student/payment";
+import StudentFees from "@/pages/student/fees";
 import QuizPlayer from "@/pages/student/quiz-player";
 import StudentProfile from "@/pages/student/profile";
 import StudentProgress from "@/pages/student/progress";
@@ -51,6 +52,7 @@ import StudentBrowse from "@/pages/student/browse";
 import QuizResultPage from "@/pages/student/quiz-result";
 import StudentCard from "@/pages/student/student-card";
 import StudentPrintDetails from "@/pages/student/print-details";
+import StudentCourseDetails from "@/pages/student/course-details";
 
 // Teacher Pages
 import TeacherDashboard from "@/pages/teacher/dashboard";
@@ -95,6 +97,7 @@ import AdminFeaturedCourses from "@/pages/admin/featured-courses";
 import AdminArticles from "@/pages/admin/articles";
 import AdminFAQs from "@/pages/admin/faqs";
 import AdminFranchiseApplications from "@/pages/admin/franchise-applications";
+import AdminFees from "@/pages/admin/fees";
 
 const queryClient = new QueryClient();
 
@@ -181,6 +184,9 @@ function Router() {
         <Route path="/dashboard/payment/:courseId">
           <ProtectedRoute component={StudentPayment} />
         </Route>
+        <Route path="/dashboard/fees">
+          <ProtectedRoute component={StudentFees} />
+        </Route>
         <Route path="/dashboard/profile">
           <ProtectedRoute component={StudentProfile} />
         </Route>
@@ -201,6 +207,9 @@ function Router() {
         </Route>
         <Route path="/dashboard/print-details">
           <ProtectedRoute component={StudentPrintDetails} />
+        </Route>
+        <Route path="/dashboard/course-details/:id">
+          <ProtectedRoute component={StudentCourseDetails} />
         </Route>
 
         {/* Teacher Protected Routes */}
@@ -274,6 +283,9 @@ function Router() {
         </Route>
         <Route path="/admin/payments">
           <ProtectedRoute component={AdminPayments} />
+        </Route>
+        <Route path="/admin/fees">
+          <ProtectedRoute component={AdminFees} />
         </Route>
         <Route path="/admin/branches">
           <ProtectedRoute component={AdminBranches} />

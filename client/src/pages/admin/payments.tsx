@@ -287,7 +287,11 @@ export default function AdminPayments() {
                 {[
                   { label: "Student",  value: reviewPayment?.userName },
                   { label: "Course",   value: reviewPayment?.courseName },
-                  { label: "Amount",   value: `Rs. ${(reviewPayment?.amount || 0).toLocaleString()}` },
+                  { label: "Plan",     value: reviewPayment?.paymentPlan === "monthly" ? `Monthly (${reviewPayment?.installmentMonths} Months)` : "Pay in Full" },
+                  { label: "Installment", value: reviewPayment?.paymentPlan === "monthly" ? `Month #${reviewPayment?.installmentNumber}` : "N/A" },
+                  { label: "Amount Paid Now", value: `Rs. ${(reviewPayment?.amount || 0).toLocaleString()}` },
+                  { label: "Total Course Fee", value: reviewPayment?.totalFee ? `Rs. ${(reviewPayment?.totalFee).toLocaleString()}` : "N/A" },
+                  { label: "Remaining Fee", value: reviewPayment?.remainingFee !== null ? `Rs. ${(reviewPayment?.remainingFee).toLocaleString()}` : "N/A" },
                   { label: "Method",   value: (reviewPayment?.method || "").toUpperCase() },
                   { label: "Date",     value: reviewPayment?.createdAt ? new Date(reviewPayment.createdAt).toLocaleDateString("en-PK", { day: "2-digit", month: "long", year: "numeric" }) : "—" },
                   { label: "Status",   value: reviewPayment ? getStatusBadge(reviewPayment.status) : null },

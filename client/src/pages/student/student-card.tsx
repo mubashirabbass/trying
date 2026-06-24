@@ -24,7 +24,10 @@ import {
   FileText,
   ChevronRight,
   Sparkles,
+  Loader2,
 } from "lucide-react";
+
+const BASE = window.location.origin;
 
 // ─── GCUF Student Card Component (visual replica) ──────────────────────────
 export function GcufCard({ user }: { user: any }) {
@@ -275,8 +278,58 @@ export function GcufCard({ user }: { user: any }) {
 }
 
 export default function StudentCard() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, token } = useAuth();
   const [downloading, setDownloading] = useState(false);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [loadingEnrollments, setLoadingEnrollments] = useState(true);
+  const [noticeSettings, setNoticeSettings] = useState({
+    enabled: true,
+    text: "Important Note: Attendance criteria for Spring, 2026 is 75%.",
+  });
+
+  // Fetch notice settings
+  useEffect(() => {
+    const fetchNoticeSettings = async () => {
+      try {
+        const response = await fetch(`${BASE}/api/settings`);
+        if (response.ok) {
+          const settings = await response.json();
+          const enabled = settings.find((s: any) => s.key === "student_notice_enabled")?.value === "true";
+          const text = settings.find((s: any) => s.key === "student_notice_text")?.value || "Important Note: Attendance criteria for Spring, 2026 is 75%.";
+          setNoticeSettings({ enabled, text });
+        }
+      } catch (error) {
+        console.error("Failed to fetch notice settings:", error);
+      }
+    };
+
+    fetchNoticeSettings();
+  }, []);
+
+  // Fetch enrollments
+  useEffect(() => {
+    const fetchEnrollments = async () => {
+      if (!user?.id || !token) return;
+      
+      setLoadingEnrollments(true);
+      try {
+        const response = await fetch(`${BASE}/api/enrollments?userId=${user.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setEnrollments(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch enrollments:", error);
+      } finally {
+        setLoadingEnrollments(false);
+      }
+    };
+
+    fetchEnrollments();
+  }, [user?.id, token]);
 
   // Always fetch the latest data from the server when this page loads,
   // so admin-updated fields (roll no, reg no, etc.) are immediately visible.
@@ -401,27 +454,29 @@ export default function StudentCard() {
         </div>
 
         {/* Attendance criteria red warning alert with marquee ticker */}
-        <div className="bg-[#c0392b] text-white rounded-lg overflow-hidden shadow-md flex items-center h-10">
-          <span className="bg-[#922b21] px-4 h-full flex items-center text-xs font-black uppercase tracking-widest shrink-0 border-r border-[#7b241c]">
-            📢 Notice
-          </span>
-          <div className="flex-1 overflow-hidden relative">
-            <style>{`
-              @keyframes marquee-scroll {
-                0%   { transform: translateX(100%); }
-                100% { transform: translateX(-100%); }
-              }
-              .marquee-text {
-                display: inline-block;
-                white-space: nowrap;
-                animation: marquee-scroll 18s linear infinite;
-              }
-            `}</style>
-            <span className="marquee-text text-xs sm:text-sm font-bold">
-              Important Note: Attendance criteria for Spring, 2026 is 75%.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Important Note: Attendance criteria for Spring, 2026 is 75%.
+        {noticeSettings.enabled && (
+          <div className="bg-[#c0392b] text-white rounded-lg overflow-hidden shadow-md flex items-center h-10">
+            <span className="bg-[#922b21] px-4 h-full flex items-center text-xs font-black uppercase tracking-widest shrink-0 border-r border-[#7b241c]">
+              📢 Notice
             </span>
+            <div className="flex-1 overflow-hidden relative">
+              <style>{`
+                @keyframes marquee-scroll {
+                  0%   { transform: translateX(100%); }
+                  100% { transform: translateX(-100%); }
+                }
+                .marquee-text {
+                  display: inline-block;
+                  white-space: nowrap;
+                  animation: marquee-scroll 18s linear infinite;
+                }
+              `}</style>
+              <span className="marquee-text text-xs sm:text-sm font-bold">
+                {noticeSettings.text}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{noticeSettings.text}
+              </span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Main responsive grid columns layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -571,38 +626,85 @@ export default function StudentCard() {
           {/* Right Column: Enrollment Programs & Registration Card Preview */}
           <div className="lg:col-span-5 space-y-6">
             
-            {/* Degree Program Card */}
+            {/* Degree Course Card */}
             <Card className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-white">
               <div className="bg-[#dff0d8] border-b border-[#d6e9c6] text-[#3c763d] px-5 py-3 font-bold text-xs uppercase tracking-wider leading-relaxed">
-                Programs You Are Enrolled In at Government College University Faisalabad
+                Courses You Are Enrolled In at Global College of Computer Science & Commerce
               </div>
               <CardContent className="p-5 space-y-6">
-                <div className="flex gap-4 items-start">
-                  <div className="h-12 w-12 rounded-full bg-[#337ab7]/10 flex items-center justify-center text-[#337ab7] shrink-0 shadow-inner">
-                    <GraduationCap className="h-6 w-6" />
+                {loadingEnrollments ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
                   </div>
-                  <div className="space-y-1">
-                    <h3 className="font-black text-slate-800 text-lg leading-tight">
-                      {user?.qualification || user?.specialization || "BS Computer Science"}
-                    </h3>
-                    <div className="text-xs text-slate-500 space-y-1 mt-2.5 font-semibold">
-                      <div>
-                        <span className="font-bold text-slate-400 uppercase tracking-wide">Session:</span>{" "}
-                        <span className="text-slate-700 uppercase">
-                          {user?.session || "2024-2028"}{user?.semesterTerm ? ` | ${user.semesterTerm}` : ""}{user?.shift ? ` | ${user.shift}` : ""}
-                        </span>
+                ) : enrollments.length > 0 ? (
+                  enrollments.map((enrollment, index) => (
+                    <div key={enrollment.id} className={index > 0 ? "border-t border-slate-200 pt-6" : ""}>
+                      <div className="flex gap-4 items-start">
+                        <div className="h-12 w-12 rounded-full bg-[#337ab7]/10 flex items-center justify-center text-[#337ab7] shrink-0 shadow-inner">
+                          <GraduationCap className="h-6 w-6" />
+                        </div>
+                        <div className="space-y-1 flex-1">
+                          <h3 className="font-black text-slate-800 text-lg leading-tight">
+                            {enrollment.courseName || `Course #${enrollment.courseId}`}
+                          </h3>
+                          <div className="text-xs text-slate-500 space-y-1 mt-2.5 font-semibold">
+                            <div>
+                              <span className="font-bold text-slate-400 uppercase tracking-wide">Session:</span>{" "}
+                              <span className="text-slate-700 uppercase">
+                                {user?.session || "2024-2028"}{user?.semesterTerm ? ` | ${user.semesterTerm}` : ""}{user?.shift ? ` | ${user.shift}` : ""}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-400 uppercase tracking-wide">Roll No:</span>{" "}
+                              <span className="text-slate-700 font-mono">{user?.rollNo || "Not assigned"}</span>
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-400 uppercase tracking-wide">Reg No:</span>{" "}
+                              <span className="text-slate-700 font-mono">{user?.regNo || "Not assigned"}</span>
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-400 uppercase tracking-wide">Progress:</span>{" "}
+                              <span className="text-slate-700 font-mono">{enrollment.progress}%</span>
+                            </div>
+                            <div>
+                              <span className="font-bold text-slate-400 uppercase tracking-wide">Status:</span>{" "}
+                              <Badge className="ml-1 text-xs" variant={enrollment.status === 'active' ? 'default' : 'secondary'}>
+                                {enrollment.status}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <span className="font-bold text-slate-400 uppercase tracking-wide">Roll No:</span>{" "}
-                        <span className="text-slate-700 font-mono">{user?.rollNo || "Not assigned"}</span>
-                      </div>
-                      <div>
-                        <span className="font-bold text-slate-400 uppercase tracking-wide">Reg No:</span>{" "}
-                        <span className="text-slate-700 font-mono">{user?.regNo || "Not assigned"}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex gap-4 items-start">
+                    <div className="h-12 w-12 rounded-full bg-[#337ab7]/10 flex items-center justify-center text-[#337ab7] shrink-0 shadow-inner">
+                      <GraduationCap className="h-6 w-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="font-black text-slate-800 text-lg leading-tight">
+                        {user?.qualification || user?.specialization || "No Courses Enrolled"}
+                      </h3>
+                      <div className="text-xs text-slate-500 space-y-1 mt-2.5 font-semibold">
+                        <div>
+                          <span className="font-bold text-slate-400 uppercase tracking-wide">Session:</span>{" "}
+                          <span className="text-slate-700 uppercase">
+                            {user?.session || "2024-2028"}{user?.semesterTerm ? ` | ${user.semesterTerm}` : ""}{user?.shift ? ` | ${user.shift}` : ""}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-400 uppercase tracking-wide">Roll No:</span>{" "}
+                          <span className="text-slate-700 font-mono">{user?.rollNo || "Not assigned"}</span>
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-400 uppercase tracking-wide">Reg No:</span>{" "}
+                          <span className="text-slate-700 font-mono">{user?.regNo || "Not assigned"}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Print Detail & Registration Card side-by-side action buttons */}
                 <div className="flex gap-2 items-center pt-2">

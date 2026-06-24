@@ -158,6 +158,8 @@ router.post(
 
     const passwordHash = await hashPassword(password);
 
+    // Roll no and reg no will be auto-generated when student is approved
+    // They are not assigned during initial creation
     const [user] = await db
       .insert(usersTable)
       .values({
@@ -177,7 +179,9 @@ router.post(
         designation: designation || null,
         gender: gender || null,
         joiningDate: joiningDate ? new Date(joiningDate) : null,
-        isActive: true,
+        rollNo: null,  // Will be auto-generated on approval for students
+        regNo: null,   // Will be auto-generated on approval for students
+        isActive: role === "student" ? false : true, // Students need approval, others are active by default
         isEmailVerified: true,
       })
       .returning();
@@ -293,6 +297,31 @@ router.put(
     }
     if (updateData.totalMarks !== undefined) {
       updateData.totalMarks = updateData.totalMarks !== null ? Number(updateData.totalMarks) : null;
+    }
+
+    // Auto-generate roll no and registration no when student is being approved
+    if (existingUser.role === "student" && 
+        !existingUser.isActive && 
+        updateData.isActive === true &&
+        (!existingUser.rollNo || !existingUser.regNo)) {
+      
+      // Get count of approved students to generate sequential numbers
+      const approvedStudents = await db
+        .select({ id: usersTable.id })
+        .from(usersTable)
+        .where(and(
+          eq(usersTable.role, "student"),
+          eq(usersTable.isActive, true)
+        ));
+      
+      const sequenceNumber = approvedStudents.length + 1;
+      const paddedNumber = String(sequenceNumber).padStart(2, '0');
+      const currentYear = new Date().getFullYear();
+      
+      updateData.rollNo = `GSC-${paddedNumber}`;
+      updateData.regNo = `${currentYear}-GSC-${paddedNumber}`;
+      
+      logger.info(`Auto-generated numbers for student ${existingUser.email}: Roll No: ${updateData.rollNo}, Reg No: ${updateData.regNo}`);
     }
 
     const [updatedUser] = await db

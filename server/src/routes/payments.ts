@@ -19,9 +19,16 @@ router.get("/payments", async (req, res): Promise<void> => {
       userId: paymentsTable.userId,
       courseId: paymentsTable.courseId,
       amount: paymentsTable.amount,
+      totalFee: paymentsTable.totalFee,
+      remainingFee: paymentsTable.remainingFee,
+      paymentPlan: paymentsTable.paymentPlan,
+      installmentMonths: paymentsTable.installmentMonths,
+      installmentNumber: paymentsTable.installmentNumber,
       method: paymentsTable.method,
       status: paymentsTable.status,
       receiptUrl: paymentsTable.receiptUrl,
+      notes: paymentsTable.notes,
+      rejectionReason: paymentsTable.rejectionReason,
       createdAt: paymentsTable.createdAt,
       userName: usersTable.name,
       courseName: coursesTable.title,
@@ -42,20 +49,39 @@ router.post("/payments", async (req: AuthRequest, res): Promise<void> => {
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
 
-  const parsed = CreatePaymentBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  const {
+    courseId, amount, method, receiptUrl,
+    paymentPlan, installmentMonths, installmentNumber,
+    totalFee, remainingFee, notes,
+  } = req.body;
+
+  if (!courseId || !amount || !method) {
+    res.status(400).json({ error: "courseId, amount and method are required" }); return;
+  }
 
   const [payment] = await db.insert(paymentsTable)
-    .values({ userId, courseId: parsed.data.courseId, amount: parsed.data.amount, method: parsed.data.method, receiptUrl: parsed.data.receiptUrl })
+    .values({
+      userId,
+      courseId: Number(courseId),
+      amount: Number(amount),
+      totalFee: totalFee ? Number(totalFee) : null,
+      remainingFee: remainingFee ? Number(remainingFee) : null,
+      paymentPlan: paymentPlan || "full",
+      installmentMonths: installmentMonths ? Number(installmentMonths) : null,
+      installmentNumber: installmentNumber ? Number(installmentNumber) : 1,
+      method,
+      receiptUrl: receiptUrl || null,
+      notes: notes || null,
+    })
     .returning();
 
-  // Automatically insert/update enrollment to pending state for admin review
+  // Insert/update enrollment to pending state for admin review
   const [existing] = await db.select().from(enrollmentsTable)
-    .where(and(eq(enrollmentsTable.userId, userId), eq(enrollmentsTable.courseId, parsed.data.courseId)));
+    .where(and(eq(enrollmentsTable.userId, userId), eq(enrollmentsTable.courseId, Number(courseId))));
   if (!existing) {
     await db.insert(enrollmentsTable).values({
       userId,
-      courseId: parsed.data.courseId,
+      courseId: Number(courseId),
       status: "pending"
     });
   } else if (existing.status !== "active") {

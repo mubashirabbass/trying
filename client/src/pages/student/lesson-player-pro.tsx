@@ -14,7 +14,8 @@ import {
   useCreateForumReply,
   useUpvoteForumPost,
   getListForumPostsQueryKey,
-  getListForumRepliesQueryKey
+  getListForumRepliesQueryKey,
+  useListEnrollments,
 } from "@workspace/api-client-react";
 import { useRoute, Link } from "wouter";
 import { 
@@ -22,7 +23,7 @@ import {
   ChevronRight, ChevronLeft, Menu, X, Download, 
   BookOpen, Clock, Award, MessageSquare, ThumbsUp, 
   Pin, Send, Plus, Search, ShieldAlert, Edit2, 
-  Trash2, Lock, Star
+  Trash2, Lock, Star, Ban
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -175,6 +176,14 @@ export default function LessonPlayerPro() {
       staleTime: 5 * 60 * 1000,
     }
   } as any);
+
+  // Check enrollment status to block access if needed
+  const { data: enrollments } = useListEnrollments(
+    { userId: user?.id } as any,
+    { query: { enabled: !!user?.id } } as any
+  );
+  const currentEnrollment = enrollments?.find((e: any) => e.courseId === courseId);
+  const isEnrollmentBlocked = currentEnrollment?.status === "blocked";
   
   // Fetch sections
   const { data: sections } = useListSections({ courseId }, {
@@ -665,6 +674,30 @@ export default function LessonPlayerPro() {
     return (
       <div className="flex justify-center items-center h-screen bg-slate-950">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Enrollment blocked — show full-screen access denied
+  if (isEnrollmentBlocked) {
+    return (
+      <div className="flex h-screen bg-slate-950 items-center justify-center text-slate-100">
+        <div className="text-center max-w-md px-6">
+          <div className="h-20 w-20 rounded-full bg-rose-950 border-2 border-rose-700 flex items-center justify-center mx-auto mb-6">
+            <Ban className="h-10 w-10 text-rose-400" />
+          </div>
+          <h2 className="text-2xl font-extrabold text-slate-100 mb-2">Course Access Blocked</h2>
+          <p className="text-slate-400 text-sm font-medium leading-relaxed mb-6">
+            Your access to this course has been suspended by the administrator due to outstanding fee payments. 
+            Please clear your dues and contact support to restore access.
+          </p>
+          <a
+            href="/dashboard/fees"
+            className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-6 py-3 rounded-xl transition-colors"
+          >
+            View Fee Details
+          </a>
+        </div>
       </div>
     );
   }

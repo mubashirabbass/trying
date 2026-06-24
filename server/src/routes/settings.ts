@@ -26,6 +26,8 @@ const DEFAULT_SETTINGS = [
   { key: "bank_account", value: "MCB - IBAN: PK12MCB0000001234567890", label: "Bank Account", category: "payment" },
   { key: "certificate_signatory", value: "Director, Global College", label: "Certificate Signatory", category: "certificate" },
   { key: "video_completion_threshold", value: "80", label: "Video Completion Threshold (%)", category: "learning" },
+  { key: "student_notice_enabled", value: "true", label: "Enable Student Notice Banner", category: "student_portal" },
+  { key: "student_notice_text", value: "Important Note: Attendance criteria for Spring, 2026 is 75%.", label: "Student Notice Text", category: "student_portal" },
 ];
 
 router.get("/settings", async (req, res): Promise<void> => {

@@ -44,10 +44,19 @@ interface StudentAttendanceResponse {
   summary: CourseSummary[];
 }
 
+interface Enrollment {
+  id: number;
+  courseId: number;
+  courseName?: string;
+  progress: number;
+  status: string;
+}
+
 export default function StudentAttendance() {
   const { token, user } = useAuth();
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   
+  // Fetch attendance data
   const { data, isLoading } = useQuery<StudentAttendanceResponse>({
     queryKey: ['my-attendance'],
     enabled: !!token,
@@ -60,7 +69,20 @@ export default function StudentAttendance() {
     }
   });
 
-  if (isLoading) {
+  // Fetch enrollments to show all courses even without attendance records
+  const { data: enrollmentsData, isLoading: enrollmentsLoading } = useQuery<Enrollment[]>({
+    queryKey: ['my-enrollments', user?.id],
+    enabled: !!token && !!user?.id,
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/enrollments?userId=${user?.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Failed to fetch enrollments");
+      return res.json();
+    }
+  });
+
+  if (isLoading || enrollmentsLoading) {
     return (
       <DashboardLayout>
         <div className="flex h-96 items-center justify-center">
@@ -75,10 +97,31 @@ export default function StudentAttendance() {
 
   const summary = data?.summary || [];
   const records = data?.records || [];
+  const enrollments = enrollmentsData || [];
 
-  // Compute Overall Stats
-  const totalClasses = summary.reduce((acc, curr) => acc + curr.total, 0);
-  const totalPresent = summary.reduce((acc, curr) => acc + curr.present, 0);
+  // Merge enrollments with attendance summary
+  // For courses with attendance records, use the summary
+  // For courses without attendance records, create a summary with 0 attendance
+  const mergedSummary: CourseSummary[] = enrollments.map(enrollment => {
+    const existingSummary = summary.find(s => s.courseId === enrollment.courseId);
+    
+    if (existingSummary) {
+      return existingSummary;
+    }
+    
+    // No attendance records yet for this course
+    return {
+      courseId: enrollment.courseId,
+      courseName: enrollment.courseName || `Course #${enrollment.courseId}`,
+      present: 0,
+      total: 0,
+      percentage: 0,
+    };
+  });
+
+  // Compute Overall Stats (using merged summary)
+  const totalClasses = mergedSummary.reduce((acc, curr) => acc + curr.total, 0);
+  const totalPresent = mergedSummary.reduce((acc, curr) => acc + curr.present, 0);
   const overallPercentage = totalClasses > 0 ? Math.round((totalPresent / totalClasses) * 100) : 0;
   const minimumThreshold = 75;
   const isOverallAtRisk = totalClasses > 0 && overallPercentage < minimumThreshold;
@@ -126,7 +169,7 @@ export default function StudentAttendance() {
   };
 
   const selectedCourseRecords = records.filter((r) => r.courseId === selectedCourseId);
-  const selectedCourseSummary = summary.find((s) => s.courseId === selectedCourseId);
+  const selectedCourseSummary = mergedSummary.find((s) => s.courseId === selectedCourseId);
 
   // Group records by Month for the selected course to show Month-by-Month calendar view!
   const recordsByMonth = selectedCourseRecords.reduce((acc, curr) => {
@@ -230,7 +273,7 @@ export default function StudentAttendance() {
           </h2>
 
           <div className="grid gap-6 md:grid-cols-2">
-            {summary.map((courseSummary, index) => {
+            {mergedSummary.map((courseSummary, index) => {
               const isAtRisk = courseSummary.percentage < minimumThreshold;
               return (
                 <Card 
@@ -269,21 +312,43 @@ export default function StudentAttendance() {
                       </div>
                     </div>
 
+                    {courseSummary.total === 0 && (
+                      <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded-xl p-3 flex items-start gap-3">
+                        <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-bold text-blue-900 dark:text-blue-300">No Classes Recorded Yet</p>
+                          <p className="text-[10px] text-blue-700 dark:text-blue-400 mt-0.5">Your teacher hasn't started marking attendance for this course.</p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Progress slider bar */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-[10px] font-extrabold uppercase">
-                        <span className="text-slate-400">Attendance Meter</span>
-                        <span className={isAtRisk ? "text-rose-500" : "text-emerald-500"}>
-                          {isAtRisk ? "At Risk" : "Good Standing"}
-                        </span>
+                    {courseSummary.total > 0 ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[10px] font-extrabold uppercase">
+                          <span className="text-slate-400">Attendance Meter</span>
+                          <span className={isAtRisk ? "text-rose-500" : "text-emerald-500"}>
+                            {isAtRisk ? "At Risk" : "Good Standing"}
+                          </span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-900">
+                          <div 
+                            className={`h-full rounded-full transition-all duration-550 ${getProgressBarColor(courseSummary.percentage)}`} 
+                            style={{ width: `${Math.max(5, Math.min(100, courseSummary.percentage))}%` }} 
+                          />
+                        </div>
                       </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-900">
-                        <div 
-                          className={`h-full rounded-full transition-all duration-550 ${getProgressBarColor(courseSummary.percentage)}`} 
-                          style={{ width: `${Math.max(5, Math.min(100, courseSummary.percentage))}%` }} 
-                        />
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-[10px] font-extrabold uppercase">
+                          <span className="text-slate-400">Attendance Meter</span>
+                          <span className="text-slate-400">Pending</span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-900">
+                          <div className="h-full rounded-full bg-slate-300" style={{ width: '0%' }} />
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Action Button */}
                     <Button 
@@ -300,7 +365,7 @@ export default function StudentAttendance() {
             })}
           </div>
 
-          {summary.length === 0 && (
+          {mergedSummary.length === 0 && (
             <div className="flex min-h-64 flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 text-center p-6 bg-slate-50/20 dark:bg-slate-950/20">
               <CalendarDays className="h-10 w-10 text-slate-300 mb-3" />
               <p className="font-black text-slate-650">No Enrolled Courses Found</p>

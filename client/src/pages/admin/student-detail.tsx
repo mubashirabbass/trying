@@ -634,29 +634,43 @@ export default function AdminStudentDetail() {
                   <TableHeader className="bg-gray-50/50">
                     <TableRow>
                       <TableHead className="py-4 font-black uppercase text-[10px] tracking-widest">Payment ID</TableHead>
+                      <TableHead className="py-4 font-black uppercase text-[10px] tracking-widest">Course</TableHead>
                       <TableHead className="py-4 font-black uppercase text-[10px] tracking-widest">Amount</TableHead>
+                      <TableHead className="py-4 font-black uppercase text-[10px] tracking-widest">Plan & Details</TableHead>
                       <TableHead className="py-4 font-black uppercase text-[10px] tracking-widest">Method</TableHead>
                       <TableHead className="py-4 font-black uppercase text-[10px] tracking-widest">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {payLoading ? (
-                      <TableRow><TableCell colSpan={4} className="h-32 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto opacity-20" /></TableCell></TableRow>
+                      <TableRow><TableCell colSpan={6} className="h-32 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto opacity-20" /></TableCell></TableRow>
                     ) : payments.length === 0 ? (
-                      <TableRow><TableCell colSpan={4} className="h-32 text-center text-gray-500 font-medium">No payment history found.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={6} className="h-32 text-center text-gray-500 font-medium">No payment history found.</TableCell></TableRow>
                     ) : (
                       payments.map((pay: any) => (
                         <tr key={pay.id} className="border-b last:border-0 hover:bg-gray-50/50 transition-colors">
                           <td className="px-4 py-4 font-mono text-xs font-bold text-gray-500 uppercase">#PAY-{pay.id}</td>
+                          <td className="px-4 py-4 font-bold text-gray-900">{pay.courseName || `Course #${pay.courseId}`}</td>
                           <td className="px-4 py-4 font-black text-gray-900">Rs. {(pay.amount || 0).toLocaleString()}</td>
+                          <td className="px-4 py-4 text-xs font-semibold text-slate-650">
+                            {pay.paymentPlan === "monthly" ? (
+                              <span className="text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-2 py-0.5 font-bold">
+                                Installment #{pay.installmentNumber} of {pay.installmentMonths || "3"}M
+                              </span>
+                            ) : (
+                              <span className="text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-0.5 font-bold">
+                                Full Payment
+                              </span>
+                            )}
+                          </td>
                           <td className="px-4 py-4">
                             <Badge variant="outline" className="capitalize border-slate-200">{pay.method?.replace('_', ' ') || 'Unknown'}</Badge>
                           </td>
                           <td className="px-4 py-4">
                             <Badge className={
-                              pay.status === 'approved' ? "bg-emerald-50 text-emerald-700" :
-                              pay.status === 'pending' ? "bg-amber-50 text-amber-700" :
-                              "bg-rose-50 text-rose-700"
+                              pay.status === 'verified' ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-50 border-emerald-100" :
+                              pay.status === 'pending' ? "bg-amber-50 text-amber-700 hover:bg-amber-50 border-amber-100" :
+                              "bg-rose-50 text-rose-700 hover:bg-rose-50 border-rose-100"
                             }>
                               {pay.status}
                             </Badge>

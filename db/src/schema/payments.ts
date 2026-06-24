@@ -8,9 +8,14 @@ export const paymentsTable = pgTable("payments", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   courseId: integer("course_id").notNull().references(() => coursesTable.id, { onDelete: "cascade" }),
-  amount: real("amount").notNull(),
+  amount: real("amount").notNull(),                          // Amount paid in this transaction
+  totalFee: real("total_fee"),                               // Full course fee (for context)
+  remainingFee: real("remaining_fee"),                       // Remaining balance after this payment
+  paymentPlan: text("payment_plan").notNull().default("full"), // 'full' | 'monthly'
+  installmentMonths: integer("installment_months"),          // Total months if monthly plan
+  installmentNumber: integer("installment_number"),          // Which installment is this (1, 2, 3...)
   method: text("method").notNull().default("cash"),
-  status: text("status").notNull().default("pending"), // pending, approved, rejected
+  status: text("status").notNull().default("pending"),       // pending, approved, rejected
   receiptUrl: text("receipt_url"),
   notes: text("notes"),
   rejectionReason: text("rejection_reason"),

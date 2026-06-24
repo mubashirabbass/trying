@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useAuth } from "@/lib/AuthContext";
-import { useListEnrollments, useListCourses, useListLessons } from "@workspace/api-client-react";
+import { useListEnrollments, useListCourses, useListLessons, useListPayments } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
   Loader2, PlayCircle, CheckCircle2, BookOpen, ArrowRight, 
   Clock, Award, TrendingUp, Filter, Search, Grid, List,
   Layers, BookMarked, Sparkles, ShieldCheck, DollarSign, 
-  CheckSquare, FileText, Download, Info, Calendar, ArrowUpRight
+  CheckSquare, FileText, Download, Info, Calendar, ArrowUpRight,
+  Ban
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -245,6 +246,7 @@ export default function CoursesPro() {
           {filteredEnrollments?.map((enrollment) => {
             const isComplete = enrollment.status === "completed";
             const isPending = enrollment.status === "pending";
+            const isBlocked = enrollment.status === "blocked";
             const progress = enrollment.progress ?? 0;
             const matchedCourse = courses?.find(c => c.id === enrollment.courseId);
             
@@ -282,12 +284,16 @@ export default function CoursesPro() {
                         ? 'bg-emerald-500 text-white border-0 shadow-lg' 
                         : isPending
                         ? 'bg-amber-500 text-white border-0 shadow-lg animate-pulse'
+                        : isBlocked
+                        ? 'bg-rose-600 text-white border-0 shadow-lg'
                         : 'bg-primary text-white border-0 shadow-lg'
                     }>
                       {isComplete ? (
                         <><CheckCircle2 className="h-3 w-3 mr-1" /> Completed</>
                       ) : isPending ? (
                         <><Clock className="h-3 w-3 mr-1" /> Pending</>
+                      ) : isBlocked ? (
+                        <><Ban className="h-3 w-3 mr-1" /> Blocked</>
                       ) : (
                         <><PlayCircle className="h-3 w-3 mr-1" /> In Progress</>
                       )}
@@ -320,6 +326,15 @@ export default function CoursesPro() {
                       </div>
                     )}
 
+                    {isBlocked && (
+                      <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 mb-4">
+                        <p className="text-xs font-bold text-rose-800 flex items-center gap-2">
+                          <Ban className="h-4 w-4 text-rose-600" />
+                          Course access blocked due to outstanding fees. Contact admin.
+                        </p>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between text-xs text-slate-500 mb-4">
                       <span>Enrolled {new Date(enrollment.enrolledAt).toLocaleDateString()}</span>
                       {enrollment.courseCategory && (
@@ -331,14 +346,16 @@ export default function CoursesPro() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 mt-2">
-                    <Link href={isPending ? "#" : `/dashboard/lessons/${enrollment.courseId}`} className="w-full">
+                    <Link href={isPending || isBlocked ? "#" : `/dashboard/lessons/${enrollment.courseId}`} className="w-full">
                       <Button 
                         className="w-full h-10 rounded-xl font-bold text-xs shadow-none transition-all"
-                        disabled={isPending}
-                        variant={isComplete ? "outline" : "default"}
+                        disabled={isPending || isBlocked}
+                        variant={isBlocked ? "destructive" : isComplete ? "outline" : "default"}
                       >
                         {isPending ? (
                           "Pending"
+                        ) : isBlocked ? (
+                          <><Ban className="h-3.5 w-3.5 mr-1" /> Blocked</>
                         ) : isComplete ? (
                           <>Review</>
                         ) : (
@@ -371,6 +388,7 @@ export default function CoursesPro() {
           {filteredEnrollments?.map((enrollment) => {
             const isComplete = enrollment.status === "completed";
             const isPending = enrollment.status === "pending";
+            const isBlocked = enrollment.status === "blocked";
             const progress = enrollment.progress ?? 0;
             const matchedCourse = courses?.find(c => c.id === enrollment.courseId);
             
@@ -412,9 +430,11 @@ export default function CoursesPro() {
                             ? 'bg-emerald-100 text-emerald-700 border-emerald-200' 
                             : isPending
                             ? 'bg-amber-100 text-amber-700 border-amber-200'
+                            : isBlocked
+                            ? 'bg-rose-100 text-rose-700 border-rose-200 font-bold'
                             : 'bg-blue-100 text-blue-700 border-blue-200'
                         }>
-                          {isComplete ? "Completed" : isPending ? "Pending" : "In Progress"}
+                          {isComplete ? "Completed" : isPending ? "Pending" : isBlocked ? "Blocked" : "In Progress"}
                         </Badge>
                       </div>
 
@@ -429,14 +449,16 @@ export default function CoursesPro() {
                       )}
 
                       <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                        <Link href={isPending ? "#" : `/dashboard/lessons/${enrollment.courseId}`} className="flex-1">
+                        <Link href={isPending || isBlocked ? "#" : `/dashboard/lessons/${enrollment.courseId}`} className="flex-1">
                           <Button 
-                            disabled={isPending}
-                            variant={isComplete ? "outline" : "default"}
+                            disabled={isPending || isBlocked}
+                            variant={isBlocked ? "destructive" : isComplete ? "outline" : "default"}
                             className="w-full h-10 rounded-xl font-bold text-xs shadow-none transition-all"
                           >
                             {isPending ? (
                               "Awaiting Approval"
+                            ) : isBlocked ? (
+                              <><Ban className="h-4 w-4 mr-2" /> Access Blocked</>
                             ) : isComplete ? (
                               <>Review Course <ArrowRight className="h-4 w-4 ml-2" /></>
                             ) : (
@@ -492,6 +514,24 @@ function HandbookModal({ isOpen, onOpenChange, course, enrollment }: HandbookMod
     { courseId: course.id },
     { query: { enabled: !!course.id } } as any
   );
+
+  // Fetch payments for the user to display dynamic fee records
+  const { data: payments, isLoading: paymentsLoading } = useListPayments(
+    { userId: enrollment?.userId },
+    { query: { enabled: !!enrollment?.userId } }
+  );
+
+  const coursePayments = payments?.filter((p: any) => p.courseId === course.id) || [];
+  const verifiedPayments = coursePayments.filter((p: any) => p.status === "verified");
+  const pendingPayments = coursePayments.filter((p: any) => p.status === "pending");
+  const hasPending = pendingPayments.length > 0;
+  
+  const totalPaid = verifiedPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+  const totalCourseFee = course.fee || 0;
+  const remainingFee = Math.max(0, totalCourseFee - totalPaid);
+  
+  const paymentPlan = coursePayments[0]?.paymentPlan || "full";
+  const installmentMonths = coursePayments[0]?.installmentMonths || 3;
 
   // Aggregate teacher-uploaded materials
   const getSyllabusMaterials = () => {
@@ -639,41 +679,104 @@ function HandbookModal({ isOpen, onOpenChange, course, enrollment }: HandbookMod
 
             {/* TAB 2: FEE STRUCTURE */}
             <TabsContent value="fee" className="space-y-5 focus-visible:outline-none">
-              <div className="p-6 rounded-2xl border border-slate-150 bg-gradient-to-br from-blue-50/20 to-blue-50/40 relative overflow-hidden flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="p-6 rounded-2xl border border-slate-150 bg-gradient-to-br from-indigo-50/20 to-purple-50/20 relative overflow-hidden flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div className="space-y-1.5">
-                  <span className="text-[9px] font-black text-blue-600 uppercase tracking-widest block">Tuition Ledger Overview</span>
+                  <span className="text-[9px] font-black text-indigo-650 uppercase tracking-widest block">Tuition Ledger Overview</span>
                   <h4 className="text-2xl font-black text-slate-800">
-                    {course.isFree ? "Free Academic Course" : `Rs. ${course.fee} Total Tuition`}
+                    {course.isFree ? "Free Academic Course" : `Rs. ${totalCourseFee.toLocaleString()} Total Tuition`}
                   </h4>
-                  <p className="text-xs text-slate-500 font-medium">Includes standard exam licensing, technology access, and student support fees.</p>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {course.isFree ? "No tuition fee is required." : `Payment Plan: ${paymentPlan === "monthly" ? `Monthly Installment (${installmentMonths} months)` : "Full Payment"}`}
+                  </p>
                 </div>
                 <Badge className={
-                  enrollment?.status === "active" 
-                    ? "bg-emerald-100 text-emerald-800 border-emerald-200 text-xs font-bold px-3 py-1 rounded-full" 
-                    : "bg-amber-100 text-amber-800 border-amber-200 text-xs font-bold px-3 py-1 rounded-full"
+                  remainingFee === 0 
+                    ? "bg-emerald-100 text-emerald-805 border-emerald-200 text-xs font-bold px-3 py-1 rounded-full shrink-0" 
+                    : "bg-amber-100 text-amber-805 border-amber-200 text-xs font-bold px-3 py-1 rounded-full shrink-0"
                 }>
-                  {enrollment?.status === "active" ? "Payment Cleared & Active" : "Pending Ledger Review"}
+                  {course.isFree ? "Free Access" : remainingFee === 0 ? "Ledger Cleared" : "Balance Remaining"}
                 </Badge>
               </div>
 
-              <div className="space-y-3">
-                <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">Itemized Fee Structure Details</h4>
-                <div className="border border-slate-100 rounded-xl overflow-hidden bg-white text-xs divide-y divide-slate-100">
-                  <div className="p-4 flex justify-between font-bold text-slate-600">
-                    <span>1. Registration & Technology Fee</span>
-                    <span className="text-slate-850">Included (Rs. 0)</span>
+              {/* Installment Actions */}
+              {!course.isFree && remainingFee > 0 && (
+                <div className="bg-indigo-50 border border-indigo-150 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h5 className="font-black text-slate-800 text-sm">Fulfill Tuition Fee Balance</h5>
+                    <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                      Remaining balance: <strong className="text-indigo-700">Rs. {remainingFee.toLocaleString()}</strong>.
+                      {hasPending && " You have a payment pending verification."}
+                    </p>
                   </div>
-                  <div className="p-4 flex justify-between font-bold text-slate-600">
-                    <span>2. Lecture Modules & Study Handouts</span>
-                    <span className="text-slate-850">Included (Rs. 0)</span>
+                  <Link href={`/dashboard/payment/${course.id}`}>
+                    <Button 
+                      disabled={hasPending} 
+                      className="rounded-xl font-bold text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
+                    >
+                      {hasPending ? (
+                        <>Verification Pending...</>
+                      ) : (
+                        <>Pay Next Amount <ArrowUpRight className="h-4 w-4 ml-1.5" /></>
+                      )}
+                    </Button>
+                  </Link>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Tuition Ledger Card */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">Financial Summary</h4>
+                  <div className="border border-slate-100 rounded-xl overflow-hidden bg-white text-xs divide-y divide-slate-100">
+                    <div className="p-3.5 flex justify-between font-bold text-slate-650">
+                      <span>Total Course Fee</span>
+                      <span className="text-slate-850">Rs. {totalCourseFee.toLocaleString()}</span>
+                    </div>
+                    <div className="p-3.5 flex justify-between font-bold text-slate-650 bg-emerald-50/20">
+                      <span>Total Paid to Date</span>
+                      <span className="text-emerald-700 font-black">Rs. {totalPaid.toLocaleString()}</span>
+                    </div>
+                    <div className="p-3.5 flex justify-between font-black text-slate-800 bg-slate-50 text-sm">
+                      <span>Outstanding Balance</span>
+                      <span className="text-primary">Rs. {remainingFee.toLocaleString()}</span>
+                    </div>
                   </div>
-                  <div className="p-4 flex justify-between font-bold text-slate-600">
-                    <span>3. Practical Lab & Assessment Access</span>
-                    <span className="text-slate-850">Included (Rs. 0)</span>
-                  </div>
-                  <div className="p-4 flex justify-between font-black text-slate-800 bg-slate-50 text-sm">
-                    <span>Total Billable Balance</span>
-                    <span className="text-primary">{course.isFree ? "Free" : `Rs. ${course.fee}`}</span>
+                </div>
+
+                {/* Receipts Tracker List */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">Submitted Receipts</h4>
+                  <div className="border border-slate-100 rounded-xl bg-white text-xs divide-y divide-slate-100 max-h-48 overflow-y-auto">
+                    {paymentsLoading ? (
+                      <div className="p-6 text-center text-slate-450 font-medium">Loading receipts ledger...</div>
+                    ) : coursePayments.length === 0 ? (
+                      <div className="p-8 text-center text-slate-400 font-bold">No receipts submitted yet.</div>
+                    ) : (
+                      coursePayments.map((pay: any) => (
+                        <div key={pay.id} className="p-3 flex justify-between items-center gap-2 hover:bg-slate-50/50">
+                          <div>
+                            <div className="font-bold text-slate-800">
+                              Rs. {(pay.amount || 0).toLocaleString()}
+                              {pay.paymentPlan === "monthly" && (
+                                <span className="text-[10px] text-slate-400 ml-1.5 font-medium">Month #{pay.installmentNumber}</span>
+                              )}
+                            </div>
+                            <div className="text-[9px] text-slate-450 mt-0.5">
+                              {new Date(pay.createdAt).toLocaleDateString()} via {pay.method.toUpperCase()}
+                            </div>
+                          </div>
+                          <div>
+                            {pay.status === "verified" ? (
+                              <Badge className="bg-emerald-50 text-emerald-700 border-emerald-250 font-bold hover:bg-emerald-50">Verified</Badge>
+                            ) : pay.status === "rejected" ? (
+                              <Badge className="bg-rose-50 text-rose-700 border-rose-250 font-bold hover:bg-rose-50">Rejected</Badge>
+                            ) : (
+                              <Badge className="bg-amber-50 text-amber-700 border-amber-250 font-bold hover:bg-amber-50 animate-pulse">Pending</Badge>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>

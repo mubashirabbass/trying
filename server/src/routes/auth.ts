@@ -92,6 +92,9 @@ router.post("/auth/register", authRateLimiter, catchAsync(async (req: Request, r
   }
   const passwordHash = await hashPassword(password);
   
+  // DO NOT generate roll no and reg no during registration
+  // They will be auto-generated when admin approves the student
+  
   const [user] = await db.insert(usersTable).values({ 
     email, 
     passwordHash, 
@@ -107,7 +110,9 @@ router.post("/auth/register", authRateLimiter, catchAsync(async (req: Request, r
     obtainedMarks,
     totalMarks,
     educationDocumentUrl,
-    isActive: false 
+    rollNo: null,  // Will be assigned on approval
+    regNo: null,   // Will be assigned on approval
+    isActive: false  // Pending approval
   }).returning();
 
   if (identityDocumentUrl) {
