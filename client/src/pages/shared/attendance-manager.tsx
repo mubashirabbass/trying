@@ -19,7 +19,9 @@ import {
   UserCheck,
   Users,
   XCircle,
+  FileDown
 } from "lucide-react";
+import { exportStudentAttendanceWorkbook, exportSingleStudentWorkbook } from "@/lib/exportStudentAttendance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -43,6 +45,8 @@ type Student = {
   userId: number;
   name: string;
   email: string;
+  rollNo?: string | null;
+  regNo?: string | null;
 };
 
 type AttendanceRecord = {
@@ -1078,6 +1082,24 @@ export default function AttendanceManager() {
                       <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Late (L)</div>
                       <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-sky-500" /> Leave (Lv)</div>
                     </div>
+
+                    {/* Excel Export Button */}
+                    {students.length > 0 && uniqueDates.length > 0 && selectedCourseInfo && (
+                      <button
+                        onClick={() => {
+                          exportStudentAttendanceWorkbook(
+                            selectedCourseInfo,
+                            students,
+                            courseRecords,
+                            uniqueDates
+                          );
+                        }}
+                        className="inline-flex items-center gap-2 h-9 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-sm hover:shadow transition-all duration-150"
+                      >
+                        <FileDown className="h-4 w-4" />
+                        Download Register
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1156,7 +1178,7 @@ export default function AttendanceManager() {
                                   <div className="min-w-0">
                                     <p className="truncate text-xs font-black text-slate-900 dark:text-white leading-none">{student.name}</p>
                                     <p className="truncate text-[9px] font-black tracking-widest text-indigo-505 dark:text-indigo-400 uppercase mt-1">
-                                      GC-2026-{String(student.userId).padStart(3, "0")}
+                                      {student.rollNo ?? `GC-${String(student.userId).padStart(2, "0")}`}
                                     </p>
                                   </div>
                                 </div>
@@ -1332,10 +1354,11 @@ export default function AttendanceManager() {
                       <thead className="bg-slate-50/50 dark:bg-slate-900/30">
                         <tr className="border-b border-slate-100 dark:border-slate-800/50 text-left">
                           <th className="w-[12%] p-4 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Attendance Check</th>
-                          <th className="w-[28%] p-4 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Student Info</th>
-                          <th className="w-[20%] p-4 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Overall Attendance</th>
-                          <th className="w-[24%] p-4 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Mark Status</th>
-                          <th className="p-4 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Session Notes</th>
+                          <th className="w-[24%] p-4 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Student Info</th>
+                          <th className="w-[18%] p-4 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Overall Attendance</th>
+                          <th className="w-[22%] p-4 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Mark Status</th>
+                          <th className="w-[18%] p-4 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500">Session Notes</th>
+                          <th className="p-4 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 text-center w-20">Export</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50 dark:divide-slate-800/40">
@@ -1343,7 +1366,7 @@ export default function AttendanceManager() {
                           const activeStatus = attendanceState[student.userId] || "present";
                           const stats = studentStats[student.userId] || { present: 0, total: 0, percentage: 0, absent: 0 };
                           const isAtRisk = stats.total > 0 && stats.percentage < courseMinimum;
- 
+  
                           return (
                             <tr key={student.userId} className="hover:bg-slate-50/30 dark:hover:bg-slate-900/5 transition-colors">
                               <td className="p-4 align-middle">
@@ -1367,7 +1390,7 @@ export default function AttendanceManager() {
                                   <div className="min-w-0">
                                     <p className="truncate text-sm font-black text-slate-900 dark:text-white">{student.name}</p>
                                     <p className="truncate text-[10px] font-black tracking-widest text-indigo-500 dark:text-indigo-400 uppercase mt-0.5">
-                                      GC-2026-{String(student.userId).padStart(3, "0")}
+                                      {student.rollNo ?? `GC-${String(student.userId).padStart(2, "0")}`}
                                     </p>
                                   </div>
                                 </div>
@@ -1418,7 +1441,7 @@ export default function AttendanceManager() {
                                       option.value === "absent" ? "bg-rose-500 hover:bg-rose-600 text-white shadow-md shadow-rose-500/20" :
                                       option.value === "late" ? "bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20" :
                                       "bg-sky-500 hover:bg-sky-600 text-white shadow-md shadow-sky-500/20";
- 
+  
                                     return (
                                       <button
                                         key={option.value}
@@ -1444,6 +1467,23 @@ export default function AttendanceManager() {
                                   placeholder="Add optional notes..."
                                   className="h-9.5 rounded-xl border-slate-200 dark:border-slate-800 text-xs font-semibold focus-visible:ring-0 focus-visible:border-indigo-500 bg-transparent"
                                 />
+                              </td>
+                              <td className="p-4 align-middle text-center">
+                                {selectedCourseInfo && (
+                                  <button
+                                    title={`Download ${student.name}'s attendance report`}
+                                    onClick={() => {
+                                      exportSingleStudentWorkbook(
+                                        selectedCourseInfo,
+                                        student,
+                                        courseRecords
+                                      );
+                                    }}
+                                    className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-indigo-50 text-indigo-650 hover:bg-indigo-100 border border-indigo-100 transition-colors"
+                                  >
+                                    <FileDown className="h-4 w-4" />
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           );

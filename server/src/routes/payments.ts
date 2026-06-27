@@ -8,6 +8,7 @@ import {
   VerifyPaymentBody,
 } from "@workspace/api-zod";
 import { AuthRequest } from "../middleware/auth";
+import { assignRollAndRegNo } from "../lib/studentNumbers";
 
 const router: IRouter = Router();
 
@@ -130,10 +131,11 @@ router.post("/payments/:id/verify", async (req, res): Promise<void> => {
         .where(eq(enrollmentsTable.id, existing.id));
     }
 
-    // Activate the student's user account so they can log in
+    // Activate the student's user account so they can log in, and assign roll/reg numbers
     await db.update(usersTable)
       .set({ isActive: true })
       .where(eq(usersTable.id, payment.userId));
+    await assignRollAndRegNo(payment.userId);
 
     // Trigger notification
     try {

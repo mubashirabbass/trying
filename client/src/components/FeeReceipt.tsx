@@ -12,6 +12,7 @@ interface FeeReceiptProps {
     courseName: string;
     amount: number;
     totalFee?: number;
+    remainingFee?: number;  // Remaining balance AFTER this payment
     method: string;
     installmentNumber?: number;
     installmentMonths?: number;
@@ -32,6 +33,9 @@ interface FeeReceiptProps {
 
 export function FeeReceipt({ payment, institute, onClose }: FeeReceiptProps) {
   const [printContainer, setPrintContainer] = useState<HTMLElement | null>(null);
+
+  // DEBUG: Log what payment data we received
+  console.log('FeeReceipt received payment:', payment);
 
   useEffect(() => {
     // Create print container at body level
@@ -57,7 +61,14 @@ export function FeeReceipt({ payment, institute, onClose }: FeeReceiptProps) {
   });
 
   const admissionFee = 0;
-  const totalAmount = payment.amount + admissionFee;
+  const amountPaid = payment.amount; // Amount actually paid in THIS payment
+  // Ensure totalCourseFee is never 0 or falsy - if totalFee is missing/0, this is likely a full payment
+  const totalCourseFee = payment.totalFee && payment.totalFee > 0 ? payment.totalFee : payment.amount;
+  // Use remainingFee from payment if provided (for installments), otherwise calculate
+  const remainingBalance = payment.remainingFee !== undefined 
+    ? payment.remainingFee 
+    : (totalCourseFee - amountPaid);
+  const totalAmount = amountPaid + admissionFee;
 
   const ReceiptContent = () => (
     <div className="slip-wrapper">
@@ -90,13 +101,18 @@ export function FeeReceipt({ payment, institute, onClose }: FeeReceiptProps) {
         </tr></tbody></table>
 
         <table className="row-table"><tbody><tr>
-          <td style={{ width: '50%' }}><table className="field-table"><tbody><tr><td className="lbl">Monthly Fee:</td><td className="uline" style={{ paddingLeft: '8px' }}>Rs. {payment.amount.toLocaleString()}</td></tr></tbody></table></td>
-          <td style={{ width: '50%' }} className="pad-l"><table className="field-table"><tbody><tr><td className="lbl">Admission Fee:</td><td className="uline" style={{ paddingLeft: '8px' }}>Rs. {admissionFee.toLocaleString()}</td></tr></tbody></table></td>
+          <td style={{ width: '50%' }}><table className="field-table"><tbody><tr><td className="lbl">Total Course Fee:</td><td className="uline" style={{ paddingLeft: '8px' }}>Rs. {totalCourseFee.toLocaleString()}</td></tr></tbody></table></td>
+          <td style={{ width: '50%' }} className="pad-l"><table className="field-table"><tbody><tr><td className="lbl">Amount Paid:</td><td className="uline" style={{ fontWeight: 700, paddingLeft: '8px' }}>Rs. {amountPaid.toLocaleString()}</td></tr></tbody></table></td>
         </tr></tbody></table>
 
         <table className="row-table"><tbody><tr>
-          <td style={{ width: '50%' }}><table className="field-table"><tbody><tr><td className="lbl">Fee Month:</td><td className="uline" style={{ paddingLeft: '8px' }}>{payment.installmentNumber ? `Installment #${payment.installmentNumber}` : "Full Payment"}</td></tr></tbody></table></td>
-          <td style={{ width: '50%' }} className="pad-l"><table className="field-table"><tbody><tr><td className="lbl">Total:</td><td className="uline" style={{ fontWeight: 700, paddingLeft: '8px' }}>Rs. {totalAmount.toLocaleString()}</td></tr></tbody></table></td>
+          <td style={{ width: '50%' }}><table className="field-table"><tbody><tr><td className="lbl">Admission Fee:</td><td className="uline" style={{ paddingLeft: '8px' }}>Rs. {admissionFee.toLocaleString()}</td></tr></tbody></table></td>
+          <td style={{ width: '50%' }} className="pad-l"><table className="field-table"><tbody><tr><td className="lbl">Remaining Balance:</td><td className="uline" style={{ fontWeight: 700, color: remainingBalance > 0 ? '#d97706' : '#16a34a', paddingLeft: '8px' }}>Rs. {remainingBalance.toLocaleString()}</td></tr></tbody></table></td>
+        </tr></tbody></table>
+
+        <table className="row-table"><tbody><tr>
+          <td style={{ width: '50%' }}><table className="field-table"><tbody><tr><td className="lbl">Payment Type:</td><td className="uline" style={{ paddingLeft: '8px' }}>{payment.installmentNumber ? `Installment #${payment.installmentNumber}/${payment.installmentMonths}` : remainingBalance > 0 ? "Partial Payment" : "Full Payment"}</td></tr></tbody></table></td>
+          <td style={{ width: '50%' }} className="pad-l"><table className="field-table"><tbody><tr><td className="lbl">Total Paid Today:</td><td className="uline" style={{ fontWeight: 700, paddingLeft: '8px' }}>Rs. {totalAmount.toLocaleString()}</td></tr></tbody></table></td>
         </tr></tbody></table>
 
         <table className="row-table" style={{ marginBottom: '14px' }}><tbody><tr>

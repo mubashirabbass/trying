@@ -204,6 +204,99 @@ router.post("/auth/forgot-password", authRateLimiter, catchAsync(async (req: Req
   logger.info(`[Password Reset] User ${user.email} | Reset URL: ${resetUrl}`);
 }));
 
+// ─── CNIC + DOB Identity Verification (No email link) ──────────────────────
+router.post("/auth/forgot-password-cnic", authRateLimiter, catchAsync(async (req: Request, res: Response): Promise<void> => {
+  const { cnic, dob } = req.body;
+
+  if (!cnic || !dob) {
+    res.status(400).json({ error: "CNIC and date of birth are required" });
+    return;
+  }
+
+  // Normalise helper
+  const normaliseCnic = (s: string) => s.replace(/[-\s]/g, "").toLowerCase();
+  const toDateStr = (d: Date | string | null | undefined) => {
+    if (!d) return null;
+    return new Date(d).toISOString().slice(0, 10); // "YYYY-MM-DD"
+  };
+
+  const targetCnic = normaliseCnic(cnic);
+  const targetDob = toDateStr(dob);
+
+  if (!targetCnic || !targetDob) {
+    res.status(400).json({ error: "Invalid CNIC or date of birth format" });
+    return;
+  }
+
+  // Fetch all students and teachers to verify CNIC and DOB in-memory cleanly
+  const candidates = await db.select().from(usersTable);
+  const user = candidates.find(u => {
+    if (u.role !== "student" && u.role !== "teacher") return false;
+    return u.cnic && normaliseCnic(u.cnic) === targetCnic && toDateStr(u.dob) === targetDob;
+  });
+
+  if (!user) {
+    res.status(400).json({ error: "Identity verification failed. No matching student or teacher record found." });
+    return;
+  }
+
+  // Generate a short-lived (5 min) temporary token for the password reset on the spot
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+  await db.update(usersTable)
+    .set({ passwordResetToken: tokenHash, passwordResetExpiry: expiry } as any)
+    .where(eq(usersTable.id, user.id));
+
+  logger.info(`[CNIC Reset] Identity verified for user ${user.email} (Role: ${user.role}) — ready for on-the-spot reset`);
+
+  // Return username (email) and the session token so they can reset on the spot
+  res.json({
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    token: rawToken,
+    message: "Identity verified successfully."
+  });
+}));
+
+// ─── CNIC + DOB Instant Password Reset ──────────────────────────────────────
+router.post("/auth/forgot-password-cnic-reset", authRateLimiter, catchAsync(async (req: Request, res: Response): Promise<void> => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    res.status(400).json({ error: "Token and new password are required" });
+    return;
+  }
+  if (newPassword.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters" });
+    return;
+  }
+
+  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+  const [user] = await db.select().from(usersTable).where(eq((usersTable as any).passwordResetToken, tokenHash));
+
+  if (!user || (user.role !== "student" && user.role !== "teacher")) {
+    res.status(400).json({ error: "Invalid or expired reset session." });
+    return;
+  }
+
+  const expiry: Date | null = (user as any).passwordResetExpiry;
+  if (!expiry || expiry < new Date()) {
+    res.status(400).json({ error: "Reset session has expired. Please verify your details again." });
+    return;
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await db.update(usersTable)
+    .set({ passwordHash, passwordResetToken: null, passwordResetExpiry: null } as any)
+    .where(eq(usersTable.id, user.id));
+
+  logger.info(`[CNIC Reset] Password reset on-the-spot completed for ${user.email}`);
+  res.json({ message: "Password updated successfully! You can now log in." });
+}));
+
 router.post("/auth/reset-password/:token", catchAsync(async (req: Request, res: Response): Promise<void> => {
   const { token } = req.params;
   const { newPassword } = req.body;

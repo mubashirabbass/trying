@@ -6,6 +6,7 @@ import {
   CreateEnrollmentBody,
   DeleteEnrollmentParams,
 } from "@workspace/api-zod";
+import { assignRollAndRegNo } from "../lib/studentNumbers";
 
 const router: IRouter = Router();
 
@@ -74,11 +75,12 @@ router.post("/enrollments", async (req: any, res): Promise<void> => {
     });
   }
 
-  // If payment is marked as paid, activate the student account
+  // If payment is marked as paid, activate the student account and assign roll/reg numbers
   if (paymentStatus === "paid") {
     await db.update(usersTable)
       .set({ isActive: true })
       .where(eq(usersTable.id, userId));
+    await assignRollAndRegNo(userId);
   }
   
   res.status(201).json({ ...enrollment, courseName: course.title, userName: null });
@@ -99,7 +101,7 @@ router.patch("/enrollments/:id", async (req: any, res): Promise<void> => {
 
   if (!updated) { res.status(404).json({ error: "Enrollment not found" }); return; }
 
-  // If approved and set to active, automatically verify the pending fee payment record as well!
+  // If approved and set to active, auto-verify pending payment and assign roll/reg numbers
   if (status === "active") {
     await db.update(paymentsTable)
       .set({ status: "verified", notes: "Payment verified automatically via enrollment approval" })
@@ -108,6 +110,7 @@ router.patch("/enrollments/:id", async (req: any, res): Promise<void> => {
         eq(paymentsTable.courseId, updated.courseId),
         eq(paymentsTable.status, "pending")
       ));
+    await assignRollAndRegNo(updated.userId);
   }
 
   res.json(updated);

@@ -385,8 +385,8 @@ export default function Login() {
                         <Label htmlFor="password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                           Password
                         </Label>
-                        <Link href="/forgot-password" className="text-xs font-bold text-slate-400 hover:text-slate-700 transition-colors">
-                          Forgot?
+                        <Link href="/forgot-password" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">
+                          Forgot Password?
                         </Link>
                       </div>
                       <div className="relative">
@@ -449,6 +449,12 @@ export default function Login() {
 
                 {/* Footer */}
                 <div className="mt-6 pt-5 border-t border-slate-100 text-center space-y-3">
+                  <p className="text-sm text-slate-500 font-semibold">
+                    Forgot your password?{" "}
+                    <Link href="/forgot-password" className="text-indigo-600 hover:text-indigo-800 transition-colors underline underline-offset-2 font-black">
+                      Reset it here
+                    </Link>
+                  </p>
                   {selectedRole === "student" && (
                     <p className="text-sm text-slate-500 font-medium">
                       New to Global College?{" "}

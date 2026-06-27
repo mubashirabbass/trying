@@ -982,12 +982,14 @@ export default function AdminStudentDetail() {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <Label className="text-xs font-bold text-slate-600">Registration No (Reg No)</Label>
-                  <Input placeholder="e.g. 2024-GCUF-00419" value={formData.regNo} onChange={e => setFormData(prev => ({ ...prev, regNo: e.target.value }))} className="rounded-xl bg-white" />
+                  <Label className="text-xs font-bold text-slate-600">Registration No <span className="text-slate-400 font-normal">(auto-assigned on approval)</span></Label>
+                  <Input placeholder="e.g. 2026-GCCSC-01" value={formData.regNo} onChange={e => setFormData(prev => ({ ...prev, regNo: e.target.value }))} className="rounded-xl bg-white font-mono" />
+                  <p className="text-[10px] text-slate-400">Format: 2026-GCCSC-XX · Auto-filled when enrollment is approved</p>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs font-bold text-slate-600">Roll No</Label>
-                  <Input placeholder="e.g. 240468" value={formData.rollNo} onChange={e => setFormData(prev => ({ ...prev, rollNo: e.target.value }))} className="rounded-xl bg-white" />
+                  <Label className="text-xs font-bold text-slate-600">Roll No <span className="text-slate-400 font-normal">(auto-assigned on approval)</span></Label>
+                  <Input placeholder="e.g. GC-01" value={formData.rollNo} onChange={e => setFormData(prev => ({ ...prev, rollNo: e.target.value }))} className="rounded-xl bg-white font-mono" />
+                  <p className="text-[10px] text-slate-400">Format: GC-XX · Sequential, assigned when course is activated</p>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

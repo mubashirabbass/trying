@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { FeeReceipt } from "@/components/FeeReceipt";
 import { Link, useLocation } from "wouter";
 import {
   useListUsers, getListUsersQueryKey, useListEnrollments, getListEnrollmentsQueryKey,
@@ -15,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
@@ -24,7 +26,7 @@ import {
   Loader2, UserPlus, CheckCircle2, XCircle, GraduationCap,
   CreditCard, Users, User, ClipboardList, Phone, Mail, Search, ExternalLink,
   Eye, FileText, ArrowRight, Table as TableIcon, Edit2, Key, Trash2,
-  MoreVertical, ShieldAlert, Plus, BookOpen, MapPin, AlertCircle, Clock, Camera, Upload
+  MoreVertical, ShieldAlert, Plus, BookOpen, MapPin, AlertCircle, Clock, Camera, Upload, Printer, Receipt, DollarSign
 } from "lucide-react";
 
 type Tab = "dashboard" | "reg" | "enroll_req" | "fee" | "manual" | "enrolled";
@@ -53,6 +55,16 @@ export default function AdminStudents() {
   const [selectedManualStudent, setSelectedManualStudent] = useState<any>(null);
   const [previewSlipUrl, setPreviewSlipUrl] = useState<string | null>(null);
   const [manualPaymentStatus, setManualPaymentStatus] = useState<"pending" | "paid">("pending");
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [receiptData, setReceiptData] = useState<any>(null);
+
+  // Installment collection
+  const [collectFeeOpen, setCollectFeeOpen] = useState(false);
+  const [collectFeeData, setCollectFeeData] = useState<any>(null);
+  const [collectAmount, setCollectAmount] = useState("");
+  const [collectMethod, setCollectMethod] = useState("cash");
+  const [collectNotes, setCollectNotes] = useState("");
+  const [isCollecting, setIsCollecting] = useState(false);
 
   // Original Dashboard Modals & Filters
   const [roleFilter, setRoleFilter] = useState<string>("student");
@@ -269,19 +281,166 @@ export default function AdminStudents() {
     } catch { toast({ title: "Enrollment failed", variant: "destructive" }); }
   };
 
+  // Collect Installment Payment
+  const handleCollectInstallment = async () => {
+    if (!collectFeeData || !collectAmount || parseFloat(collectAmount) <= 0) {
+      toast({ title: "Please enter a valid amount", variant: "destructive" });
+      return;
+    }
+
+    const amount = parseFloat(collectAmount);
+    if (amount > collectFeeData.remainingBalance) {
+      toast({ title: "Amount cannot exceed remaining balance", variant: "destructive" });
+      return;
+    }
+
+    setIsCollecting(true);
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const BASE = window.location.origin;
+      
+      const newRemainingBalance = collectFeeData.remainingBalance - amount;
+      
+      // Create payment record
+      const res = await fetch(`${BASE}/api/payments`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: collectFeeData.userId,
+          courseId: collectFeeData.courseId,
+          amount: amount,
+          totalFee: collectFeeData.totalFee,
+          remainingFee: newRemainingBalance,
+          paymentPlan: "monthly",
+          installmentMonths: collectFeeData.installmentMonths || 6,
+          installmentNumber: collectFeeData.nextInstallmentNumber,
+          method: collectMethod,
+          status: "verified",
+          receiptUrl: null,
+          notes: `Installment #${collectFeeData.nextInstallmentNumber} collected by admin - ${collectMethod.toUpperCase()}. ${collectNotes}`,
+        }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to record payment");
+      }
+
+      const payment = await res.json();
+
+      // DEBUG: Log what the API returned
+      console.log('API returned payment:', payment);
+      console.log('collectFeeData.totalFee:', collectFeeData.totalFee);
+      console.log('amount collected:', amount);
+
+      // IMPORTANT: Explicitly ensure totalFee is the FULL course fee, not the installment amount
+      // Some backends might return incorrect totalFee, so we override it here
+      const receiptPayment = {
+        ...payment,
+        userName: collectFeeData.studentName,  // FeeReceipt expects 'userName' not 'studentName'
+        studentEmail: collectFeeData.studentEmail,
+        studentPhone: collectFeeData.studentPhone,
+        courseName: collectFeeData.courseName,
+        amount: amount,  // Amount paid in THIS installment
+        totalFee: collectFeeData.totalFee,  // FULL course fee (e.g., Rs. 50,000) - FORCE this value
+        remainingFee: newRemainingBalance,  // Balance AFTER this payment
+        installmentNumber: collectFeeData.nextInstallmentNumber,
+        installmentMonths: collectFeeData.installmentMonths,
+      };
+
+      console.log('Receipt payment object:', receiptPayment);
+
+      // Show receipt
+      setReceiptData(receiptPayment);
+
+      toast({
+        title: "✅ Payment Collected Successfully!",
+        description: `Rs. ${amount.toLocaleString()} collected. Remaining: Rs. ${newRemainingBalance.toLocaleString()}`,
+      });
+
+      // Reset form
+      setCollectFeeOpen(false);
+      setCollectFeeData(null);
+      setCollectAmount("");
+      setCollectMethod("cash");
+      setCollectNotes("");
+      
+      // Refresh data
+      invalidate();
+      
+      // Show receipt
+      setShowReceipt(true);
+    } catch (err: any) {
+      toast({ 
+        title: "Failed to collect payment", 
+        description: err.message || "Please try again",
+        variant: "destructive" 
+      });
+    } finally {
+      setIsCollecting(false);
+    }
+  };
+
+  // Open collect fee dialog
+  const openCollectFeeDialog = (enrollment: any, student: any) => {
+    const course = courses.find((c: any) => c.id === enrollment.courseId);
+    if (!course) return;
+
+    const verifiedPayments = payments.filter((p: any) => 
+      p.userId === student.id && 
+      p.courseId === enrollment.courseId && 
+      p.status === "verified"
+    );
+
+    const totalPaid = verifiedPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+    const remainingBalance = (course.fee || 0) - totalPaid;
+    const nextInstallmentNumber = verifiedPayments.length + 1;
+    
+    // Get installment months from first payment or default to 6
+    const installmentMonths = verifiedPayments[0]?.installmentMonths || enrollment.installmentMonths || 6;
+    const remainingInstallments = installmentMonths - verifiedPayments.length;
+    const suggestedAmount = remainingInstallments > 0 
+      ? Math.ceil(remainingBalance / remainingInstallments) 
+      : remainingBalance;
+
+    setCollectFeeData({
+      userId: student.id,
+      courseId: enrollment.courseId,
+      studentName: student.name,
+      studentEmail: student.email,
+      studentPhone: student.phone,
+      courseName: course.name,
+      totalFee: course.fee || 0,
+      totalPaid: totalPaid,
+      remainingBalance: remainingBalance,
+      installmentMonths: installmentMonths,
+      installmentsPaid: verifiedPayments.length,
+      nextInstallmentNumber: nextInstallmentNumber,
+      suggestedAmount: suggestedAmount,
+    });
+    
+    setCollectAmount(suggestedAmount.toString());
+    setCollectMethod("cash");
+    setCollectNotes("");
+    setCollectFeeOpen(true);
+  };
+
   // Original CRUD Handlers
   const handleAddUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.role === "student") {
       let identityDocumentUrl = "";
       let educationDocumentUrl = "";
+      let avatarUrl = "";  // Declare here, outside try block
 
       try {
         setIsUploading(true);
         const token = localStorage.getItem("token") || sessionStorage.getItem("token");
 
         // Upload profile picture
-        let avatarUrl = "";
         if (avatarFile) {
           const fd = new FormData();
           fd.append("file", avatarFile);
@@ -1078,7 +1237,7 @@ export default function AdminStudents() {
                   {/* --- ENROLLED STUDENTS --- */}
                   {tab === "enrolled" && (
                     enrolledList.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} className="h-48"><EmptyState msg="No fully enrolled students yet." /></TableCell></TableRow>
+                      <TableRow><TableCell colSpan={7} className="h-48"><EmptyState msg="No fully enrolled students yet." /></TableCell></TableRow>
                     ) : (
                       enrolledList.map((u: any, idx) => {
                         const activeEnrollments = enrollments.filter((e: any) => e.userId === u.id && e.status === "active");
@@ -1093,19 +1252,63 @@ export default function AdminStudents() {
                                 </span>
                               </Link>
                             </TableCell>
-                            <TableCell className="text-slate-600 font-mono">{u.email}</TableCell>
+                            <TableCell className="text-slate-600 font-mono text-xs">{u.email}</TableCell>
                             <TableCell className="py-2.5">
-                              <div className="flex flex-wrap gap-1">
-                                {activeEnrollments.map((e: any) => (
-                                  <Badge key={e.id} className="bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-50 rounded text-[10px] font-bold px-1.5 py-0.5">
-                                    {e.courseName || `Course #${e.courseId}`}
-                                  </Badge>
-                                ))}
+                              <div className="flex flex-col gap-2">
+                                {activeEnrollments.map((e: any) => {
+                                  const course = courses.find((c: any) => c.id === e.courseId);
+                                  const verifiedPayments = payments.filter((p: any) => 
+                                    p.userId === u.id && 
+                                    p.courseId === e.courseId && 
+                                    p.status === "verified"
+                                  );
+                                  
+                                  const totalPaid = verifiedPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+                                  const courseFee = course?.fee || 0;
+                                  const remainingBalance = courseFee - totalPaid;
+                                  const isFullyPaid = remainingBalance <= 0;
+                                  
+                                  // Check if it's an installment plan
+                                  const hasInstallmentPayment = verifiedPayments.some((p: any) => p.paymentPlan === "monthly");
+                                  const installmentMonths = verifiedPayments[0]?.installmentMonths || 6;
+                                  const installmentsPaid = verifiedPayments.length;
+                                  
+                                  return (
+                                    <div key={e.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100">
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[10px] font-bold px-1.5 py-0.5">
+                                            {e.courseName || `Course #${e.courseId}`}
+                                          </Badge>
+                                          {isFullyPaid ? (
+                                            <Badge className="bg-green-100 text-green-700 border border-green-200 rounded text-[9px] font-black px-1.5 py-0.5">
+                                              ✓ PAID
+                                            </Badge>
+                                          ) : hasInstallmentPayment ? (
+                                            <Badge className="bg-amber-100 text-amber-700 border border-amber-200 rounded text-[9px] font-black px-1.5 py-0.5">
+                                              {installmentsPaid}/{installmentMonths}
+                                            </Badge>
+                                          ) : null}
+                                        </div>
+                                        <div className="text-[10px] text-slate-500 mt-1">
+                                          {isFullyPaid ? (
+                                            <span className="font-bold text-green-600">Fully Paid: Rs. {courseFee.toLocaleString()}</span>
+                                          ) : (
+                                            <div className="flex flex-col gap-0.5">
+                                              <span>Paid: <span className="font-bold text-emerald-600">Rs. {totalPaid.toLocaleString()}</span> / Rs. {courseFee.toLocaleString()}</span>
+                                              <span>Remaining: <span className="font-bold text-amber-600">Rs. {remainingBalance.toLocaleString()}</span></span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </TableCell>
                             <TableCell>
                               <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-50 rounded text-[10px] font-black uppercase tracking-wider px-2 py-0.5">
-                                Fully Enrolled
+                                Enrolled
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right py-2 pr-6">
@@ -1125,7 +1328,7 @@ export default function AdminStudents() {
                                       <MoreVertical className="h-4 w-4 text-slate-500" />
                                     </Button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
+                                  <DropdownMenuContent align="end" className="w-64 rounded-2xl p-1.5">
                                     <DropdownMenuItem className="rounded-xl font-bold text-xs gap-2 py-2" onClick={() => setLocation(`/admin/users/${u.id}`)}>
                                       <User className="h-4 w-4 text-slate-400" /> View Profile
                                     </DropdownMenuItem>
@@ -1145,6 +1348,104 @@ export default function AdminStudents() {
                                             Unenroll: {e.courseName || `Course #${e.courseId}`}
                                           </DropdownMenuItem>
                                         ))}
+                                      </>
+                                    )}
+                                    
+                                    {/* Collect Fee Options */}
+                                    {activeEnrollments.length > 0 && (
+                                      <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuLabel className="text-[10px] font-black text-slate-400 uppercase px-2 py-1">Fee Collection</DropdownMenuLabel>
+                                        {activeEnrollments.map((e: any) => {
+                                          const course = courses.find((c: any) => c.id === e.courseId);
+                                          const verifiedPayments = payments.filter((p: any) => 
+                                            p.userId === u.id && 
+                                            p.courseId === e.courseId && 
+                                            p.status === "verified"
+                                          );
+                                          
+                                          const totalPaid = verifiedPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+                                          const courseFee = course?.fee || 0;
+                                          const remainingBalance = courseFee - totalPaid;
+                                          const isFullyPaid = remainingBalance <= 0;
+                                          
+                                          return (
+                                            <div key={`fee-${e.id}`}>
+                                              {/* Show Collect Fee button if not fully paid (even on first payment) */}
+                                              {!isFullyPaid && (
+                                                <DropdownMenuItem 
+                                                  className="rounded-xl font-bold text-xs gap-2 py-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50" 
+                                                  onClick={() => openCollectFeeDialog(e, u)}
+                                                >
+                                                  <DollarSign className="h-4 w-4" /> 
+                                                  Collect Fee: {e.courseName || `Course #${e.courseId}`}
+                                                </DropdownMenuItem>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </>
+                                    )}
+                                    
+                                    {/* Print Receipts Option */}
+                                    {activeEnrollments.length > 0 && (
+                                      <>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuLabel className="text-[10px] font-black text-slate-400 uppercase px-2 py-1">Fee Receipts</DropdownMenuLabel>
+                                        {activeEnrollments.map((e: any) => {
+                                          const verifiedPayments = payments.filter((p: any) => 
+                                            p.userId === u.id && 
+                                            p.courseId === e.courseId && 
+                                            p.status === "verified"
+                                          );
+                                          
+                                          if (verifiedPayments.length === 0) return null;
+                                          
+                                          // If multiple payments, show submenu for each
+                                          if (verifiedPayments.length > 1) {
+                                            return verifiedPayments.map((payment: any, pIdx: number) => (
+                                              <DropdownMenuItem 
+                                                key={`receipt-${e.id}-${payment.id}`} 
+                                                className="rounded-xl font-bold text-xs gap-2 py-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50" 
+                                                onClick={() => {
+                                                  setReceiptData({
+                                                    ...payment,
+                                                    studentName: u.name,
+                                                    studentEmail: u.email,
+                                                    studentPhone: u.phone,
+                                                    courseName: e.courseName || `Course #${e.courseId}`,
+                                                  });
+                                                  setShowReceipt(true);
+                                                }}
+                                              >
+                                                <Receipt className="h-4 w-4" /> 
+                                                Receipt #{pIdx + 1}: {e.courseName || `Course #${e.courseId}`}
+                                              </DropdownMenuItem>
+                                            ));
+                                          } else {
+                                            // Single payment
+                                            const payment = verifiedPayments[0];
+                                            return (
+                                              <DropdownMenuItem 
+                                                key={`receipt-${e.id}`} 
+                                                className="rounded-xl font-bold text-xs gap-2 py-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50" 
+                                                onClick={() => {
+                                                  setReceiptData({
+                                                    ...payment,
+                                                    studentName: u.name,
+                                                    studentEmail: u.email,
+                                                    studentPhone: u.phone,
+                                                    courseName: e.courseName || `Course #${e.courseId}`,
+                                                  });
+                                                  setShowReceipt(true);
+                                                }}
+                                              >
+                                                <Printer className="h-4 w-4" /> 
+                                                Print Receipt: {e.courseName || `Course #${e.courseId}`}
+                                              </DropdownMenuItem>
+                                            );
+                                          }
+                                        })}
                                       </>
                                     )}
                                   </DropdownMenuContent>
@@ -1859,6 +2160,167 @@ export default function AdminStudents() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Collect Fee Dialog */}
+      <Dialog open={collectFeeOpen} onOpenChange={setCollectFeeOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-indigo-500" />
+              Collect Installment Payment
+            </DialogTitle>
+            <DialogDescription>
+              Record cash or bank payment received from student
+            </DialogDescription>
+          </DialogHeader>
+
+          {collectFeeData && (
+            <div className="space-y-4">
+              {/* Student & Course Info */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Student:</span>
+                  <span className="font-bold text-slate-900">{collectFeeData.studentName}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Course:</span>
+                  <span className="font-bold text-slate-900">{collectFeeData.courseName}</span>
+                </div>
+                <div className="h-px bg-slate-200 my-2" />
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Total Fee:</span>
+                  <span className="font-bold text-slate-900">Rs. {collectFeeData.totalFee.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Already Paid:</span>
+                  <span className="font-bold text-emerald-600">Rs. {collectFeeData.totalPaid.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-500">Remaining:</span>
+                  <span className="font-bold text-amber-600">Rs. {collectFeeData.remainingBalance.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-xs text-slate-400 mt-2 pt-2 border-t border-slate-200">
+                  <span>Installments:</span>
+                  <span className="font-bold">{collectFeeData.installmentsPaid} / {collectFeeData.installmentMonths} paid</span>
+                </div>
+              </div>
+
+              {/* Payment Form */}
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs font-bold text-slate-700">Installment Number</Label>
+                  <Input
+                    type="text"
+                    value={`#${collectFeeData.nextInstallmentNumber} of ${collectFeeData.installmentMonths}`}
+                    disabled
+                    className="mt-1 bg-slate-50 font-bold"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-bold text-slate-700">
+                    Amount to Collect <span className="text-slate-400 font-normal">(max: Rs. {collectFeeData.remainingBalance.toLocaleString()})</span>
+                  </Label>
+                  <Input
+                    type="number"
+                    placeholder="Enter amount"
+                    value={collectAmount}
+                    onChange={(e) => setCollectAmount(e.target.value)}
+                    max={collectFeeData.remainingBalance}
+                    className="mt-1"
+                  />
+                  {collectFeeData.suggestedAmount && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      Suggested: Rs. {collectFeeData.suggestedAmount.toLocaleString()} 
+                      <button
+                        type="button"
+                        onClick={() => setCollectAmount(collectFeeData.suggestedAmount.toString())}
+                        className="ml-2 text-indigo-600 hover:text-indigo-700 font-semibold"
+                      >
+                        Use this
+                      </button>
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Label className="text-xs font-bold text-slate-700">Payment Method</Label>
+                  <Select value={collectMethod} onValueChange={setCollectMethod}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="online">Online Payment</SelectItem>
+                      <SelectItem value="cheque">Cheque</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-bold text-slate-700">Notes (Optional)</Label>
+                  <Textarea
+                    placeholder="Add any notes about this payment..."
+                    value={collectNotes}
+                    onChange={(e) => setCollectNotes(e.target.value)}
+                    className="mt-1 h-20 resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setCollectFeeOpen(false);
+                    setCollectFeeData(null);
+                  }}
+                  className="flex-1"
+                  disabled={isCollecting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCollectInstallment}
+                  disabled={isCollecting || !collectAmount || parseFloat(collectAmount) <= 0}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {isCollecting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Receipt className="h-4 w-4 mr-2" />
+                      Record & Print Receipt
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Fee Receipt Modal */}
+      {showReceipt && receiptData && (
+        <FeeReceipt
+          payment={receiptData}
+          institute={{
+            name: "GLOBAL COLLEGE",
+            address: "Muzaffargarh, Punjab, Pakistan",
+            phone: "+92-300-1234567",
+            email: "info@globalcollege.edu.pk"
+          }}
+          onClose={() => {
+            setShowReceipt(false);
+            setReceiptData(null);
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }

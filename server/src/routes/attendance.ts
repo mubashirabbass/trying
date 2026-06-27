@@ -64,16 +64,19 @@ router.get("/attendance/course/:courseId/students", authenticate, authorize("adm
 
   const students = await db
     .select({
-      userId: enrollmentsTable.userId,
-      name: usersTable.name,
-      email: usersTable.email,
+      userId:  enrollmentsTable.userId,
+      name:    usersTable.name,
+      email:   usersTable.email,
+      rollNo:  usersTable.rollNo,
+      regNo:   usersTable.regNo,
     })
     .from(enrollmentsTable)
     .leftJoin(usersTable, eq(enrollmentsTable.userId, usersTable.id))
     .where(and(
       eq(enrollmentsTable.courseId, courseId),
       inArray(enrollmentsTable.status, ["active", "pending", "completed"])
-    ));
+    ))
+    .orderBy(usersTable.rollNo);   // sort by roll number in ascending order
 
   res.json(students);
 });
