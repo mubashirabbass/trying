@@ -45,6 +45,11 @@ export const usersTable = pgTable("users", {
 }, (table) => {
   return {
     branchIdIdx: index("user_branch_id_idx").on(table.branchId),
+    roleIdx: index("user_role_idx").on(table.role),
+    isActiveIdx: index("user_is_active_idx").on(table.isActive),
+    emailIdx: index("user_email_idx").on(table.email),
+    phoneIdx: index("user_phone_idx").on(table.phone),
+    createdAtIdx: index("user_created_at_idx").on(table.createdAt),
   };
 });
 

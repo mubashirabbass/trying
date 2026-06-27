@@ -30,6 +30,7 @@ import { Switch } from "@/components/ui/switch";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { FileUploadButton } from "@/components/FileUploadButton";
 
 export default function AdminCourseEdit() {
   const { id } = useParams();
@@ -52,7 +53,10 @@ export default function AdminCourseEdit() {
     isFeatured: false,
     isFree: false,
     thumbnail: "",
-    syllabus: ""
+    syllabus: "",
+    totalDurationHours: 0,
+    outlinePdfUrl: "",
+    minAttendancePercentage: 75
   });
 
   useEffect(() => {
@@ -68,7 +72,10 @@ export default function AdminCourseEdit() {
         isFeatured: !!course.isFeatured,
         isFree: !!course.isFree,
         thumbnail: course.thumbnail || "",
-        syllabus: course.syllabus || ""
+        syllabus: course.syllabus || "",
+        totalDurationHours: Number(course.totalDurationHours || 0),
+        outlinePdfUrl: course.outlinePdfUrl || "",
+        minAttendancePercentage: Number(course.minAttendancePercentage || 75)
       });
     }
   }, [course]);
@@ -195,6 +202,31 @@ export default function AdminCourseEdit() {
                     id="duration" 
                     value={formData.duration} 
                     onChange={e => setFormData(prev => ({ ...prev, duration: e.target.value }))}
+                    className="rounded-xl bg-slate-50 border-gray-100 h-12"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="totalDurationHours" className="font-bold">Total Lectures / Credit Hours</Label>
+                  <Input 
+                    id="totalDurationHours" 
+                    type="number"
+                    value={formData.totalDurationHours} 
+                    onChange={e => setFormData(prev => ({ ...prev, totalDurationHours: Number(e.target.value) }))}
+                    className="rounded-xl bg-slate-50 border-gray-100 h-12"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="minAttendancePercentage" className="font-bold">Min Attendance Threshold (%)</Label>
+                  <Input 
+                    id="minAttendancePercentage" 
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formData.minAttendancePercentage} 
+                    onChange={e => setFormData(prev => ({ ...prev, minAttendancePercentage: Number(e.target.value) }))}
                     className="rounded-xl bg-slate-50 border-gray-100 h-12"
                   />
                 </div>
@@ -342,27 +374,38 @@ export default function AdminCourseEdit() {
             </CardContent>
           </Card>
 
-          {/* Media */}
+          {/* Media & Documents */}
           <Card className="border-none shadow-sm ring-1 ring-gray-100 rounded-[24px]">
             <CardHeader>
-              <CardTitle className="text-sm font-black text-gray-400 uppercase tracking-widest">Media Assets</CardTitle>
+              <CardTitle className="text-sm font-black text-gray-400 uppercase tracking-widest">Media & Documents</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="thumbnail" className="text-xs font-bold">Thumbnail URL</Label>
-                <Input 
-                  id="thumbnail" 
-                  value={formData.thumbnail} 
-                  onChange={e => setFormData(prev => ({ ...prev, thumbnail: e.target.value }))}
-                  className="rounded-xl bg-slate-50 border-gray-100 text-xs"
-                  placeholder="https://..."
+            <CardContent className="space-y-6">
+              {/* Thumbnail Image */}
+              <div className="space-y-1.5">
+                <FileUploadButton
+                  type="image"
+                  label="Course Thumbnail Image"
+                  currentUrl={formData.thumbnail || null}
+                  onUploaded={(url) => setFormData(prev => ({ ...prev, thumbnail: url }))}
+                  onClear={() => setFormData(prev => ({ ...prev, thumbnail: "" }))}
+                  showDownload={true}
                 />
               </div>
-              {formData.thumbnail && (
-                <div className="aspect-video rounded-xl overflow-hidden border border-gray-100">
-                  <img src={formData.thumbnail} alt="Preview" className="w-full h-full object-cover" />
-                </div>
-              )}
+
+              {/* Course Outline PDF */}
+              <div className="space-y-1.5">
+                <FileUploadButton
+                  type="pdf"
+                  label="Course Outline PDF (Syllabus)"
+                  currentUrl={formData.outlinePdfUrl || null}
+                  onUploaded={(url) => setFormData(prev => ({ ...prev, outlinePdfUrl: url }))}
+                  onClear={() => setFormData(prev => ({ ...prev, outlinePdfUrl: "" }))}
+                  showDownload={true}
+                />
+                <p className="text-[10px] text-gray-400 font-semibold leading-relaxed">
+                  Enrolled students will see a download button for this PDF on the course detail portal.
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>

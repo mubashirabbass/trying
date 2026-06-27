@@ -305,6 +305,27 @@ router.get("/courses/reviews", authenticate, authorize("admin", "teacher"), asyn
   }
 });
 
+router.delete("/courses/reviews/:id", authenticate, authorize("admin"), async (req: AuthRequest, res): Promise<void> => {
+  try {
+    const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const reviewId = parseInt(raw, 10);
+    if (isNaN(reviewId)) {
+      res.status(400).json({ error: "Invalid review ID" });
+      return;
+    }
+
+    // Clear feedback rating and comment to delete the review while preserving student lesson completion status
+    await db
+      .update(lessonCompletionsTable)
+      .set({ feedbackRating: null, feedbackComment: null })
+      .where(eq(lessonCompletionsTable.id, reviewId));
+
+    res.json({ message: "Review deleted successfully" });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to delete review" });
+  }
+});
+
 router.get("/courses/:id", async (req, res): Promise<void> => {
   const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(raw, 10);

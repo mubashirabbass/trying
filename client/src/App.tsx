@@ -100,6 +100,7 @@ import AdminArticles from "@/pages/admin/articles";
 import AdminFAQs from "@/pages/admin/faqs";
 import AdminFranchiseApplications from "@/pages/admin/franchise-applications";
 import AdminFees from "@/pages/admin/fees";
+import AdminPayroll from "@/pages/admin/payroll";
 
 const queryClient = new QueryClient();
 
@@ -291,6 +292,9 @@ function Router() {
         </Route>
         <Route path="/admin/fees">
           <ProtectedRoute component={AdminFees} />
+        </Route>
+        <Route path="/admin/payroll">
+          <ProtectedRoute component={AdminPayroll} />
         </Route>
         <Route path="/admin/branches">
           <ProtectedRoute component={AdminBranches} />

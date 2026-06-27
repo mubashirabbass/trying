@@ -39,11 +39,21 @@ export default function AdminLiveClasses() {
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Dynamic selector data
-  const { data: courses } = useListCourses({}, { query: { queryKey: getListCoursesQueryKey({}) } });
+  // Dynamic selector data — deferred fetch until modal is open and specific target type is active
+  const { data: courses } = useListCourses({}, { 
+    query: { 
+      queryKey: getListCoursesQueryKey({}),
+      enabled: isCreateOpen && targetType === "course"
+    } 
+  });
   const { data: students } = useListUsers(
     { role: "student" },
-    { query: { queryKey: getListUsersQueryKey({ role: "student" }) } }
+    { 
+      query: { 
+        queryKey: getListUsersQueryKey({ role: "student" }),
+        enabled: isCreateOpen && targetType === "student"
+      } 
+    }
   );
 
   const headers = {

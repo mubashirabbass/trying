@@ -39,7 +39,10 @@ router.get("/live-classes", async (req: AuthRequest, res): Promise<void> => {
       const toExpire = classes.filter(c => !c.isCompleted && new Date(c.scheduledAt) < now);
       if (toExpire.length > 0) {
         const toExpireIds = toExpire.map(c => c.id);
-        await db.update(liveClassesTable).set({ isCompleted: true }).where(inArray(liveClassesTable.id, toExpireIds));
+        db.update(liveClassesTable)
+          .set({ isCompleted: true })
+          .where(inArray(liveClassesTable.id, toExpireIds))
+          .catch(err => console.error("Failed to auto-expire live classes:", err));
         for (const c of toExpire) {
           c.isCompleted = true;
         }

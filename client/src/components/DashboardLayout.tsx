@@ -38,6 +38,7 @@ import {
   Video,
   Newspaper,
   IdCard,
+  Banknote,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -176,6 +177,7 @@ const ADMIN_NAV_GROUPS = [
     items: [
       { name: "Manual Enrollment", path: "/admin/enrollments", icon: ClipboardList },
       { name: "Fee Tracker", path: "/admin/fees", icon: CreditCard },
+      { name: "Payroll Management", path: "/admin/payroll", icon: Banknote },
     ],
   },
   {

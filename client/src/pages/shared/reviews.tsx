@@ -6,10 +6,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { PaginationControls, paginateItems } from "@/components/PaginationControls";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { 
   Star, Search, Loader2, BookOpen, User, MessageSquare, 
   TrendingUp, Calendar, RotateCcw, AlertCircle,
-  GraduationCap, BookMarked, FileDown
+  GraduationCap, BookMarked, FileDown, Trash2, Eye
 } from "lucide-react";
 
 interface Review {
@@ -34,15 +38,21 @@ interface UserItem {
   name: string;
 }
 
+const PAGE_SIZE = 8;
+
 export default function LectureReviews() {
   const { token, user } = useAuth();
+  const { toast } = useToast();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [coursesList, setCoursesList] = useState<CourseItem[]>([]);
   const [teachersList, setTeachersList] = useState<UserItem[]>([]);
   const [studentsList, setStudentsList] = useState<UserItem[]>([]);
   
   const [isLoading, setIsLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [viewingReview, setViewingReview] = useState<Review | null>(null);
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,6 +65,30 @@ export default function LectureReviews() {
   const [selectedDateFilter, setSelectedDateFilter] = useState("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+
+  const handleDeleteReview = async (reviewId: number) => {
+    if (!window.confirm("Are you sure you want to delete this lecture review?")) return;
+    setDeletingId(reviewId);
+    try {
+      const response = await fetch(`/api/courses/reviews/${reviewId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        }
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.error || data?.message || `Server error ${response.status}`);
+      }
+      toast({ title: "✅ Review Deleted", description: "The lecture review has been removed successfully." });
+      setReviews(prev => prev.filter(r => r.reviewId !== reviewId));
+    } catch (err: any) {
+      toast({ title: err.message || "Failed to delete review", variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const fetchReviews = async () => {
     setIsLoading(true);
@@ -104,6 +138,10 @@ export default function LectureReviews() {
     }
   }, [token]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, selectedCourse, selectedTeacher, selectedStudent, selectedRating, selectedDateFilter, startDate, endDate]);
+
   // Reset Filters
   const handleResetFilters = () => {
     setSearchQuery("");
@@ -114,6 +152,7 @@ export default function LectureReviews() {
     setSelectedDateFilter("all");
     setStartDate("");
     setEndDate("");
+    setPage(1);
   };
 
   // Filter & Search Logic
@@ -526,10 +565,13 @@ export default function LectureReviews() {
                       <TableHead className="font-black text-slate-500 py-4">Rating</TableHead>
                       <TableHead className="font-black text-slate-500 py-4 w-[35%]">Feedback Comment</TableHead>
                       <TableHead className="font-black text-slate-500 py-4 pr-6">Date</TableHead>
+                      {user?.role === "admin" && (
+                        <TableHead className="font-black text-slate-500 py-4 pr-6 text-right">Action</TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredReviews.map((review) => (
+                    {paginateItems(filteredReviews, page, PAGE_SIZE).map((review) => (
                       <TableRow key={review.reviewId} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/10">
                         {/* Student Info */}
                         <TableCell className="py-4 pl-6 font-medium">
@@ -597,6 +639,37 @@ export default function LectureReviews() {
                             })}
                           </div>
                         </TableCell>
+
+                        {/* Admin Actions: View + Delete */}
+                        {user?.role === "admin" && (
+                          <TableCell className="py-4 pr-6 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                                onClick={() => setViewingReview(review)}
+                                title="View Full Review"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                disabled={deletingId === review.reviewId}
+                                className="h-8 w-8 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                                onClick={() => handleDeleteReview(review.reviewId)}
+                                title="Delete Review"
+                              >
+                                {deletingId === review.reviewId ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -605,7 +678,116 @@ export default function LectureReviews() {
             )}
           </CardContent>
         </Card>
+
+        {/* Pagination Controls */}
+        <PaginationControls 
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalItems={filteredReviews.length}
+          onPageChange={setPage}
+          label="reviews"
+        />
       </div>
+
+      {/* Review Detail Dialog */}
+      <Dialog open={!!viewingReview} onOpenChange={(open) => { if (!open) setViewingReview(null); }}>
+        <DialogContent className="max-w-lg rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg font-black">
+              <Star className="h-5 w-5 text-amber-500 fill-amber-500" /> Lecture Review Detail
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-400">
+              Full review submitted by the student for this lecture.
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewingReview && (
+            <div className="space-y-5 pt-1">
+              {/* Student + Course Info */}
+              <div className="flex items-start gap-4 p-4 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                <div className="h-11 w-11 rounded-full bg-indigo-100 text-indigo-700 font-black text-lg flex items-center justify-center shrink-0">
+                  {viewingReview.studentName.charAt(0).toUpperCase()}
+                </div>
+                <div className="space-y-0.5 flex-1 min-w-0">
+                  <p className="font-black text-slate-900 dark:text-white">{viewingReview.studentName}</p>
+                  <p className="text-xs text-slate-500 flex items-center gap-1 truncate">
+                    <BookOpen className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
+                    <span className="font-bold truncate">{viewingReview.courseTitle}</span>
+                  </p>
+                  <p className="text-xs text-slate-400 flex items-center gap-1 truncate">
+                    <BookMarked className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">{viewingReview.lessonTitle}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Rating */}
+              <div className="space-y-1.5">
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Star Rating</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1">
+                    {[1,2,3,4,5].map(s => (
+                      <Star key={s} className={`h-6 w-6 ${s <= viewingReview.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200 dark:text-slate-700'}`} />
+                    ))}
+                  </div>
+                  <Badge className={`text-xs font-black px-2.5 py-0.5 ${
+                    viewingReview.rating >= 4 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                    viewingReview.rating === 3 ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                    'bg-rose-100 text-rose-700 border-rose-200'
+                  }`}>
+                    {viewingReview.rating} / 5
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Full Comment */}
+              <div className="space-y-1.5">
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Feedback Comment</p>
+                {viewingReview.comment ? (
+                  <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                    "{viewingReview.comment}"
+                  </div>
+                ) : (
+                  <p className="text-slate-400 italic text-sm">No written comment was provided for this review.</p>
+                )}
+              </div>
+
+              {/* Meta Info */}
+              <div className="flex items-center justify-between text-xs text-slate-400 font-semibold border-t border-slate-100 dark:border-slate-800 pt-3">
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {new Date(viewingReview.completedAt).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}
+                </span>
+                {viewingReview.teacherName && (
+                  <span className="flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5" />
+                    {viewingReview.teacherName}
+                  </span>
+                )}
+              </div>
+
+              {/* Delete from Dialog */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full gap-2 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-bold rounded-xl"
+                disabled={deletingId === viewingReview.reviewId}
+                onClick={() => {
+                  setViewingReview(null);
+                  handleDeleteReview(viewingReview.reviewId);
+                }}
+              >
+                {deletingId === viewingReview.reviewId ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                Delete This Review
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

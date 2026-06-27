@@ -6,7 +6,7 @@ import {
   useDeleteCourse
 } from "@workspace/api-client-react";
 import { Link } from "wouter";
-import { Loader2, Plus, BookOpen, Clock, Users, Edit, GraduationCap, Sparkles, BookOpenCheck, Trash2 } from "lucide-react";
+import { Loader2, Plus, BookOpen, Clock, Users, Edit, GraduationCap, Sparkles, BookOpenCheck, Trash2, Send, CheckCircle2, AlertCircle } from "lucide-react";
 import { FileUploadButton } from "@/components/FileUploadButton";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -191,6 +191,30 @@ export default function TeacherCourses() {
     }
   };
 
+  const handleSubmitForApproval = async (courseId: number) => {
+    try {
+      const response = await fetch(`/api/courses/${courseId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ status: "pending" }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to submit for approval");
+      }
+      toast({
+        title: "🚀 Submitted for Approval!",
+        description: "Your course has been sent to the Admin team for review and publishing.",
+      });
+      queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({ teacherId: user?.id ?? undefined }) });
+    } catch (error: any) {
+      toast({ title: error?.message || "Failed to submit for approval", variant: "destructive" });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "live": return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border border-emerald-200">Live</Badge>;
@@ -298,6 +322,29 @@ export default function TeacherCourses() {
                   <Sparkles className="h-3.5 w-3.5" /> Curriculum Builder
                 </Button>
               </Link>
+
+              {/* Submit for Admin Approval Action Button */}
+              {((course as any).status === "draft" || (course as any).status === "rejected") && (
+                <Button 
+                  size="sm" 
+                  className="col-span-2 w-full gap-1.5 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-950/10"
+                  onClick={() => handleSubmitForApproval(course.id)}
+                >
+                  <Send className="h-3.5 w-3.5" /> Submit for Admin Approval
+                </Button>
+              )}
+
+              {(course as any).status === "pending" && (
+                <div className="col-span-2 w-full p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-center text-xs font-bold text-amber-700 flex items-center justify-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 animate-spin" /> Pending Admin Review
+                </div>
+              )}
+
+              {(course as any).status === "live" && (
+                <div className="col-span-2 w-full p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-center text-xs font-bold text-emerald-700 flex items-center justify-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Live on Portal & Catalog
+                </div>
+              )}
             </CardFooter>
           </Card>
         ))}

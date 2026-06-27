@@ -43,6 +43,9 @@ export const lessonCompletionsTable = pgTable("lesson_completions", {
   return {
     lessonIdIdx: index("lesson_completion_lesson_id_idx").on(table.lessonId),
     userIdIdx: index("lesson_completion_user_id_idx").on(table.userId),
+    ratingIdx: index("lesson_completion_feedback_rating_idx").on(table.feedbackRating),
+    completedAtIdx: index("lesson_completion_completed_at_idx").on(table.completedAt),
+    ratingCompletedAtIdx: index("lesson_completion_rating_completed_at_idx").on(table.feedbackRating, table.completedAt),
   };
 });
 

@@ -36,8 +36,53 @@ export default function AdminDashboard() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col gap-8 animate-pulse">
+          {/* Banner Skeleton */}
+          <div className="rounded-[32px] bg-slate-100 p-8 lg:p-12 h-[340px] flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="h-4 w-32 bg-slate-200 rounded-full" />
+              <div className="h-8 w-64 bg-slate-200 rounded-full" />
+              <div className="h-3 w-80 bg-slate-200 rounded-full" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-24 bg-slate-200 rounded-2xl" />
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Actions Row */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-28 bg-slate-100 rounded-[20px]" />
+            ))}
+          </div>
+
+          {/* Two Column Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {[1, 2].map((card) => (
+              <div key={card} className="border-2 border-slate-100 rounded-[32px] bg-white p-8 space-y-6">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                  <div className="h-6 w-40 bg-slate-200 rounded-full" />
+                  <div className="h-8 w-20 bg-slate-200 rounded-xl" />
+                </div>
+                <div className="space-y-6">
+                  {[1, 2, 3, 4, 5].map((row) => (
+                    <div key={row} className="flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-slate-200 rounded-xl animate-pulse" />
+                        <div className="space-y-2">
+                          <div className="h-4 w-36 bg-slate-200 rounded-full" />
+                          <div className="h-3 w-24 bg-slate-200 rounded-full" />
+                        </div>
+                      </div>
+                      <div className="h-4 w-16 bg-slate-200 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -54,9 +99,9 @@ export default function AdminDashboard() {
           <div className="relative z-10">
             <div className="flex justify-between items-start flex-wrap gap-4 mb-6">
               <div>
-                <span className="text-[10px] uppercase tracking-widest font-black text-indigo-400 bg-indigo-400/10 px-3 py-1 rounded-full border border-indigo-400/20">System Operations</span>
+                <p className="text-sm font-black uppercase tracking-widest text-indigo-300 mb-2">Welcome to Global College Admin System Operations</p>
                 <h2 className="text-3xl font-black tracking-tight mt-2 text-white">Admin Command Center</h2>
-                <p className="text-white/60 text-xs mt-0.5">Global College LMS — Platform Health & Operations Overview</p>
+                <p className="text-white/60 text-xs mt-1">Global College LMS — Platform Health & Operations Overview</p>
               </div>
             </div>
 

@@ -27,6 +27,8 @@ export const paymentsTable = pgTable("payments", {
   return {
     userIdIdx: index("payment_user_id_idx").on(table.userId),
     courseIdIdx: index("payment_course_id_idx").on(table.courseId),
+    statusIdx: index("payment_status_idx").on(table.status),
+    createdAtIdx: index("payment_created_at_idx").on(table.createdAt),
   };
 });
 

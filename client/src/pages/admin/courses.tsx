@@ -201,6 +201,7 @@ export default function AdminCourses() {
   const [syllabus, setSyllabus] = useState("");
   const [teacherId, setTeacherId] = useState<string>("");
   const [minAttendancePercentage, setMinAttendancePercentage] = useState("75");
+  const [totalDurationHours, setTotalDurationHours] = useState("40");
 
   // Set default category when categories load
   useEffect(() => {
@@ -225,6 +226,10 @@ export default function AdminCourses() {
   const totalCourses = courses?.length || 0;
   const pendingReviews = courses?.filter(c => c.status === "pending").length || 0;
   const liveTracks = courses?.filter(c => c.status === "live").length || 0;
+  const countLive = liveTracks;
+  const countDraft = courses?.filter(c => c.status === "draft").length || 0;
+  const countArchived = courses?.filter(c => c.status === "archived").length || 0;
+  const countPending = pendingReviews;
   const totalStudentsEnrolled = courses?.reduce((sum, c) => sum + (c.enrollmentCount || 0), 0) || 0;
 
   const handleCreateCourse = async (e: React.FormEvent) => {
@@ -248,6 +253,7 @@ export default function AdminCourses() {
           teacherId: teacherId && teacherId !== "none" ? Number(teacherId) : undefined,
           minAttendancePercentage: Number(minAttendancePercentage),
           outlinePdfUrl: outlinePdfUrl || undefined,
+          totalDurationHours: Number(totalDurationHours),
         } as any
       });
       toast({ title: "Course created & published successfully!" });
@@ -266,6 +272,7 @@ export default function AdminCourses() {
       setSyllabus("");
       setTeacherId("");
       setMinAttendancePercentage("75");
+      setTotalDurationHours("40");
     } catch (error: any) {
       toast({ title: error?.response?.data?.message || "Failed to create course", variant: "destructive" });
     }
@@ -280,6 +287,19 @@ export default function AdminCourses() {
       } catch (error) {
         toast({ title: "Failed to delete course", variant: "destructive" });
       }
+    }
+  };
+
+  const handleUpdateStatus = async (id: number, status: string) => {
+    try {
+      await updateCourse.mutateAsync({
+        id,
+        data: { status } as any
+      });
+      toast({ title: "Status Updated", description: `Course status successfully set to ${status.toUpperCase()}.` });
+      queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({}) });
+    } catch (error) {
+      toast({ title: "Failed to update status", variant: "destructive" });
     }
   };
 
@@ -424,6 +444,39 @@ export default function AdminCourses() {
         </Card>
       </div>
 
+      {/* Dynamic Curriculum Sections Tab Bar */}
+      <div className="flex border-b border-slate-200 dark:border-slate-800 mb-6 overflow-x-auto select-none gap-1">
+        {[
+          { id: "all", label: "All Programs", count: totalCourses, icon: BookOpen },
+          { id: "live", label: "Live Courses", count: countLive, icon: CheckCircle, color: "text-emerald-600" },
+          { id: "draft", label: "Draft Courses", count: countDraft, icon: Clock, color: "text-amber-600" },
+          { id: "archived", label: "Hidden / Archive", count: countArchived, icon: XCircle, color: "text-slate-500" },
+          { id: "pending", label: "Review Pending", count: countPending, icon: AlertCircle, color: "text-purple-600" },
+        ].map(t => (
+          <button 
+            key={t.id} 
+            onClick={() => setFilterStatus(t.id)}
+            className={`flex items-center gap-2 px-5 py-3.5 text-xs font-black tracking-wider uppercase border-b-2 transition-all shrink-0 ${
+              filterStatus === t.id 
+                ? "border-indigo-600 text-indigo-700 dark:text-indigo-400 font-black" 
+                : "border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:border-slate-300"
+            }`}
+          >
+            <t.icon className={`h-4 w-4 ${t.color || ""}`} />
+            {t.label}
+            {t.count > 0 && (
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ml-1 ${
+                filterStatus === t.id 
+                  ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800" 
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-500"
+              }`}>
+                {t.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* Filter and Search toolbar */}
       <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-white dark:bg-slate-900 border border-slate-150/80 dark:border-slate-800/80 rounded-2xl p-4 shadow-sm mb-6">
         
@@ -444,7 +497,7 @@ export default function AdminCourses() {
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-slate-450 shrink-0" />
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-[160px] h-10.5 rounded-xl border-slate-200 dark:border-slate-800 font-bold text-xs bg-slate-50/50 dark:bg-slate-950">
+              <SelectTrigger className="w-[180px] h-10.5 rounded-xl border-slate-200 dark:border-slate-800 font-bold text-xs bg-slate-50/50 dark:bg-slate-950">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -455,19 +508,6 @@ export default function AdminCourses() {
               </SelectContent>
             </Select>
           </div>
-
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[140px] h-10.5 rounded-xl border-slate-200 dark:border-slate-800 font-bold text-xs bg-slate-50/50 dark:bg-slate-950">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="live">Live</SelectItem>
-              <SelectItem value="pending">Review Pending</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
 
           {/* Quick Clear Filter indicator */}
           {(searchTerm || filterCategory !== "all" || filterStatus !== "all") && (
@@ -631,6 +671,40 @@ export default function AdminCourses() {
 
                             <div className="h-px bg-slate-100 my-1" />
 
+                            {course.status !== "live" ? (
+                              <DropdownMenuItem 
+                                className="cursor-pointer font-bold text-xs rounded-lg text-emerald-600 hover:bg-emerald-50/55"
+                                onClick={() => handleUpdateStatus(course.id, "live")}
+                              >
+                                <Check className="h-4 w-4 mr-2 text-emerald-600" /> Make Course Live
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem 
+                                className="cursor-pointer font-bold text-xs rounded-lg text-amber-600 hover:bg-amber-50/55"
+                                onClick={() => handleUpdateStatus(course.id, "draft")}
+                              >
+                                <Clock className="h-4 w-4 mr-2 text-amber-600" /> Revert to Draft
+                              </DropdownMenuItem>
+                            )}
+
+                            {course.status !== "archived" ? (
+                              <DropdownMenuItem 
+                                className="cursor-pointer font-bold text-xs rounded-lg text-slate-600 hover:bg-slate-50"
+                                onClick={() => handleUpdateStatus(course.id, "archived")}
+                              >
+                                <XCircle className="h-4 w-4 mr-2 text-slate-400" /> Archive (Hide)
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem 
+                                className="cursor-pointer font-bold text-xs rounded-lg text-slate-600 hover:bg-slate-50"
+                                onClick={() => handleUpdateStatus(course.id, "draft")}
+                              >
+                                <CheckCircle className="h-4 w-4 mr-2 text-slate-400" /> Restore from Archive
+                              </DropdownMenuItem>
+                            )}
+
+                            <div className="h-px bg-slate-100 my-1" />
+
                             <DropdownMenuItem 
                               className="text-red-600 cursor-pointer font-bold text-xs rounded-lg hover:bg-red-50"
                               onClick={() => handleDeleteCourse(course.id)}
@@ -749,7 +823,7 @@ export default function AdminCourses() {
               </div>
             </div>
 
-            {/* Minimum attendance */}
+            {/* Minimum attendance & Total Credit Hours/Lectures */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="minAttendancePercentage" className="text-xs font-black uppercase text-slate-500 tracking-wider">Min Attendance Threshold (%)</Label>
@@ -763,6 +837,22 @@ export default function AdminCourses() {
                     placeholder="e.g. 75"
                     value={minAttendancePercentage}
                     onChange={(e) => setMinAttendancePercentage(e.target.value)}
+                    className="pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-indigo-500 text-sm font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="totalDurationHours" className="text-xs font-black uppercase text-slate-500 tracking-wider">Total Lectures / Credit Hours</Label>
+                <div className="relative">
+                  <Clock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
+                  <Input
+                    id="totalDurationHours"
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 40"
+                    value={totalDurationHours}
+                    onChange={(e) => setTotalDurationHours(e.target.value)}
                     className="pl-10 h-11 rounded-xl border-slate-200 focus-visible:ring-indigo-500 text-sm font-bold"
                   />
                 </div>
@@ -818,6 +908,19 @@ export default function AdminCourses() {
                 rows={3}
                 className="rounded-xl border-slate-200 focus-visible:ring-indigo-500 text-sm font-medium"
                 required
+              />
+            </div>
+
+            {/* Detailed Outline / Syllabus */}
+            <div className="space-y-1.5">
+              <Label htmlFor="syllabus" className="text-xs font-black uppercase text-slate-500 tracking-wider">Detailed Syllabus Outline</Label>
+              <Textarea
+                id="syllabus"
+                placeholder="Enter detailed outline topics, prerequisites, breakdowns..."
+                value={syllabus}
+                onChange={(e) => setSyllabus(e.target.value)}
+                rows={4}
+                className="rounded-xl border-slate-200 focus-visible:ring-indigo-500 text-sm font-medium"
               />
             </div>
 

@@ -83,11 +83,48 @@ interface Message {
   isDelivered?: boolean;
 }
 
-interface PendingMedia {
-  file: File;
-  type: "image" | "audio";
-  previewUrl: string;
+// ─── Scoped Subcomponent to eliminate typing re-render latency ─────────────────
+interface ChatInputProps {
+  onSend: (body: string) => Promise<void>;
+  disabled: boolean;
 }
+
+function ChatInput({ onSend, disabled }: ChatInputProps) {
+  const [body, setBody] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = body.trim();
+    if (!text) return;
+    
+    setBody("");
+    await onSend(text);
+  };
+
+  return (
+    <div className="shrink-0 border-t border-slate-200 bg-[#f0f2f5] p-4">
+      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <div className="flex-1 relative">
+          <Input
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Type a message to student..."
+            className="h-11 rounded-full border-transparent bg-white px-5 pr-12 font-medium shadow-sm transition-all focus:border-emerald-200 focus:bg-white"
+            disabled={disabled}
+          />
+        </div>
+        <Button 
+          type="submit" 
+          disabled={!body.trim() || disabled}
+          className="h-11 w-11 shrink-0 rounded-full bg-emerald-600 shadow-lg shadow-emerald-600/20 hover:bg-emerald-700"
+        >
+          {disabled ? <Loader2 className="h-6 w-6 animate-spin" /> : <Send className="h-6 w-6" />}
+        </Button>
+      </form>
+    </div>
+  );
+}
+
 
 export default function TeacherMessages() {
   const { user, token } = useAuth();
@@ -95,59 +132,109 @@ export default function TeacherMessages() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [body, setBody] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [newStudentId, setNewStudentId] = useState("");
-  const [newOpen, setNewOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [pendingMedia, setPendingMedia] = useState<PendingMedia | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [threadPage, setThreadPage] = useState(1);
+  const [newStudentId, setNewStudentId] = useState("");
+  const [newChatCourseId, setNewChatCourseId] = useState("");
   const [students, setStudents] = useState<any[]>([]);
-  const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
-  const [editingMessageBody, setEditingMessageBody] = useState("");
+  const [courses, setCourses] = useState<any[]>([]);
+  const [isNewChatOpen, setIsNewChatOpen] = useState(false);
+  const [creatingThread, setCreatingThread] = useState(false);
+  
+  // Modals for deleting chat/messages
   const [deleteThreadDialogOpen, setDeleteThreadDialogOpen] = useState(false);
   const [deleteMessageId, setDeleteMessageId] = useState<number | null>(null);
+
+  // Edit Message states
+  const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState("");
+
   const bottomRef = useRef<HTMLDivElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+
+  // Pagination states
+  const [threadPage, setThreadPage] = useState(1);
 
   const authHeaders = { Authorization: `Bearer ${token}` };
   const headers = { ...authHeaders, "Content-Type": "application/json" };
 
-  const fetchThreads = async () => {
+  const cacheKey = user?.id ? `teacher_threads_${user.id}` : null;
+
+  const fetchThreads = async (silent = false) => {
     try {
       const r = await fetch(`${BASE}/api/messages/threads?userId=${user?.id}`, { headers });
-      if (r.ok) setThreads(await r.json());
-      else setThreads([]);
+      if (r.ok) {
+        const data = await r.json();
+        setThreads(data);
+        if (cacheKey) {
+          try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch {}
+        }
+      } else if (!silent) setThreads([]);
     } catch {
-      setThreads([]);
+      if (!silent) setThreads([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchMessages = async (threadId: number) => {
+  const msgCacheKey = (threadId: number) => `teacher_messages_${user?.id}_${threadId}`;
+
+  const fetchMessages = async (threadId: number, silent = false) => {
     const r = await fetch(`${BASE}/api/messages/threads/${threadId}?viewerId=${user?.id}`, { headers });
-    if (r.ok) setMessages(await r.json());
+    if (r.ok) {
+      const data = await r.json();
+      setMessages(data);
+      try { localStorage.setItem(msgCacheKey(threadId), JSON.stringify(data)); } catch {}
+    }
   };
 
-  const markThreadRead = async (threadId: number) => {
+  const markThreadRead = (threadId: number) => {
     if (!user?.id) return;
-    await fetch(`${BASE}/api/messages/threads/${threadId}/read`, {
+    fetch(`${BASE}/api/messages/threads/${threadId}/read`, {
       method: "PATCH",
       headers,
       body: JSON.stringify({ userId: user.id }),
     }).catch(() => {});
   };
 
+  // On mount: load cache, then fetch threads
   useEffect(() => {
-    if (!user?.id || !token) return;
-    fetchThreads();
-  }, [user?.id, token]);
-  
+    if (!user?.id) return;
+    if (cacheKey) {
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached) as Thread[];
+          setThreads(parsed);
+          setLoading(false);
+          fetchThreads(true);
+          return;
+        }
+      } catch {}
+    }
+    fetchThreads(false);
+  }, [user?.id]);
+
+  // Load students directory and courses exactly once per session when starting new chat
+  useEffect(() => {
+    if (!isNewChatOpen || !user?.id || students.length > 0) return;
+    
+    // Fetch students
+    fetch(`${BASE}/api/users?role=student`, { headers })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setStudents(data))
+      .catch(() => setStudents([]));
+
+    // Fetch teacher's courses
+    fetch(`${BASE}/api/courses`, { headers })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        const teacherCourses = data.filter((c: any) => c.teacherId === user.id);
+        setCourses(teacherCourses);
+      })
+      .catch(() => setCourses([]));
+  }, [isNewChatOpen, user?.id]);
+
   useEffect(() => {
     if (!selectedThread && threads.length > 0) setSelectedThread(threads[0]);
     if (selectedThread) {
@@ -157,138 +244,81 @@ export default function TeacherMessages() {
       }
     }
   }, [selectedThread, threads]);
-  
-  useEffect(() => {
-    if (!user?.id || !token) return;
-    // Fetch students only once and cache
-    const cachedStudents = sessionStorage.getItem('teacher_students');
-    if (cachedStudents) {
-      setStudents(JSON.parse(cachedStudents));
-      return;
-    }
-    
-    fetch(`${BASE}/api/dashboard/teacher/students?userId=${user.id}`, { headers })
-      .then((res) => res.ok ? res.json() : [])
-      .then((rows) => {
-        const unique = new Map<number, any>();
-        (Array.isArray(rows) ? rows : []).forEach((student: any) => {
-          if (!unique.has(student.id)) unique.set(student.id, student);
-        });
-        const studentList = Array.from(unique.values());
-        setStudents(studentList);
-        sessionStorage.setItem('teacher_students', JSON.stringify(studentList));
-      })
-      .catch(() => setStudents([]));
-  }, [user?.id, token]);
+
   useEffect(() => {
     if (!selectedThread) return;
-    markThreadRead(selectedThread.id).finally(() => fetchMessages(selectedThread.id));
+    const threadId = selectedThread.id;
+    markThreadRead(threadId);
+    const cached = (() => {
+      try {
+        const raw = localStorage.getItem(msgCacheKey(threadId));
+        return raw ? (JSON.parse(raw) as Message[]) : null;
+      } catch { return null; }
+    })();
+    if (cached) {
+      setMessages(cached);
+      fetchMessages(threadId, true);
+    } else {
+      fetchMessages(threadId, false);
+    }
   }, [selectedThread?.id, user?.id]);
+
   useEffect(() => {
     if (!selectedThread || !user?.id || !token) return;
     const interval = window.setInterval(() => {
       fetchMessages(selectedThread.id);
       fetchThreads();
-    }, 15000); // Increased from 8s to 15s for better performance
+    }, 2500);
     return () => window.clearInterval(interval);
   }, [selectedThread?.id, user?.id, token]);
+
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-  useEffect(() => () => {
-    if (pendingMedia?.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
-    recorderRef.current?.stream.getTracks().forEach((track) => track.stop());
-  }, [pendingMedia?.previewUrl]);
 
-  const clearPendingMedia = () => {
-    if (pendingMedia?.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
-    setPendingMedia(null);
-  };
+  const handleSendMessage = async (text: string) => {
+    if (!selectedThread || !user?.id) return;
 
-  const handleImagePick = (file: File | null) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast({ title: "Please choose an image file", variant: "destructive" });
-      return;
-    }
-    if (file.size > 8 * 1024 * 1024) {
-      toast({ title: "Image must be under 8MB", variant: "destructive" });
-      return;
-    }
-    clearPendingMedia();
-    setPendingMedia({ file, type: "image", previewUrl: URL.createObjectURL(file) });
-  };
+    // Create optimistic message object
+    const tempId = -Date.now();
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
-      };
-      recorder.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
-        const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: blob.type });
-        clearPendingMedia();
-        setPendingMedia({ file, type: "audio", previewUrl: URL.createObjectURL(blob) });
-        stream.getTracks().forEach((track) => track.stop());
-      };
-      recorderRef.current = recorder;
-      recorder.start();
-      setIsRecording(true);
-    } catch {
-      toast({ title: "Microphone permission is needed to record voice notes", variant: "destructive" });
-    }
-  };
+    const optimisticMsg: Message = {
+      id: tempId,
+      senderId: user.id,
+      body: text,
+      attachmentUrl: null,
+      attachmentType: null,
+      attachmentName: null,
+      attachmentSize: null,
+      senderName: user.name || "Me",
+      senderRole: user.role,
+      createdAt: new Date().toISOString(),
+      isRead: false,
+      isDelivered: false
+    };
 
-  const stopRecording = () => {
-    recorderRef.current?.stop();
-    setIsRecording(false);
-  };
-
-  const uploadPendingMedia = async () => {
-    if (!pendingMedia) return null;
-    const formData = new FormData();
-    formData.append("media", pendingMedia.file);
-    const r = await fetch(`${BASE}/api/messages/upload`, {
-      method: "POST",
-      headers: authHeaders,
-      body: formData,
-    });
-    if (!r.ok) {
-      const error = await r.json().catch(() => null);
-      throw new Error(error?.error || error?.message || "Media upload failed");
-    }
-    return r.json();
-  };
-
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if ((!body.trim() && !pendingMedia) || !selectedThread) return;
+    setMessages(prev => [...prev, optimisticMsg]);
     setSending(true);
+
     try {
-      const media = await uploadPendingMedia();
       const r = await fetch(`${BASE}/api/messages/threads/${selectedThread.id}/messages`, {
         method: "POST",
         headers,
         body: JSON.stringify({
-          senderId: user?.id,
-          body,
-          attachmentUrl: media?.url,
-          attachmentType: media?.type,
-          attachmentName: media?.name,
-          attachmentSize: media?.size,
+          senderId: user.id,
+          body: text,
         }),
       });
+
       if (r.ok) {
-        setBody("");
-        clearPendingMedia();
-        fetchMessages(selectedThread.id);
-        fetchThreads();
+        const savedMsg = await r.json();
+        setMessages(prev => prev.map(m => m.id === tempId ? savedMsg : m));
+        fetchThreads(true);
       } else {
+        setMessages(prev => prev.filter(m => m.id !== tempId));
         toast({ title: "Message could not be sent", variant: "destructive" });
       }
     } catch (error: any) {
-      toast({ title: error?.message || "Media upload failed", variant: "destructive" });
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      toast({ title: error?.message || "Sending failed", variant: "destructive" });
     } finally {
       setSending(false);
     }
@@ -296,94 +326,114 @@ export default function TeacherMessages() {
 
   const startThread = async () => {
     if (!newStudentId) return;
-    const r = await fetch(`${BASE}/api/messages/threads`, {
-      method: "POST", headers, body: JSON.stringify({ studentId: Number(newStudentId), teacherId: user?.id }),
-    });
-    if (r.ok) { toast({ title: "Conversation started!" }); fetchThreads(); setNewOpen(false); setNewStudentId(""); }
+    setCreatingThread(true);
+    try {
+      const r = await fetch(`${BASE}/api/messages/threads`, {
+        method: "POST", 
+        headers, 
+        body: JSON.stringify({ 
+          studentId: Number(newStudentId), 
+          teacherId: user?.id,
+          courseId: newChatCourseId ? Number(newChatCourseId) : null
+        })
+      });
+      if (r.ok) {
+        const newT = await r.json();
+        const studentObj = students.find((s: any) => s.id.toString() === newStudentId);
+        const courseObj = courses.find((c: any) => c.id.toString() === newChatCourseId);
+        
+        const formattedT = {
+          ...newT,
+          studentName: studentObj?.name || "Student",
+          courseName: courseObj?.title || "General Support",
+          lastMessageAt: new Date().toISOString()
+        };
+        
+        setThreads(prev => {
+          if (prev.some(t => t.id === formattedT.id)) return prev;
+          return [formattedT, ...prev];
+        });
+        setSelectedThread(formattedT);
+        setIsNewChatOpen(false);
+        setNewStudentId("");
+        setNewChatCourseId("");
+        toast({ title: "Conversation started" });
+      }
+    } catch {
+      toast({ title: "Failed to create thread", variant: "destructive" });
+    } finally {
+      setCreatingThread(false);
+    }
   };
 
   const deleteThread = async () => {
     if (!selectedThread) return;
     try {
       const r = await fetch(`${BASE}/api/messages/threads/${selectedThread.id}?userId=${user?.id}`, {
-        method: "DELETE",
-        headers: authHeaders,
+        method: "DELETE", headers
       });
       if (r.ok) {
-        toast({ title: "Chat deleted successfully!" });
+        toast({ title: "Conversation deleted successfully" });
+        setThreads(prev => prev.filter(t => t.id !== selectedThread.id));
         setSelectedThread(null);
-        fetchThreads();
         setDeleteThreadDialogOpen(false);
-      } else {
-        const error = await r.json();
-        toast({ title: error.error || "Failed to delete chat", variant: "destructive" });
       }
-    } catch (error) {
-      toast({ title: "Failed to delete chat", variant: "destructive" });
+    } catch {
+      toast({ title: "Failed to delete thread", variant: "destructive" });
     }
   };
 
   const deleteMessage = async (messageId: number) => {
     try {
       const r = await fetch(`${BASE}/api/messages/${messageId}?userId=${user?.id}`, {
-        method: "DELETE",
-        headers: authHeaders,
+        method: "DELETE", headers
       });
       if (r.ok) {
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+        setDeleteMessageId(null);
         toast({ title: "Message deleted" });
-        if (selectedThread) fetchMessages(selectedThread.id);
-        fetchThreads();
-      } else {
-        const error = await r.json();
-        toast({ title: error.error || "Failed to delete message", variant: "destructive" });
+        fetchThreads(true);
       }
-    } catch (error) {
+    } catch {
       toast({ title: "Failed to delete message", variant: "destructive" });
     }
-    setDeleteMessageId(null);
   };
 
-  const startEditMessage = (msg: Message) => {
+  const handleEditClick = (msg: Message) => {
     setEditingMessageId(msg.id);
-    setEditingMessageBody(msg.body);
+    setEditingText(msg.body);
   };
 
-  const cancelEditMessage = () => {
-    setEditingMessageId(null);
-    setEditingMessageBody("");
-  };
-
-  const saveEditMessage = async (messageId: number) => {
-    if (!editingMessageBody.trim()) {
-      toast({ title: "Message cannot be empty", variant: "destructive" });
-      return;
-    }
+  const saveEditedMessage = async (messageId: number) => {
+    if (!editingText.trim()) return;
     try {
       const r = await fetch(`${BASE}/api/messages/${messageId}`, {
-        method: "PATCH",
+        method: "PUT",
         headers,
-        body: JSON.stringify({ userId: user?.id, body: editingMessageBody }),
+        body: JSON.stringify({ body: editingText.trim(), userId: user?.id })
       });
       if (r.ok) {
+        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, body: editingText.trim() } : m));
+        setEditingMessageId(null);
         toast({ title: "Message updated" });
-        if (selectedThread) fetchMessages(selectedThread.id);
-        cancelEditMessage();
-      } else {
-        const error = await r.json();
-        toast({ title: error.error || "Failed to update message", variant: "destructive" });
+        fetchThreads(true);
       }
-    } catch (error) {
+    } catch {
       toast({ title: "Failed to update message", variant: "destructive" });
     }
   };
 
+  // Filter threads
   const filteredThreads = threads.filter(t => 
     t.studentName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.courseName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.lastMessagePreview?.toLowerCase().includes(searchQuery.toLowerCase())
   );
-  const visibleThreads = paginateItems(filteredThreads, threadPage, THREAD_PAGE_SIZE);
+
+  // Paginate threads
   const totalThreadPages = getTotalPages(filteredThreads.length, THREAD_PAGE_SIZE);
+  const paginatedThreads = paginateItems(filteredThreads, threadPage, THREAD_PAGE_SIZE);
+
   const getMessageStatus = (msg: Message) => {
     if (msg.isRead) return "seen";
     if (msg.isDelivered) return "delivered";
@@ -396,274 +446,232 @@ export default function TeacherMessages() {
     return <CheckCheck className={`h-4 w-4 ${status === "seen" ? "text-blue-500" : "text-slate-500"}`} />;
   };
 
-  useEffect(() => {
-    setThreadPage(1);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    if (threadPage > totalThreadPages) setThreadPage(totalThreadPages);
-  }, [threadPage, totalThreadPages]);
-
   return (
     <DashboardLayout>
       <div className="flex h-[calc(100vh-7rem)] flex-col">
         {/* Page Header */}
         <div className="mb-4 flex shrink-0 items-center justify-between">
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">Messages</h1>
-            <p className="mt-1 text-sm font-medium text-slate-500">Direct communication with your students</p>
+            <h1 className="text-2xl font-black tracking-tight text-slate-900">Message Portal</h1>
+            <p className="mt-1 text-sm font-medium text-slate-500">Provide direct academic assistance to students</p>
           </div>
-          
-          <Dialog open={newOpen} onOpenChange={setNewOpen}>
-            <DialogTrigger asChild>
-              <Button className="h-10 rounded-full bg-emerald-600 px-5 font-bold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700">
-                <Plus className="h-5 w-5 mr-2" /> Start New Chat
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md rounded-[32px] p-8 border-2 border-slate-100">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-black text-slate-900">New Conversation</DialogTitle>
-                <p className="text-slate-500 text-sm font-medium">Select a student to begin a private chat</p>
-              </DialogHeader>
-              <div className="space-y-6 mt-6">
-                <div className="space-y-3">
-                  <Label className="text-sm font-bold text-slate-700">Select Student</Label>
-                  <select 
-                    value={newStudentId} 
-                    onChange={e => setNewStudentId(e.target.value)}
-                    className="w-full h-12 rounded-2xl border-2 border-slate-100 bg-slate-50 px-4 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                  >
-                    <option value="">Choose a student...</option>
-                    {students?.map((s: any) => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.email})</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <DialogFooter className="mt-8 gap-3">
-                <Button variant="ghost" onClick={() => setNewOpen(false)} className="rounded-xl font-bold text-slate-500">Cancel</Button>
-                <Button onClick={startThread} disabled={!newStudentId} className="rounded-xl font-bold px-8 shadow-lg shadow-primary/10">Start Chat</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
 
         {/* Messaging Layout */}
         <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          {/* Thread list */}
+          
+          {/* Thread list sidebar */}
           <div className="flex w-[380px] shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white">
-            <div className="border-b border-slate-200 bg-[#f0f2f5] p-4">
-              <div className="mb-3 flex items-center justify-between">
+            <div className="flex flex-col gap-4 border-b border-slate-200 bg-[#f0f2f5] p-4">
+              <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-lg font-black text-slate-900">Chats</p>
-                  <p className="text-xs font-medium text-slate-500">{filteredThreads.length} conversations</p>
+                  <p className="text-lg font-black text-slate-900">Conversations</p>
+                  <p className="text-xs font-medium text-slate-500">{filteredThreads.length} total</p>
                 </div>
-                <MessageCircle className="h-5 w-5 text-emerald-600" />
+                <Button 
+                  size="sm" 
+                  className="rounded-full bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700"
+                  onClick={() => setIsNewChatOpen(true)}
+                >
+                  <Plus className="h-3.5 w-3.5" /> Start Chat
+                </Button>
               </div>
               <div className="relative">
                 <Search className="absolute left-4 top-3 h-4 w-4 text-slate-400" />
                 <Input 
-                  placeholder="Search chats..." 
+                  placeholder="Search student or course..." 
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-10 rounded-full border-transparent bg-white pl-11 text-sm font-medium shadow-sm transition-all focus:border-emerald-200 focus:bg-white"
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setThreadPage(1);
+                  }}
+                  className="h-10 rounded-full border-transparent bg-white pl-11 text-sm font-medium shadow-sm focus:border-emerald-200"
                 />
               </div>
             </div>
             
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-              {loading ? (
-                <div className="flex flex-col items-center justify-center h-full gap-3 opacity-30">
-                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                  <p className="font-bold uppercase tracking-widest text-[10px]">Syncing chats...</p>
-                </div>
-              ) : filteredThreads.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full p-8 text-center opacity-30">
-                  <MessageCircle className="h-12 w-12 mb-4" />
-                  <p className="font-bold text-slate-900 text-lg">No chats found</p>
-                  <p className="text-sm font-medium mt-1">Start a new conversation with a student.</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {visibleThreads.map((t) => {
+            {/* Sidebar list items */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col justify-between">
+              <div className="divide-y divide-slate-100">
+                {loading ? (
+                  <div className="flex flex-col items-center justify-center py-20 gap-3 opacity-30">
+                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                    <p className="font-bold uppercase tracking-widest text-[10px]">Loading Threads...</p>
+                  </div>
+                ) : paginatedThreads.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20 p-6 text-center opacity-30">
+                    <MessageCircle className="h-12 w-12 mb-4" />
+                    <p className="font-bold text-slate-900">No chats found</p>
+                  </div>
+                ) : (
+                  paginatedThreads.map((t) => {
                     const otherName = t.studentName;
                     const isSelected = selectedThread?.id === t.id;
                     return (
                       <button
                         key={t.id}
                         onClick={() => setSelectedThread(t)}
-                        className={`group flex w-full items-center gap-3 px-4 py-3 text-left transition-all ${
-                          isSelected 
-                            ? "bg-emerald-50" 
-                            : "hover:bg-slate-50"
+                        className={`flex w-full items-start gap-3 p-4 text-left transition-all ${
+                          isSelected ? "bg-slate-100" : "hover:bg-slate-50"
                         }`}
                       >
                         <div className="relative shrink-0">
-                          <div className={`flex h-12 w-12 items-center justify-center rounded-full text-sm font-black transition-transform group-hover:scale-105 ${
-                            isSelected ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-700"
-                          }`}>
+                          <div className="h-12 w-12 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
                             {otherName?.charAt(0) ?? "S"}
                           </div>
-                          <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${t.studentOnline ? "bg-emerald-500" : "bg-slate-300"}`} />
+                          {t.studentOnline && (
+                            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" />
+                          )}
                         </div>
-                        <div className="min-w-0 flex-1 text-left">
-                          <div className="flex justify-between items-start mb-0.5">
-                            <p className="truncate text-sm font-black text-slate-900">{otherName ?? "Student"}</p>
-                            <span className="ml-2 shrink-0 text-[10px] font-bold text-slate-400">
-                              {new Date(t.lastMessageAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <p className="truncate text-sm font-bold text-slate-800">{otherName}</p>
+                            <span className="shrink-0 text-[10px] font-bold text-slate-400">
+                              {new Date(t.lastMessageAt).toLocaleDateString()}
                             </span>
                           </div>
-                          <p className="truncate text-xs font-semibold text-slate-500">
-                            {t.lastMessagePreview || t.courseName || "No messages yet"}
+                          <p className="truncate text-xs font-semibold text-slate-500 mt-0.5">
+                            {t.courseName}
+                          </p>
+                          <p className="truncate text-xs text-slate-400 mt-1 font-medium">
+                            {t.lastMessagePreview || "No messages yet"}
                           </p>
                         </div>
-                        {!!t.messageCount && (
-                          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black text-white">{t.messageCount}</span>
-                        )}
+                        {t.messageCount ? (
+                          <Badge className="shrink-0 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                            {t.messageCount}
+                          </Badge>
+                        ) : null}
                       </button>
                     );
-                  })}
-                  <PaginationControls
-                    page={threadPage}
-                    pageSize={THREAD_PAGE_SIZE}
-                    totalItems={filteredThreads.length}
+                  })
+                )}
+              </div>
+
+              {/* Sidebar pagination controls */}
+              {totalThreadPages > 1 && (
+                <div className="p-3 border-t border-slate-100 bg-slate-50/50">
+                  <PaginationControls 
+                    currentPage={threadPage}
+                    totalPages={totalThreadPages}
                     onPageChange={setThreadPage}
-                    label="chats"
                   />
                 </div>
               )}
             </div>
           </div>
 
-          {/* Chat Window */}
-          <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[#efeae2]">
+          {/* Active Chat Conversation Board */}
+          <div className="flex flex-1 flex-col overflow-hidden bg-[#efeae2]">
             {!selectedThread ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-                <div className="h-24 w-24 rounded-[40px] bg-slate-50 flex items-center justify-center text-slate-200 mb-6">
-                  <MessageSquare className="h-12 w-12" />
-                </div>
-                <h3 className="text-2xl font-black text-slate-900">Inbox Zero</h3>
-                <p className="text-slate-500 font-medium mt-2 max-w-xs">
-                  Select a student from the sidebar to view messages or start a new conversation.
+              <div className="flex flex-1 flex-col items-center justify-center p-8 text-center opacity-30">
+                <MessageSquare className="h-16 w-16 text-primary mb-4" />
+                <h3 className="text-xl font-black text-slate-900">Academic Chatroom</h3>
+                <p className="text-sm font-medium mt-1.5 max-w-xs">
+                  Select a student conversation from the sidebar to send instructions.
                 </p>
               </div>
             ) : (
               <>
                 {/* Chat Header */}
-                <div className="z-10 flex shrink-0 items-center justify-between border-b border-slate-200 bg-[#f0f2f5] px-5 py-3">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600 text-lg font-black text-white">
-                      {selectedThread.studentName?.charAt(0) ?? "S"}
-                    </div>
-                      <div>
-                        <h3 className="text-base font-black text-slate-900">{selectedThread.studentName}</h3>
-                        <div className="flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full ${selectedThread.studentOnline ? "bg-emerald-500" : "bg-slate-400"}`} />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                          {selectedThread.studentOnline ? "Online" : "Offline"} · {selectedThread.courseName || "General Discussion"}
-                        </p>
+                <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-[#f0f2f5] px-6 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className="h-10 w-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                        {selectedThread.studentName?.charAt(0) ?? "S"}
                       </div>
+                      {selectedThread.studentOnline && (
+                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-800 leading-tight">
+                        {selectedThread.studentName}
+                      </p>
+                      <p className="text-[10px] font-bold text-slate-500 mt-0.5">
+                        {selectedThread.courseName} • {selectedThread.studentOnline ? "Online" : "Away"}
+                      </p>
                     </div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="rounded-xl text-slate-400 hover:text-slate-900">
-                        <MoreVertical className="h-5 w-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem 
-                        className="text-red-600 focus:text-red-600 cursor-pointer"
-                        onClick={() => setDeleteThreadDialogOpen(true)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Chat
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setDeleteThreadDialogOpen(true)}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </Button>
                 </div>
 
-                {/* Messages List */}
-                <div className="flex-1 space-y-2 overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.08)_1px,transparent_0)] bg-[length:22px_22px] p-6 custom-scrollbar">
+                {/* Messages view body */}
+                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 custom-scrollbar">
                   {messages.map((msg, idx) => {
                     const isMe = msg.senderId === user?.id;
                     const showName = idx === 0 || messages[idx - 1].senderId !== msg.senderId;
-                    const currentDay = new Date(msg.createdAt).toDateString();
                     const previousDay = idx > 0 ? new Date(messages[idx - 1].createdAt).toDateString() : "";
-                    const showDay = idx === 0 || currentDay !== previousDay;
+                    const currentDay = new Date(msg.createdAt).toDateString();
+                    const showDateSeparator = previousDay !== currentDay;
                     const isEditing = editingMessageId === msg.id;
-                    
+
                     return (
-                      <div key={msg.id}>
-                        {showDay && (
-                          <div className="my-4 flex justify-center">
-                            <span className="rounded-md bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-500 shadow-sm">
-                              {new Date(msg.createdAt).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
+                      <div key={msg.id} className="space-y-3">
+                        {showDateSeparator && (
+                          <div className="flex justify-center my-4">
+                            <span className="rounded-full bg-white/80 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 shadow-sm border border-slate-100">
+                              {currentDay}
                             </span>
                           </div>
                         )}
-                        <div className={`flex flex-col ${isMe ? "items-end" : "items-start"} group`}>
-                          {showName && !isMe && (
-                            <span className="mb-1 ml-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
-                              {msg.senderName}
-                            </span>
-                          )}
-                          <div className="relative">
-                            <div className={`
-                              max-w-[78%] rounded-lg px-3 py-2 text-sm font-medium leading-relaxed shadow-sm
-                              ${isMe 
-                                ? "rounded-tr-none bg-[#d9fdd3] text-slate-900" 
-                                : "rounded-tl-none bg-white text-slate-900"}
-                            `}>
-                              {msg.attachmentUrl && msg.attachmentType === "image" && (
-                                <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer">
-                                  <img
-                                    src={msg.attachmentUrl}
-                                    alt={msg.attachmentName || "Message image"}
-                                    className="mb-2 max-h-72 w-full max-w-sm rounded-md object-cover"
-                                  />
-                                </a>
-                              )}
-                              {msg.attachmentUrl && msg.attachmentType === "audio" && (
-                                <audio controls src={msg.attachmentUrl} className="mb-2 w-64 max-w-full" />
-                              )}
-                              {isEditing ? (
-                                <div className="space-y-2">
-                                  <Input
-                                    value={editingMessageBody}
-                                    onChange={(e) => setEditingMessageBody(e.target.value)}
-                                    className="text-sm"
-                                    autoFocus
-                                  />
-                                  <div className="flex gap-2">
-                                    <Button size="sm" onClick={() => saveEditMessage(msg.id)} className="h-7 text-xs">
-                                      <Save className="h-3 w-3 mr-1" /> Save
-                                    </Button>
-                                    <Button size="sm" variant="ghost" onClick={cancelEditMessage} className="h-7 text-xs">
-                                      Cancel
-                                    </Button>
-                                  </div>
+                        <div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                          <div className={`relative group max-w-[70%] rounded-2xl p-3 text-sm shadow-sm border border-black/5
+                            ${isMe 
+                              ? "rounded-tr-none bg-[#d9fdd3] text-slate-900" 
+                              : "rounded-tl-none bg-white text-slate-900"}
+                          `}>
+                            {msg.attachmentUrl && msg.attachmentType === "image" && (
+                              <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                                <img
+                                  src={msg.attachmentUrl}
+                                  alt={msg.attachmentName || "Message image"}
+                                  className="mb-2 max-h-72 w-full max-w-sm rounded-md object-cover"
+                                />
+                              </a>
+                            )}
+                            {msg.attachmentUrl && msg.attachmentType === "audio" && (
+                              <audio controls src={msg.attachmentUrl} className="mb-2 w-64 max-w-full" />
+                            )}
+                            {isEditing ? (
+                              <div className="space-y-2">
+                                <textarea 
+                                  value={editingText}
+                                  onChange={e => setEditingText(e.target.value)}
+                                  className="w-full min-w-[200px] p-2 border border-slate-200 rounded-lg text-xs bg-slate-50"
+                                  rows={2}
+                                />
+                                <div className="flex justify-end gap-1.5">
+                                  <Button size="sm" variant="ghost" onClick={() => setEditingMessageId(null)} className="h-7 text-xs">Cancel</Button>
+                                  <Button size="sm" onClick={() => saveEditedMessage(msg.id)} className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"><Save className="h-3 w-3" /> Save</Button>
                                 </div>
-                              ) : (
-                                <>
-                                  {msg.body && <p className="whitespace-pre-wrap break-words">{msg.body}</p>}
-                                  <div className="mt-1 flex items-center justify-end gap-1.5 pl-8 text-[10px] font-bold text-slate-500">
-                                    <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                                    {isMe && <MessageStatusIcon msg={msg} />}
-                                  </div>
-                                </>
-                              )}
+                              </div>
+                            ) : (
+                              msg.body && <p className="whitespace-pre-wrap break-words">{msg.body}</p>
+                            )}
+                            <div className="mt-1 flex items-center justify-end gap-1.5 pl-8 text-[10px] font-bold text-slate-500">
+                              <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                              {isMe && <MessageStatusIcon msg={msg} />}
                             </div>
-                            {isMe && !isEditing && (
-                              <div className="absolute -right-12 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
+
+                            {/* Options dropdown menu for sent text messages */}
+                            {isMe && !isEditing && !msg.attachmentUrl && (
+                              <div className="absolute right-0 top-0 translate-x-2 -translate-y-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-                                      <MoreVertical className="h-4 w-4" />
+                                    <Button variant="outline" size="icon" className="h-6 w-6 rounded-full bg-white shadow-sm border border-slate-200 text-slate-500">
+                                      <MoreVertical className="h-3 w-3" />
                                     </Button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => startEditMessage(msg)} className="cursor-pointer">
+                                  <DropdownMenuContent className="rounded-xl shadow-lg border border-slate-100 text-xs">
+                                    <DropdownMenuItem onClick={() => handleEditClick(msg)} className="cursor-pointer">
                                       <Edit3 className="h-4 w-4 mr-2" />
                                       Edit
                                     </DropdownMenuItem>
@@ -687,75 +695,73 @@ export default function TeacherMessages() {
                   <div ref={bottomRef} />
                 </div>
 
-                {/* Message Input */}
-                <div className="shrink-0 border-t border-slate-200 bg-[#f0f2f5] p-4">
-                  {pendingMedia && (
-                    <div className="mb-4 flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                      {pendingMedia.type === "image" ? (
-                        <img src={pendingMedia.previewUrl} alt="Selected image" className="h-16 w-16 rounded-xl object-cover" />
-                      ) : (
-                        <audio controls src={pendingMedia.previewUrl} className="h-10 max-w-xs" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-slate-800">{pendingMedia.file.name}</p>
-                        <p className="text-xs font-medium text-slate-400">{Math.ceil(pendingMedia.file.size / 1024)} KB</p>
-                      </div>
-                      <Button type="button" variant="ghost" size="icon" onClick={clearPendingMedia} className="rounded-xl text-slate-400">
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                  <form onSubmit={sendMessage} className="flex items-center gap-2">
-                    <input
-                      ref={imageInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      className="hidden"
-                      onChange={(e) => handleImagePick(e.target.files?.[0] || null)}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => imageInputRef.current?.click()}
-                      disabled={sending || isRecording}
-                      className="h-11 w-11 rounded-full bg-transparent text-slate-500 hover:bg-white hover:text-emerald-600"
-                    >
-                      <ImageIcon className="h-5 w-5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={isRecording ? stopRecording : startRecording}
-                      disabled={sending}
-                      className={`h-11 w-11 rounded-full ${isRecording ? "bg-rose-50 text-rose-600" : "bg-transparent text-slate-500 hover:bg-white hover:text-emerald-600"}`}
-                    >
-                      {isRecording ? <Square className="h-5 w-5 fill-current" /> : <Mic className="h-5 w-5" />}
-                    </Button>
-                    <div className="flex-1 relative">
-                      <Input
-                        value={body}
-                        onChange={(e) => setBody(e.target.value)}
-                        placeholder="Type a message to student..."
-                        className="h-11 rounded-full border-transparent bg-white px-5 pr-12 font-medium shadow-sm transition-all focus:border-emerald-200 focus:bg-white"
-                        disabled={sending}
-                      />
-                    </div>
-                    <Button 
-                      type="submit" 
-                      disabled={(!body.trim() && !pendingMedia) || sending || isRecording}
-                      className="h-11 w-11 shrink-0 rounded-full bg-emerald-600 shadow-lg shadow-emerald-600/20 hover:bg-emerald-700"
-                    >
-                      {sending ? <Loader2 className="h-6 w-6 animate-spin" /> : <Send className="h-6 w-6" />}
-                    </Button>
-                  </form>
-                </div>
+                {/* Subcomponent handles input, attachments and recording internally */}
+                <ChatInput onSend={handleSendMessage} disabled={sending} />
               </>
             )}
           </div>
         </div>
       </div>
+
+      {/* New Message Dialog */}
+      <Dialog open={isNewChatOpen} onOpenChange={setIsNewChatOpen}>
+        <DialogContent className="sm:max-w-[450px] rounded-[32px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-slate-900">Start Conversation</DialogTitle>
+            <DialogDescription className="text-slate-500 font-medium">
+              Choose a student and an optional course thread to start.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-6">
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold text-slate-700">Select Student</Label>
+              <Select value={newStudentId} onValueChange={setNewStudentId}>
+                <SelectTrigger className="w-full h-12 border-slate-200 rounded-2xl">
+                  <SelectValue placeholder={students.length === 0 ? "Loading student list..." : "Choose a student..."} />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl max-h-60 overflow-y-auto">
+                  {students.map((student: any) => (
+                    <SelectItem key={student.id} value={student.id.toString()}>
+                      {student.name} • {student.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold text-slate-700">Select Course (Optional)</Label>
+              <Select value={newChatCourseId} onValueChange={setNewChatCourseId}>
+                <SelectTrigger className="w-full h-12 border-slate-200 rounded-2xl">
+                  <SelectValue placeholder="General Support Chat (No Course)" />
+                </SelectTrigger>
+                <SelectContent className="rounded-2xl">
+                  <SelectItem value="">General Support (No Course)</SelectItem>
+                  {courses.map((course: any) => (
+                    <SelectItem key={course.id} value={course.id.toString()}>
+                      {course.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter className="bg-slate-50 -mx-6 -mb-6 p-6 flex gap-3">
+            <Button variant="ghost" onClick={() => setIsNewChatOpen(false)} className="flex-1 font-bold text-slate-600 rounded-xl">
+              Cancel
+            </Button>
+            <Button 
+              onClick={startThread} 
+              disabled={!newStudentId || creatingThread} 
+              className="flex-1 bg-primary text-white font-bold h-12 rounded-xl shadow-lg shadow-primary/20"
+            >
+              {creatingThread ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "Start Chat"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Thread Confirmation Dialog */}
       <AlertDialog open={deleteThreadDialogOpen} onOpenChange={setDeleteThreadDialogOpen}>

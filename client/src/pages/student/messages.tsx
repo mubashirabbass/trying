@@ -10,8 +10,7 @@ import {
   Send, 
   Search,
   MessageCircle,
-  MoreVertical,
-  Plus,
+  Plus, 
   Image as ImageIcon,
   Mic,
   Square,
@@ -20,7 +19,6 @@ import {
   CheckCheck,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useListCourses } from "@workspace/api-client-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -55,10 +53,46 @@ interface Message {
   isDelivered?: boolean;
 }
 
-interface PendingMedia {
-  file: File;
-  type: "image" | "audio";
-  previewUrl: string;
+// ─── Scoped Subcomponent to eliminate typing re-render latency ─────────────────
+interface ChatInputProps {
+  onSend: (body: string) => Promise<void>;
+  disabled: boolean;
+}
+
+function ChatInput({ onSend, disabled }: ChatInputProps) {
+  const [body, setBody] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = body.trim();
+    if (!text) return;
+    
+    setBody("");
+    await onSend(text);
+  };
+
+  return (
+    <div className="shrink-0 border-t border-slate-200 bg-[#f0f2f5] p-4">
+      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <div className="flex-1 relative">
+          <Input
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Type a message to instructor..."
+            className="h-11 rounded-full border-transparent bg-white px-5 pr-12 font-medium shadow-sm transition-all focus:border-emerald-200 focus:bg-white"
+            disabled={disabled}
+          />
+        </div>
+        <Button 
+          type="submit" 
+          disabled={!body.trim() || disabled}
+          className="h-11 w-11 shrink-0 rounded-full bg-emerald-600 shadow-lg shadow-emerald-600/20 hover:bg-emerald-700"
+        >
+          {disabled ? <Loader2 className="h-6 w-6 animate-spin" /> : <Send className="h-6 w-6" />}
+        </Button>
+      </form>
+    </div>
+  );
 }
 
 export default function StudentMessages() {
@@ -70,18 +104,12 @@ export default function StudentMessages() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [body, setBody] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [creatingThread, setCreatingThread] = useState(false);
-  const [pendingMedia, setPendingMedia] = useState<PendingMedia | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
 
   const authHeaders = { Authorization: `Bearer ${token}` };
   const headers = { ...authHeaders, "Content-Type": "application/json" };
@@ -94,7 +122,6 @@ export default function StudentMessages() {
       if (r.ok) {
         const data = await r.json();
         setThreads(data);
-        // Persist to localStorage for instant next-load
         if (cacheKey) {
           try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch {}
         }
@@ -113,14 +140,12 @@ export default function StudentMessages() {
     if (r.ok) {
       const data = await r.json();
       setMessages(data);
-      // Persist to localStorage for instant next-load
       try { localStorage.setItem(msgCacheKey(threadId), JSON.stringify(data)); } catch {}
     }
   };
 
   const markThreadRead = (threadId: number) => {
     if (!user?.id) return;
-    // Fire-and-forget — don't block message rendering
     fetch(`${BASE}/api/messages/threads/${threadId}/read`, {
       method: "PATCH",
       headers,
@@ -128,7 +153,7 @@ export default function StudentMessages() {
     }).catch(() => {});
   };
 
-  // On mount: load from cache instantly, then refresh in background
+  // On mount: load cache, then fetch threads
   useEffect(() => {
     if (!user?.id) return;
     if (cacheKey) {
@@ -138,18 +163,17 @@ export default function StudentMessages() {
           const parsed = JSON.parse(cached) as Thread[];
           setThreads(parsed);
           setLoading(false);
-          // Silently refresh in background
           fetchThreads(true);
           return;
         }
       } catch {}
     }
-    // No cache — show spinner and fetch normally
     fetchThreads(false);
   }, [user?.id]);
 
+  // Fetch contacts exactly once per session or when contacts list is empty
   useEffect(() => {
-    if (!isNewChatOpen || !user?.id) return;
+    if (!isNewChatOpen || !user?.id || contacts.length > 0) return;
     setLoadingContacts(true);
     fetch(`${BASE}/api/messages/contacts?userId=${user.id}`, { headers })
       .then(res => res.ok ? res.json() : [])
@@ -157,6 +181,7 @@ export default function StudentMessages() {
       .catch(() => setContacts([]))
       .finally(() => setLoadingContacts(false));
   }, [isNewChatOpen, user?.id]);
+
   useEffect(() => {
     if (!selectedThread && threads.length > 0) setSelectedThread(threads[0]);
     if (selectedThread) {
@@ -166,12 +191,11 @@ export default function StudentMessages() {
       }
     }
   }, [selectedThread, threads]);
+
   useEffect(() => {
     if (!selectedThread) return;
     const threadId = selectedThread.id;
-    // Fire mark-as-read immediately without blocking
     markThreadRead(threadId);
-    // Load from cache instantly if available
     const cached = (() => {
       try {
         const raw = localStorage.getItem(msgCacheKey(threadId));
@@ -180,117 +204,68 @@ export default function StudentMessages() {
     })();
     if (cached) {
       setMessages(cached);
-      // Silently refresh in background
       fetchMessages(threadId, true);
     } else {
       fetchMessages(threadId, false);
     }
   }, [selectedThread?.id, user?.id]);
+
   useEffect(() => {
     if (!selectedThread || !user?.id || !token) return;
     const interval = window.setInterval(() => {
       fetchMessages(selectedThread.id);
       fetchThreads();
-    }, 8000);
+    }, 2500);
     return () => window.clearInterval(interval);
   }, [selectedThread?.id, user?.id, token]);
+
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-  useEffect(() => () => {
-    if (pendingMedia?.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
-    recorderRef.current?.stream.getTracks().forEach((track) => track.stop());
-  }, [pendingMedia?.previewUrl]);
 
-  const clearPendingMedia = () => {
-    if (pendingMedia?.previewUrl) URL.revokeObjectURL(pendingMedia.previewUrl);
-    setPendingMedia(null);
-  };
+  const handleSendMessage = async (text: string) => {
+    if (!selectedThread || !user?.id) return;
 
-  const handleImagePick = (file: File | null) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast({ title: "Please choose an image file", variant: "destructive" });
-      return;
-    }
-    if (file.size > 8 * 1024 * 1024) {
-      toast({ title: "Image must be under 8MB", variant: "destructive" });
-      return;
-    }
-    clearPendingMedia();
-    setPendingMedia({ file, type: "image", previewUrl: URL.createObjectURL(file) });
-  };
+    // Create optimistic message object
+    const tempId = -Date.now();
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      audioChunksRef.current = [];
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
-      };
-      recorder.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
-        const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: blob.type });
-        clearPendingMedia();
-        setPendingMedia({ file, type: "audio", previewUrl: URL.createObjectURL(blob) });
-        stream.getTracks().forEach((track) => track.stop());
-      };
-      recorderRef.current = recorder;
-      recorder.start();
-      setIsRecording(true);
-    } catch {
-      toast({ title: "Microphone permission is needed to record voice notes", variant: "destructive" });
-    }
-  };
+    const optimisticMsg: Message = {
+      id: tempId,
+      senderId: user.id,
+      body: text,
+      attachmentUrl: null,
+      attachmentType: null,
+      attachmentName: null,
+      attachmentSize: null,
+      senderName: user.name || "Me",
+      senderRole: user.role,
+      createdAt: new Date().toISOString(),
+      isRead: false,
+      isDelivered: false
+    };
 
-  const stopRecording = () => {
-    recorderRef.current?.stop();
-    setIsRecording(false);
-  };
-
-  const uploadPendingMedia = async () => {
-    if (!pendingMedia) return null;
-    const formData = new FormData();
-    formData.append("media", pendingMedia.file);
-    const r = await fetch(`${BASE}/api/messages/upload`, {
-      method: "POST",
-      headers: authHeaders,
-      body: formData,
-    });
-    if (!r.ok) {
-      const error = await r.json().catch(() => null);
-      throw new Error(error?.error || error?.message || "Media upload failed");
-    }
-    return r.json();
-  };
-
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if ((!body.trim() && !pendingMedia) || !selectedThread) return;
+    setMessages(prev => [...prev, optimisticMsg]);
     setSending(true);
+
     try {
-      const media = await uploadPendingMedia();
       const r = await fetch(`${BASE}/api/messages/threads/${selectedThread.id}/messages`, {
         method: "POST",
         headers,
         body: JSON.stringify({
-          senderId: user?.id,
-          body,
-          attachmentUrl: media?.url,
-          attachmentType: media?.type,
-          attachmentName: media?.name,
-          attachmentSize: media?.size,
+          senderId: user.id,
+          body: text,
         }),
       });
+
       if (r.ok) {
-        setBody("");
-        clearPendingMedia();
-        fetchMessages(selectedThread.id);
-        fetchThreads();
+        const savedMsg = await r.json();
+        setMessages(prev => prev.map(m => m.id === tempId ? savedMsg : m));
+        fetchThreads(true);
       } else {
+        setMessages(prev => prev.filter(m => m.id !== tempId));
         toast({ title: "Message could not be sent", variant: "destructive" });
       }
     } catch (error: any) {
-      toast({ title: error?.message || "Media upload failed", variant: "destructive" });
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      toast({ title: error?.message || "Sending failed", variant: "destructive" });
     } finally {
       setSending(false);
     }
@@ -344,6 +319,7 @@ export default function StudentMessages() {
     t.courseName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.lastMessagePreview?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  
   const getMessageStatus = (msg: Message) => {
     if (msg.isRead) return "seen";
     if (msg.isDelivered) return "delivered";
@@ -359,7 +335,6 @@ export default function StudentMessages() {
   return (
     <DashboardLayout>
       <div className="flex h-[calc(100vh-7rem)] flex-col">
-        {/* Page Header */}
         <div className="mb-4 flex shrink-0 items-center justify-between">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-slate-900">Messages</h1>
@@ -367,9 +342,8 @@ export default function StudentMessages() {
           </div>
         </div>
 
-        {/* Messaging Layout */}
         <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          {/* Thread list */}
+          {/* Thread list sidebar */}
           <div className="flex w-[380px] shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white">
             <div className="flex flex-col gap-4 border-b border-slate-200 bg-[#f0f2f5] p-4">
               <div className="flex justify-between items-center">
@@ -417,34 +391,37 @@ export default function StudentMessages() {
                       <button
                         key={t.id}
                         onClick={() => setSelectedThread(t)}
-                        className={`group flex w-full items-center gap-3 px-4 py-3 text-left transition-all ${
-                          isSelected 
-                            ? "bg-emerald-50" 
-                            : "hover:bg-slate-50"
+                        className={`flex w-full items-start gap-3 p-4 text-left transition-all ${
+                          isSelected ? "bg-slate-100" : "hover:bg-slate-50"
                         }`}
                       >
                         <div className="relative shrink-0">
-                          <div className={`flex h-12 w-12 items-center justify-center rounded-full text-sm font-black transition-transform group-hover:scale-105 ${
-                            isSelected ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-700"
-                          }`}>
-                            {otherName?.charAt(0) ?? "T"}
+                          <div className="h-12 w-12 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold">
+                            {otherName?.charAt(0) ?? "U"}
                           </div>
-                          <span className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white ${t.teacherOnline ? "bg-emerald-500" : "bg-slate-300"}`} />
+                          {t.teacherOnline && (
+                            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" />
+                          )}
                         </div>
-                        <div className="min-w-0 flex-1 text-left">
-                          <div className="flex justify-between items-start mb-0.5">
-                            <p className="truncate text-sm font-black text-slate-900">{otherName ?? "Instructor"}</p>
-                            <span className="ml-2 shrink-0 text-[10px] font-bold text-slate-400">
-                              {new Date(t.lastMessageAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <p className="truncate text-sm font-bold text-slate-800">{otherName}</p>
+                            <span className="shrink-0 text-[10px] font-bold text-slate-400">
+                              {new Date(t.lastMessageAt).toLocaleDateString()}
                             </span>
                           </div>
-                          <p className="truncate text-xs font-semibold text-slate-500">
-                            {t.lastMessagePreview || t.courseName || "No messages yet"}
+                          <p className="truncate text-xs font-semibold text-slate-500 mt-0.5">
+                            {t.courseName}
+                          </p>
+                          <p className="truncate text-xs text-slate-400 mt-1 font-medium">
+                            {t.lastMessagePreview || "No messages yet"}
                           </p>
                         </div>
-                        {!!t.messageCount && (
-                          <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black text-white">{t.messageCount}</span>
-                        )}
+                        {t.messageCount ? (
+                          <Badge className="shrink-0 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] font-black text-white">
+                            {t.messageCount}
+                          </Badge>
+                        ) : null}
                       </button>
                     );
                   })}
@@ -453,67 +430,60 @@ export default function StudentMessages() {
             </div>
           </div>
 
-          {/* Chat Window */}
-          <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-[#efeae2]">
+          {/* Active Chat Conversation Board */}
+          <div className="flex flex-1 flex-col overflow-hidden bg-[#efeae2]">
             {!selectedThread ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-                <div className="h-24 w-24 rounded-[40px] bg-slate-50 flex items-center justify-center text-slate-200 mb-6">
-                  <MessageSquare className="h-12 w-12" />
-                </div>
-                <h3 className="text-2xl font-black text-slate-900">Your Inbox</h3>
-                <p className="text-slate-500 font-medium mt-2 max-w-xs">
-                  Select a conversation from the sidebar to chat with your instructor.
+              <div className="flex flex-1 flex-col items-center justify-center p-8 text-center opacity-35">
+                <MessageSquare className="h-16 w-16 text-primary mb-4" />
+                <h3 className="text-xl font-black text-slate-900">Select a Chat</h3>
+                <p className="text-sm font-medium mt-1.5 max-w-xs">
+                  Choose a conversation from the sidebar to view guidance and support.
                 </p>
               </div>
             ) : (
               <>
                 {/* Chat Header */}
-                <div className="z-10 flex shrink-0 items-center justify-between border-b border-slate-200 bg-[#f0f2f5] px-5 py-3">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600 text-lg font-black text-white">
-                      {selectedThread.teacherName?.charAt(0) ?? "T"}
+                <div className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-[#f0f2f5] px-6 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold">
+                        {selectedThread.teacherName?.charAt(0) ?? "U"}
+                      </div>
+                      {selectedThread.teacherOnline && (
+                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+                      )}
                     </div>
                     <div>
-                      <h3 className="text-base font-black text-slate-900">{selectedThread.teacherName}</h3>
-                      <div className="flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full ${selectedThread.teacherOnline ? "bg-emerald-500" : "bg-slate-400"}`} />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                          {selectedThread.teacherOnline ? "Online" : "Offline"} · {selectedThread.courseName || "General Discussion"}
-                        </p>
-                      </div>
+                      <p className="text-sm font-bold text-slate-800 leading-tight">
+                        {selectedThread.teacherName}
+                      </p>
+                      <p className="text-[10px] font-bold text-slate-500 mt-0.5">
+                        {selectedThread.courseName} • {selectedThread.teacherOnline ? "Online" : "Away"}
+                      </p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="rounded-xl text-slate-400 hover:text-slate-900">
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
                 </div>
 
-                {/* Messages List */}
-                <div className="flex-1 space-y-2 overflow-y-auto bg-[radial-gradient(circle_at_1px_1px,rgba(15,23,42,0.08)_1px,transparent_0)] bg-[length:22px_22px] p-6 custom-scrollbar">
+                {/* Messages view body */}
+                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 custom-scrollbar">
                   {messages.map((msg, idx) => {
                     const isMe = msg.senderId === user?.id;
                     const showName = idx === 0 || messages[idx - 1].senderId !== msg.senderId;
-                    const currentDay = new Date(msg.createdAt).toDateString();
                     const previousDay = idx > 0 ? new Date(messages[idx - 1].createdAt).toDateString() : "";
-                    const showDay = idx === 0 || currentDay !== previousDay;
-                    
+                    const currentDay = new Date(msg.createdAt).toDateString();
+                    const showDateSeparator = previousDay !== currentDay;
+
                     return (
-                      <div key={msg.id}>
-                        {showDay && (
-                          <div className="my-4 flex justify-center">
-                            <span className="rounded-md bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-500 shadow-sm">
-                              {new Date(msg.createdAt).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
+                      <div key={msg.id} className="space-y-3">
+                        {showDateSeparator && (
+                          <div className="flex justify-center my-4">
+                            <span className="rounded-full bg-white/80 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 shadow-sm border border-slate-100">
+                              {currentDay}
                             </span>
                           </div>
                         )}
-                        <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-                          {showName && !isMe && (
-                            <span className="mb-1 ml-1 text-[10px] font-black uppercase tracking-widest text-emerald-700">
-                              {msg.senderName}
-                            </span>
-                          )}
-                          <div className={`
-                            max-w-[78%] rounded-lg px-3 py-2 text-sm font-medium leading-relaxed shadow-sm
+                        <div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                          <div className={`max-w-[70%] rounded-2xl p-3 text-sm shadow-sm border border-black/5
                             ${isMe 
                               ? "rounded-tr-none bg-[#d9fdd3] text-slate-900" 
                               : "rounded-tl-none bg-white text-slate-900"}
@@ -543,70 +513,8 @@ export default function StudentMessages() {
                   <div ref={bottomRef} />
                 </div>
 
-                {/* Message Input */}
-                <div className="shrink-0 border-t border-slate-200 bg-[#f0f2f5] p-4">
-                  {pendingMedia && (
-                    <div className="mb-4 flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3">
-                      {pendingMedia.type === "image" ? (
-                        <img src={pendingMedia.previewUrl} alt="Selected image" className="h-16 w-16 rounded-xl object-cover" />
-                      ) : (
-                        <audio controls src={pendingMedia.previewUrl} className="h-10 max-w-xs" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-bold text-slate-800">{pendingMedia.file.name}</p>
-                        <p className="text-xs font-medium text-slate-400">{Math.ceil(pendingMedia.file.size / 1024)} KB</p>
-                      </div>
-                      <Button type="button" variant="ghost" size="icon" onClick={clearPendingMedia} className="rounded-xl text-slate-400">
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                  <form onSubmit={sendMessage} className="flex items-center gap-2">
-                    <input
-                      ref={imageInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      className="hidden"
-                      onChange={(e) => handleImagePick(e.target.files?.[0] || null)}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => imageInputRef.current?.click()}
-                      disabled={sending || isRecording}
-                      className="h-11 w-11 rounded-full bg-transparent text-slate-500 hover:bg-white hover:text-emerald-600"
-                    >
-                      <ImageIcon className="h-5 w-5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={isRecording ? stopRecording : startRecording}
-                      disabled={sending}
-                      className={`h-11 w-11 rounded-full ${isRecording ? "bg-rose-50 text-rose-600" : "bg-transparent text-slate-500 hover:bg-white hover:text-emerald-600"}`}
-                    >
-                      {isRecording ? <Square className="h-5 w-5 fill-current" /> : <Mic className="h-5 w-5" />}
-                    </Button>
-                    <div className="flex-1 relative">
-                      <Input
-                        value={body}
-                        onChange={(e) => setBody(e.target.value)}
-                        placeholder="Type a message to instructor..."
-                        className="h-11 rounded-full border-transparent bg-white px-5 pr-12 font-medium shadow-sm transition-all focus:border-emerald-200 focus:bg-white"
-                        disabled={sending}
-                      />
-                    </div>
-                    <Button 
-                      type="submit" 
-                      disabled={(!body.trim() && !pendingMedia) || sending || isRecording}
-                      className="h-11 w-11 shrink-0 rounded-full bg-emerald-600 shadow-lg shadow-emerald-600/20 hover:bg-emerald-700"
-                    >
-                      {sending ? <Loader2 className="h-6 w-6 animate-spin" /> : <Send className="h-6 w-6" />}
-                    </Button>
-                  </form>
-                </div>
+                {/* Subcomponent handles input, attachments and recording internally */}
+                <ChatInput onSend={handleSendMessage} disabled={sending} />
               </>
             )}
           </div>

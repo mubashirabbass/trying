@@ -101,7 +101,7 @@ export default function AdminStudents() {
   const [isUploading, setIsUploading] = useState(false);
 
   // Queries with error handling
-  const { data: usersRaw = [], isLoading: usersLoading, error: usersError } = useListUsers({}, { query: { queryKey: getListUsersQueryKey({}) } });
+  const { data: usersRaw = [], isLoading: usersLoading, error: usersError } = useListUsers({ role: "student" }, { query: { queryKey: getListUsersQueryKey({ role: "student" }) } });
   const { data: enrollmentsRaw = [], error: enrollmentsError } = useListEnrollments({}, { query: { queryKey: getListEnrollmentsQueryKey({}) } });
   const { data: paymentsRaw = [], error: paymentsError } = useListPayments({}, { query: { queryKey: getListPaymentsQueryKey({}) } });
   const { data: coursesRaw = [], error: coursesError } = useListCourses({}, { query: { queryKey: getListCoursesQueryKey({}) } });

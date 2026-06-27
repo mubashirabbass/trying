@@ -178,7 +178,10 @@ export const CreateCourseBody = zod.object({
   "syllabus": zod.string().optional(),
   "teacherId": zod.number().optional(),
   "isFeatured": zod.boolean().optional(),
-  "isFree": zod.boolean().optional()
+  "isFree": zod.boolean().optional(),
+  "totalDurationHours": zod.number().optional(),
+  "outlinePdfUrl": zod.string().optional(),
+  "minAttendancePercentage": zod.number().optional()
 })
 
 
@@ -246,7 +249,10 @@ export const UpdateCourseBody = zod.object({
   "syllabus": zod.string().optional(),
   "teacherId": zod.number().optional(),
   "isFeatured": zod.boolean().optional(),
-  "isFree": zod.boolean().optional()
+  "isFree": zod.boolean().optional(),
+  "totalDurationHours": zod.number().optional(),
+  "outlinePdfUrl": zod.string().optional(),
+  "minAttendancePercentage": zod.number().optional()
 })
 
 export const UpdateCourseResponse = zod.object({

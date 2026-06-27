@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -14,7 +14,9 @@ export const identityVerificationsTable = pgTable("identity_verifications", {
   submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
   reviewedBy: integer("reviewed_by").references(() => usersTable.id),
-});
+}, (table) => ({
+  statusIdx: index("id_verification_status_idx").on(table.status),
+}));
 
 export const insertIdentityVerificationSchema = createInsertSchema(identityVerificationsTable).omit({ id: true, submittedAt: true, reviewedAt: true, reviewedBy: true, status: true });
 export type InsertIdentityVerification = z.infer<typeof insertIdentityVerificationSchema>;
