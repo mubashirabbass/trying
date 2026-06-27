@@ -1,7 +1,11 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/AuthContext";
 import {
   FileBarChart,
@@ -15,42 +19,59 @@ import {
   FileText,
   Table,
   Loader2,
+  Calendar,
+  Search,
+  BarChart3,
+  PieChart,
+  LineChart,
+  Mail,
+  Printer,
+  RefreshCw,
+  Clock,
+  DollarSign,
+  GraduationCap,
+  UserCheck,
+  TrendingDown,
+  Activity,
+  Award,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useListCourses, useListBranches } from "@workspace/api-client-react";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
-type ReportType = "branch" | "students" | "enrollments" | "revenue" | "full-list";
+type ReportType = 
+  | "branch" 
+  | "students" 
+  | "enrollments" 
+  | "revenue" 
+  | "full-list"
+  | "teacher-attendance"
+  | "fee-installments"
+  | "course-revenue"
+  | "student-performance"
+  | "monthly-trends";
 
-const REPORT_TYPES: { id: ReportType; label: string; icon: any; description: string; color: string }[] = [
+const REPORT_TYPES: { 
+  id: ReportType; 
+  label: string; 
+  icon: any; 
+  description: string; 
+  color: string;
+  category: "overview" | "academic" | "financial" | "analytics";
+}[] = [
+  // Overview Reports
   {
     id: "branch",
     label: "Branch Overview",
     icon: Building2,
     description: "Student counts, enrollment rates, and activity per campus branch.",
     color: "bg-blue-50 text-blue-600",
-  },
-  {
-    id: "students",
-    label: "Student Progress",
-    icon: Users,
-    description: "Completion rates, quiz scores, assignment marks per student.",
-    color: "bg-emerald-50 text-emerald-600",
-  },
-  {
-    id: "enrollments",
-    label: "Enrollments",
-    icon: BookOpen,
-    description: "Course enrollment stats, new enrollments by date range.",
-    color: "bg-violet-50 text-violet-600",
-  },
-  {
-    id: "revenue",
-    label: "Revenue",
-    icon: CreditCard,
-    description: "Payment totals by method, status, and date range.",
-    color: "bg-orange-50 text-orange-600",
+    category: "overview",
   },
   {
     id: "full-list",
@@ -58,16 +79,114 @@ const REPORT_TYPES: { id: ReportType; label: string; icon: any; description: str
     icon: Table,
     description: "Complete student roster with branch, enrollment, and status data.",
     color: "bg-rose-50 text-rose-600",
+    category: "overview",
+  },
+  // Academic Reports
+  {
+    id: "students",
+    label: "Student Progress",
+    icon: Users,
+    description: "Completion rates, quiz scores, assignment marks per student.",
+    color: "bg-emerald-50 text-emerald-600",
+    category: "academic",
+  },
+  {
+    id: "enrollments",
+    label: "Enrollments",
+    icon: BookOpen,
+    description: "Course enrollment stats, new enrollments by date range.",
+    color: "bg-violet-50 text-violet-600",
+    category: "academic",
+  },
+  {
+    id: "student-performance",
+    label: "Performance Analysis",
+    icon: Award,
+    description: "Detailed student performance by course with grades and rankings.",
+    color: "bg-indigo-50 text-indigo-600",
+    category: "academic",
+  },
+  {
+    id: "teacher-attendance",
+    label: "Teacher Attendance",
+    icon: UserCheck,
+    description: "Teacher attendance records, monthly summary, and working hours.",
+    color: "bg-cyan-50 text-cyan-600",
+    category: "academic",
+  },
+  // Financial Reports
+  {
+    id: "revenue",
+    label: "Revenue Summary",
+    icon: CreditCard,
+    description: "Payment totals by method, status, and date range.",
+    color: "bg-orange-50 text-orange-600",
+    category: "financial",
+  },
+  {
+    id: "fee-installments",
+    label: "Fee Installments",
+    icon: DollarSign,
+    description: "Installment tracking, pending fees, and payment schedules.",
+    color: "bg-amber-50 text-amber-600",
+    category: "financial",
+  },
+  {
+    id: "course-revenue",
+    label: "Course Revenue",
+    icon: GraduationCap,
+    description: "Revenue breakdown by course with enrollment vs payment data.",
+    color: "bg-green-50 text-green-600",
+    category: "financial",
+  },
+  // Analytics Reports
+  {
+    id: "monthly-trends",
+    label: "Monthly Trends",
+    icon: TrendingUp,
+    description: "Month-over-month trends for enrollments, revenue, and activity.",
+    color: "bg-purple-50 text-purple-600",
+    category: "analytics",
   },
 ];
 
 export default function AdminReports() {
   const { token } = useAuth();
   const { toast } = useToast();
+  const { data: coursesData } = useListCourses();
+  const { data: branchesData } = useListBranches();
+  
+  const courses = Array.isArray(coursesData) ? coursesData : [];
+  const branches = Array.isArray(branchesData) ? branchesData : [];
+  
+  // Report selection
   const [activeReport, setActiveReport] = useState<ReportType>("branch");
+  const [activeCategory, setActiveCategory] = useState<"all" | "overview" | "academic" | "financial" | "analytics">("all");
+  
+  // Data
   const [data, setData] = useState<any[]>([]);
+  const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  
+  // Filters
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [selectedBranch, setSelectedBranch] = useState<string>("all");
+  const [selectedCourse, setSelectedCourse] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  // View options
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Filter reports by category
+  const filteredReports = useMemo(() => {
+    if (activeCategory === "all") return REPORT_TYPES;
+    return REPORT_TYPES.filter(r => r.category === activeCategory);
+  }, [activeCategory]);
 
   useEffect(() => {
     const fetchData = async () => {

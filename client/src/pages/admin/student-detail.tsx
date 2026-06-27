@@ -104,6 +104,8 @@ export default function AdminStudentDetail() {
     branchId: "",
     cnic: "",
     dob: "",
+    gender: "",
+    address: "",
     lastEducation: "" as "Matric" | "Intermediate" | "BS" | "",
     educationStream: "",
     obtainedMarks: "",
@@ -134,6 +136,8 @@ export default function AdminStudentDetail() {
       branchId: student.branchId ? String(student.branchId) : "",
       cnic: student.cnic || "",
       dob: student.dob ? new Date(student.dob).toISOString().split('T')[0] : "",
+      gender: student.gender || "",
+      address: student.address || "",
       lastEducation: (student.qualification || "") as any,
       educationStream: student.specialization || "",
       obtainedMarks: student.obtainedMarks ? String(student.obtainedMarks) : "",
@@ -310,6 +314,8 @@ export default function AdminStudentDetail() {
           branchId: formData.branchId ? Number(formData.branchId) : undefined,
           cnic: formData.cnic || undefined,
           dob: formData.dob ? new Date(formData.dob) : undefined,
+          gender: formData.gender || undefined,
+          address: formData.address || undefined,
           qualification: formData.lastEducation || undefined,
           specialization: formData.educationStream || undefined,
           obtainedMarks: formData.obtainedMarks ? Number(formData.obtainedMarks) : undefined,
@@ -909,6 +915,23 @@ export default function AdminStudentDetail() {
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">Gender</Label>
+                  <Select value={formData.gender} onValueChange={val => setFormData(prev => ({ ...prev, gender: val }))}>
+                    <SelectTrigger className="rounded-xl bg-white"><SelectValue placeholder="Select gender..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-600">Home Address</Label>
+                  <Input value={formData.address} onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))} className="rounded-xl bg-white" placeholder="Complete address..." />
                 </div>
               </div>
             </div>

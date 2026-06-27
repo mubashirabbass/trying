@@ -29,4 +29,6 @@ export interface UpdateUserBody {
   rollNo?: string;
   regNo?: string;
   department?: string;
+  address?: string;
+  gender?: string;
 }

@@ -50,6 +50,8 @@ export default function StudentQuizzes() {
   const enrolledCourses = (enrollments as any[]).filter(
     (e) => e.status === "active" || e.status === "completed"
   );
+  // Set of courseIds the student is enrolled in — used for total abstraction
+  const enrolledCourseIds = new Set(enrolledCourses.map((e: any) => e.courseId));
 
   // Excel View Filters & Interactive States
   const [searchTerm, setSearchTerm] = useState("");
@@ -171,9 +173,12 @@ export default function StudentQuizzes() {
     });
   };
 
-  // Filter & Search Logic
+  // Filter & Search Logic — ONLY quizzes from courses the student is enrolled in
   const filteredAndSortedQuizzes = (quizzes || [])
     .filter(quiz => {
+      // Total abstraction: hide quizzes from non-enrolled courses
+      if (!enrolledCourseIds.has(quiz.courseId)) return false;
+
       const status = getQuizStatus(quiz.id);
       const courseName = getCourseName(quiz.courseId);
       
@@ -218,14 +223,21 @@ export default function StudentQuizzes() {
       return 0;
     });
 
-  // Calculate Statistics based on ALL quizzes
-  const totalCount = quizzes?.length || 0;
-  const attemptedCount = results.length;
+  // Calculate Statistics based only on enrolled-course quizzes
+  const enrolledQuizzes = (quizzes || []).filter(q => enrolledCourseIds.has(q.courseId));
+  const totalCount = enrolledQuizzes.length;
+  const attemptedCount = results.filter((r: any) => enrolledCourseIds.has(
+    enrolledQuizzes.find(q => q.id === r.quizId)?.courseId ?? -1
+  )).length;
   const incompleteCount = Math.max(0, totalCount - attemptedCount);
-  const passedAttemptsCount = results.filter((r: any) => r.passed).length;
+  const passedAttemptsCount = results.filter((r: any) => r.passed && enrolledCourseIds.has(
+    enrolledQuizzes.find(q => q.id === r.quizId)?.courseId ?? -1
+  )).length;
   const passRate = attemptedCount > 0 ? Math.round((passedAttemptsCount / attemptedCount) * 100) : 0;
   const averageScore = attemptedCount > 0 
-    ? Math.round(results.reduce((sum: number, r: any) => sum + r.percentage, 0) / attemptedCount)
+    ? Math.round(results
+        .filter((r: any) => enrolledCourseIds.has(enrolledQuizzes.find(q => q.id === r.quizId)?.courseId ?? -1))
+        .reduce((sum: number, r: any) => sum + r.percentage, 0) / attemptedCount)
     : 0;
 
   const renderColumnHeader = (field: string, label: string, alignment: "left" | "center" | "right" = "left") => {

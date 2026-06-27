@@ -48,7 +48,7 @@ export default function QuizResultPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto py-8 px-4">
+      <div className="max-w-4xl mx-auto py-8 px-4" style={{ userSelect: "none", WebkitUserSelect: "none" }}>
         <Button 
           variant="ghost" 
           className="mb-6 font-bold text-slate-600 hover:bg-slate-100 rounded-xl"

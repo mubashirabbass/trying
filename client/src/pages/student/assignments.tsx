@@ -75,6 +75,8 @@ export default function StudentAssignments() {
   const enrolledCourses = (enrollments as any[]).filter(
     (e) => e.status === "active" || e.status === "completed"
   );
+  // Set of courseIds the student is enrolled in — used for total abstraction
+  const enrolledCourseIds = new Set(enrolledCourses.map((e: any) => e.courseId));
 
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null);
   const [fileUrl, setFileUrl] = useState("");
@@ -357,9 +359,12 @@ export default function StudentAssignments() {
     });
   };
 
-  // Filter & Search Logic
+  // Filter & Search Logic — ONLY assignments from courses the student is enrolled in
   const filteredAndSortedAssignments = (assignments || [])
     .filter(assignment => {
+      // Total abstraction: hide assignments from non-enrolled courses
+      if (!enrolledCourseIds.has(assignment.courseId)) return false;
+
       const submission = getSubmission(assignment.id);
       const status = getAssignmentStatus(assignment, submission);
       const courseName = getCourseName(assignment.courseId);
@@ -401,19 +406,23 @@ export default function StudentAssignments() {
       return 0;
     });
 
-  // Calculate Statistics based on ALL assignments
-  const totalCount = assignments?.length || 0;
+  // Calculate Statistics based only on enrolled-course assignments
+  const enrolledAssignments = (assignments || []).filter(a => enrolledCourseIds.has(a.courseId));
+  const totalCount = enrolledAssignments.length;
   const submissionsCount = submissions?.length || 0;
-  const gradedCount = submissions?.filter(s => s.status === 'graded').length || 0;
+  const gradedCount = submissions?.filter(s => {
+    const a = enrolledAssignments.find(a => a.id === s.assignmentId);
+    return s.status === 'graded' && !!a;
+  }).length || 0;
   const completionRate = totalCount > 0 ? Math.round((gradedCount / totalCount) * 100) : 0;
   
-  const pendingCount = (assignments || []).filter(a => {
+  const pendingCount = enrolledAssignments.filter(a => {
     const sub = getSubmission(a.id);
     const status = getAssignmentStatus(a, sub);
     return status === "pending" || status === "due_soon";
   }).length;
 
-  const overdueCount = (assignments || []).filter(a => {
+  const overdueCount = enrolledAssignments.filter(a => {
     const sub = getSubmission(a.id);
     return getAssignmentStatus(a, sub) === "overdue";
   }).length;

@@ -385,9 +385,11 @@ export default function Login() {
                         <Label htmlFor="password" className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                           Password
                         </Label>
-                        <Link href="/forgot-password" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">
-                          Forgot Password?
-                        </Link>
+                        {selectedRole !== "admin" && (
+                          <Link href="/forgot-password" className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors">
+                            Forgot Password?
+                          </Link>
+                        )}
                       </div>
                       <div className="relative">
                         <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
@@ -449,12 +451,14 @@ export default function Login() {
 
                 {/* Footer */}
                 <div className="mt-6 pt-5 border-t border-slate-100 text-center space-y-3">
-                  <p className="text-sm text-slate-500 font-semibold">
-                    Forgot your password?{" "}
-                    <Link href="/forgot-password" className="text-indigo-600 hover:text-indigo-800 transition-colors underline underline-offset-2 font-black">
-                      Reset it here
-                    </Link>
-                  </p>
+                  {selectedRole !== "admin" && (
+                    <p className="text-sm text-slate-500 font-semibold">
+                      Forgot your password?{" "}
+                      <Link href="/forgot-password" className="text-indigo-600 hover:text-indigo-800 transition-colors underline underline-offset-2 font-black">
+                        Reset it here
+                      </Link>
+                    </p>
+                  )}
                   {selectedRole === "student" && (
                     <p className="text-sm text-slate-500 font-medium">
                       New to Global College?{" "}

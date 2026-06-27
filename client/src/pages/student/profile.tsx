@@ -31,7 +31,7 @@ import {
 const BASE = window.location.origin;
 
 export default function StudentProfileRedesigned() {
-  const { user, token, refreshUser } = useAuth();
+  const { user, token, refreshUser, patchUser } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -64,7 +64,12 @@ export default function StudentProfileRedesigned() {
     confirm: false,
   });
 
-  // Load user data
+  // Fetch fresh user data on mount
+  useEffect(() => {
+    refreshUser?.();
+  }, [refreshUser]);
+
+  // Load user data into form
   useEffect(() => {
     if (user) {
       setFormData({
@@ -132,7 +137,8 @@ export default function StudentProfileRedesigned() {
       });
 
       if (updateRes.ok) {
-        await refreshUser?.();
+        const updatedUser = await updateRes.json();
+        patchUser(updatedUser);   // instant — no extra GET
         toast({ 
           title: "✅ Success!", 
           description: "Profile photo updated successfully" 
@@ -165,7 +171,8 @@ export default function StudentProfileRedesigned() {
       });
 
       if (res.ok) {
-        await refreshUser?.();
+        const updatedUser = await res.json();
+        patchUser(updatedUser);   // instant — no extra GET
         toast({ title: "Profile photo removed" });
       } else {
         throw new Error("Failed to remove photo");
@@ -190,21 +197,21 @@ export default function StudentProfileRedesigned() {
 
     setLoading(true);
     try {
-      // Build payload - only include fields that have values or send empty string instead of null
+      // Build full payload — send all fields so cleared values are also saved
       const payload: any = {
         name: formData.name.trim(),
+        phone: formData.phone,
+        cnic: formData.cnic,
+        gender: formData.gender,
+        address: formData.address,
+        fatherName: formData.fatherName,
+        nameUrdu: formData.nameUrdu,
+        qualification: formData.qualification,
+        specialization: formData.specialization,
       };
-      
-      // Add optional fields - send empty string if empty, not null
-      if (formData.phone) payload.phone = formData.phone;
-      if (formData.cnic) payload.cnic = formData.cnic;
+
+      // Only add dob if it has a value (avoids invalid date conversion)
       if (formData.dob) payload.dob = new Date(formData.dob).toISOString();
-      if (formData.gender) payload.gender = formData.gender;
-      if (formData.address) payload.address = formData.address;
-      if (formData.fatherName) payload.fatherName = formData.fatherName;
-      if (formData.nameUrdu) payload.nameUrdu = formData.nameUrdu;
-      if (formData.qualification) payload.qualification = formData.qualification;
-      if (formData.specialization) payload.specialization = formData.specialization;
 
       const res = await fetch(`${BASE}/api/users/${user?.id}`, {
         method: "PUT",
@@ -216,7 +223,8 @@ export default function StudentProfileRedesigned() {
       });
 
       if (res.ok) {
-        await refreshUser?.();
+        const updatedUser = await res.json();
+        patchUser(updatedUser);   // instant — no extra GET
         toast({ 
           title: "✅ Saved!", 
           description: "Your profile has been updated successfully" 
@@ -564,6 +572,42 @@ export default function StudentProfileRedesigned() {
                   rows={3}
                   className="font-semibold resize-none"
                 />
+              </div>
+
+              {/* Academic & Enrollment Info (Read-Only) */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                <h3 className="text-xs font-black text-slate-500 uppercase tracking-wider">
+                  Academic & Enrollment Details (Official)
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
+                  <div>
+                    <span className="font-bold text-slate-400 uppercase tracking-wide block">Roll No</span>
+                    <span className="text-slate-800 font-mono font-bold">{(user as any)?.rollNo || "Not assigned"}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-400 uppercase tracking-wide block">Registration No</span>
+                    <span className="text-slate-800 font-mono font-bold">{(user as any)?.regNo || "Not assigned"}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-400 uppercase tracking-wide block">Department</span>
+                    <span className="text-slate-800 font-bold">{(user as any)?.department || "Not assigned"}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-400 uppercase tracking-wide block">Session</span>
+                    <span className="text-slate-800 font-bold">{(user as any)?.session || "Not assigned"}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-400 uppercase tracking-wide block">Semester / Term</span>
+                    <span className="text-slate-800 font-bold">{(user as any)?.semesterTerm || "Not assigned"}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-400 uppercase tracking-wide block">Shift</span>
+                    <span className="text-slate-800 font-bold">{(user as any)?.shift || "Not assigned"}</span>
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  Note: The academic details above are assigned by college administration during admission approval and cannot be modified by students.
+                </p>
               </div>
 
               {/* Save Button */}

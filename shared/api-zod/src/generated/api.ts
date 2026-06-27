@@ -1478,8 +1478,10 @@ export const UpdateUserBody = zod.object({
   "shift": zod.string().optional(),
   "rollNo": zod.string().optional(),
   "regNo": zod.string().optional(),
-  "department": zod.string().optional()
-})
+  "department": zod.string().optional(),
+  "address": zod.string().optional(),
+  "gender": zod.string().optional()
+}).passthrough()
 
 export const UpdateUserResponse = zod.object({
   "id": zod.number(),

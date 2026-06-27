@@ -8,6 +8,7 @@ interface AuthContextType {
   login: (user: User, token: string, rememberMe?: boolean) => void;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  patchUser: (updates: Partial<User>) => void;
   isLoading: boolean;
 }
 
@@ -124,8 +125,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Patch user state directly from an API response — no extra network round-trip
+  const patchUser = (updates: Partial<User>) => {
+    if (!user) return;
+    const updatedUser = { ...user, ...updates };
+    setUser(updatedUser);
+    const storage = localStorage.getItem("token") ? localStorage : sessionStorage;
+    storage.setItem("user", JSON.stringify(updatedUser));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, refreshUser, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, logout, refreshUser, patchUser, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

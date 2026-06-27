@@ -60,15 +60,15 @@ export function FeeReceipt({ payment, institute, onClose }: FeeReceiptProps) {
     year: "numeric"
   });
 
+  // Guard against API returning numeric columns as strings
+  const amountPaid     = Number(payment.amount)     || 0;
+  const totalCourseFee = Number(payment.totalFee) > 0 ? Number(payment.totalFee) : amountPaid;
+  const remainingBalance = payment.remainingFee !== undefined && payment.remainingFee !== null
+    ? Number(payment.remainingFee)
+    : Math.max(0, totalCourseFee - amountPaid);
+
   const admissionFee = 0;
-  const amountPaid = payment.amount; // Amount actually paid in THIS payment
-  // Ensure totalCourseFee is never 0 or falsy - if totalFee is missing/0, this is likely a full payment
-  const totalCourseFee = payment.totalFee && payment.totalFee > 0 ? payment.totalFee : payment.amount;
-  // Use remainingFee from payment if provided (for installments), otherwise calculate
-  const remainingBalance = payment.remainingFee !== undefined 
-    ? payment.remainingFee 
-    : (totalCourseFee - amountPaid);
-  const totalAmount = amountPaid + admissionFee;
+  const totalAmount  = amountPaid + admissionFee;
 
   const ReceiptContent = () => (
     <div className="slip-wrapper">

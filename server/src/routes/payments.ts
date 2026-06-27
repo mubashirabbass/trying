@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, paymentsTable, coursesTable, usersTable, enrollmentsTable } from "@workspace/db";
+import { db, paymentsTable, coursesTable, usersTable, enrollmentsTable, installmentLedgerTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import {
   ListPaymentsQueryParams,
@@ -12,9 +12,38 @@ import { assignRollAndRegNo } from "../lib/studentNumbers";
 
 const router: IRouter = Router();
 
+// ─── Helper: parse duration months ───────────────────────────────────────────
+function parseDurationMonths(duration?: string | null): number {
+  if (!duration) return 1;
+  const m = duration.match(/(\d+)\s*month/i);
+  if (m) return parseInt(m[1], 10);
+  const y = duration.match(/(\d+)\s*year/i);
+  if (y) return parseInt(y[1], 10) * 12;
+  return 1;
+}
+
+// ─── Helper: generate receipt number ─────────────────────────────────────────
+function makeReceiptNumber(userId: number, courseId: number, monthNumber: number): string {
+  const year = new Date().getFullYear();
+  const uid = String(userId).padStart(4, "0");
+  const cid = String(courseId).padStart(3, "0");
+  const mn  = String(monthNumber).padStart(2, "0");
+  return `RCP-${year}-U${uid}-C${cid}-M${mn}`;
+}
+
 router.get("/payments", async (req, res): Promise<void> => {
   const params = ListPaymentsQueryParams.safeParse(req.query);
-  const payments = await db
+  const conditions = [];
+  if (params.success) {
+    if (params.data.userId) {
+      conditions.push(eq(paymentsTable.userId, Number(params.data.userId)));
+    }
+    if (params.data.status) {
+      conditions.push(eq(paymentsTable.status, params.data.status));
+    }
+  }
+
+  const query = db
     .select({
       id: paymentsTable.id,
       userId: paymentsTable.userId,
@@ -38,12 +67,8 @@ router.get("/payments", async (req, res): Promise<void> => {
     .leftJoin(usersTable, eq(paymentsTable.userId, usersTable.id))
     .leftJoin(coursesTable, eq(paymentsTable.courseId, coursesTable.id));
 
-  let filtered = payments;
-  if (params.success) {
-    if (params.data.userId) filtered = filtered.filter(p => p.userId === Number(params.data.userId));
-    if (params.data.status) filtered = filtered.filter(p => p.status === params.data.status);
-  }
-  res.json(filtered);
+  const payments = await (conditions.length > 0 ? query.where(and(...conditions)) : query);
+  res.json(payments);
 });
 
 router.post("/payments", async (req: AuthRequest, res): Promise<void> => {
@@ -137,6 +162,37 @@ router.post("/payments/:id/verify", async (req, res): Promise<void> => {
       .where(eq(usersTable.id, payment.userId));
     await assignRollAndRegNo(payment.userId);
 
+    // ── Auto-generate installment ledger rows for monthly plans ──────────────
+    if (payment.paymentPlan === "monthly" && payment.totalFee) {
+      const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, payment.courseId));
+      const durationMonths = parseDurationMonths(course?.duration);
+      const monthlyAmount = Math.ceil(payment.totalFee / durationMonths);
+
+      for (let m = 1; m <= durationMonths; m++) {
+        const exists = await db.select({ id: installmentLedgerTable.id })
+          .from(installmentLedgerTable)
+          .where(and(
+            eq(installmentLedgerTable.userId, payment.userId),
+            eq(installmentLedgerTable.courseId, payment.courseId),
+            eq(installmentLedgerTable.monthNumber, m),
+          ));
+        if (exists.length === 0) {
+          await db.insert(installmentLedgerTable).values({
+            userId: payment.userId,
+            courseId: payment.courseId,
+            monthNumber: m,
+            installmentAmount: monthlyAmount,
+            totalFee: payment.totalFee,
+            totalPaid: 0,
+            remainingBalance: monthlyAmount,
+            status: "unpaid",
+            paymentHistory: [] as any,
+            receiptNumber: makeReceiptNumber(payment.userId, payment.courseId, m),
+          });
+        }
+      }
+    }
+
     // Trigger notification
     try {
       const [course] = await db.select().from(coursesTable).where(eq(coursesTable.id, payment.courseId));
@@ -152,5 +208,5 @@ router.post("/payments/:id/verify", async (req, res): Promise<void> => {
 
   res.json({ ...payment, userName: null, courseName: null });
 });
-
 export default router;
+

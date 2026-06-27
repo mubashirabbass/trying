@@ -25,13 +25,15 @@ router.get("/quizzes", async (req, res): Promise<void> => {
   }
 
   // Fetch questions for each quiz
+  const isAdminOrTeacher = (req as AuthRequest).user?.role === "admin" || (req as AuthRequest).user?.role === "teacher";
   const quizzesWithQuestions = await Promise.all(quizzes.map(async (quiz) => {
     const dbQuestions = await db.select().from(questionsTable).where(eq(questionsTable.quizId, quiz.id)).orderBy(questionsTable.orderIndex);
     const questions = dbQuestions.map(q => ({
       id: q.id,
       question: q.questionText,
       options: [q.optionA, q.optionB, q.optionC, q.optionD],
-      correctOption: q.correctOption.charCodeAt(0) - 65,
+      // Only expose correctOption to admin/teacher — never to students
+      ...(isAdminOrTeacher ? { correctOption: q.correctOption.charCodeAt(0) - 65 } : {}),
       marks: q.marks,
     }));
     return { ...quiz, questions };
@@ -188,11 +190,13 @@ router.get("/quizzes/results/:id", async (req: AuthRequest, res): Promise<void> 
   const [quiz] = await db.select().from(quizzesTable).where(eq(quizzesTable.id, result.quizId));
   const questions = await db.select().from(questionsTable).where(eq(questionsTable.quizId, result.quizId)).orderBy(questionsTable.orderIndex);
 
+  const isAdminOrTeacher = req.user?.role === "admin" || req.user?.role === "teacher";
   const formattedQuestions = questions.map(q => ({
     id: q.id,
     question: q.questionText,
     options: [q.optionA, q.optionB, q.optionC, q.optionD],
-    correctOption: q.correctOption.charCodeAt(0) - 65,
+    // Only expose correctOption to admin/teacher in results review
+    ...(isAdminOrTeacher ? { correctOption: q.correctOption.charCodeAt(0) - 65 } : {}),
     marks: q.marks,
   }));
 

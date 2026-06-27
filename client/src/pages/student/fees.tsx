@@ -442,14 +442,22 @@ export default function StudentFees() {
                                         </Badge>
                                       </div>
                                     </div>
-                                    {p.status === 'verified' && (
+                                    {(p.status === 'verified' || p.status === 'pending') && (
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        className="w-full h-7 text-[10px] font-bold rounded-lg border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                                        className={`w-full h-7 text-[10px] font-bold rounded-lg ${
+                                          p.status === 'verified'
+                                            ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800'
+                                            : 'border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800'
+                                        }`}
                                         onClick={() => {
                                           setReceiptData({
                                             ...p,
+                                            // Coerce numeric fields from API string types
+                                            amount: Number(p.amount) || 0,
+                                            totalFee: Number(p.totalFee) || Number(p.amount) || 0,
+                                            remainingFee: p.remainingFee !== undefined && p.remainingFee !== null ? Number(p.remainingFee) : undefined,
                                             userName: user?.name || "Student",
                                             courseName: course.title,
                                           });
@@ -457,7 +465,7 @@ export default function StudentFees() {
                                         }}
                                       >
                                         <Receipt className="h-3 w-3 mr-1" />
-                                        View Receipt
+                                        {p.status === 'verified' ? 'View Receipt' : 'View Submission'}
                                       </Button>
                                     )}
                                   </div>
