@@ -455,6 +455,7 @@ export default function TeacherDashboard() {
                     { label: "Grade Submissions", icon: FileText, href: "/teacher/grading", color: "text-amber-600 bg-amber-50" },
                     { label: "Manage Courses", icon: BookOpen, href: "/teacher/courses", color: "text-blue-600 bg-blue-50" },
                     { label: "View Students", icon: Users, href: "/teacher/students", color: "text-indigo-600 bg-indigo-50" },
+                    { label: "My Attendance", icon: Calendar, href: "/teacher/my-attendance", color: "text-cyan-600 bg-cyan-50" },
                     { label: "Live Classes", icon: TrendingUp, href: "/teacher/live-classes", color: "text-emerald-600 bg-emerald-50" },
                     { label: "Messages", icon: MessageSquare, href: "/teacher/messages", color: "text-purple-600 bg-purple-50" },
                     { label: "Quizzes", icon: Award, href: "/teacher/quizzes", color: "text-rose-600 bg-rose-50" },

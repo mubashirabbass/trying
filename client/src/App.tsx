@@ -64,6 +64,7 @@ import TeacherQuizzes from "@/pages/teacher/quizzes";
 import TeacherMessages from "@/pages/teacher/messages";
 import TeacherProfile from "@/pages/teacher/profile";
 import TeacherStudents from "@/pages/teacher/students";
+import TeacherAttendance from "@/pages/teacher/attendance";
 import Branches from "@/pages/branches";
 
 // Shared Pages
@@ -78,6 +79,7 @@ import AdminCourseCategories from "@/pages/admin/course-categories";
 import AdminPayments from "@/pages/admin/payments";
 import AdminBranches from "@/pages/admin/branches";
 import AdminSuccessStories from "@/pages/admin/success-stories";
+import AdminTeacherAttendance from "@/pages/admin/teacher-attendance";
 import AdminTestimonials from "@/pages/admin/testimonials";
 import AdminSettings from "@/pages/admin/settings";
 import AdminAnnouncements from "@/pages/admin/announcements";
@@ -246,6 +248,9 @@ function Router() {
         <Route path="/teacher/attendance">
           <ProtectedRoute component={AttendanceManager} />
         </Route>
+        <Route path="/teacher/my-attendance">
+          <ProtectedRoute component={TeacherAttendance} />
+        </Route>
         <Route path="/teacher/live-classes">
           <ProtectedRoute component={TeacherLiveClasses} />
         </Route>
@@ -337,6 +342,9 @@ function Router() {
         </Route>
         <Route path="/admin/attendance">
           <ProtectedRoute component={AttendanceManager} />
+        </Route>
+        <Route path="/admin/teacher-attendance">
+          <ProtectedRoute component={AdminTeacherAttendance} />
         </Route>
         <Route path="/admin/live-classes">
           <ProtectedRoute component={AdminLiveClasses} />

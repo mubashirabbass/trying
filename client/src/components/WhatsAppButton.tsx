@@ -197,9 +197,9 @@ export function WhatsAppButton() {
               <div className="px-4 py-2.5 border-t border-slate-100 text-center">
                 <p className="text-[10px] text-slate-400">
                   Powered by{" "}
-                  <a href="https://empowerers.co" target="_blank" rel="noreferrer" className="text-emerald-600 font-semibold hover:underline">
-                    Empowerers
-                  </a>
+                  <span className="text-emerald-600 font-semibold">
+                    Global College of Computer Science &amp; Commerce
+                  </span>
                 </p>
               </div>
             </>

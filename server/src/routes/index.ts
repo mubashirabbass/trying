@@ -116,7 +116,11 @@ import faqsRouter from "./faqs";
 import articlesRouter from "./articles";
 import usersRouter from "./users";
 import attendanceRouter from "./attendance";
+import teacherAttendanceRouter from "./teacher-attendance";
 import liveClassesRouter from "./live-classes";
+
+console.log("✓ Teacher attendance router imported successfully");
+
 import uploadRouter from "./upload";
 import courseCategoriesRouter from "./course-categories";
 import franchiseApplicationsRouter from "./franchise-applications";
@@ -132,6 +136,8 @@ router.use(articlesRouter);
 router.use(certificatesRouter);
 router.use(usersRouter);
 router.use(attendanceRouter);
+router.use(teacherAttendanceRouter);
+console.log("✓ Teacher attendance routes registered");
 router.use(settingsRouter);
 router.use(uploadRouter); // File uploads (images & PDFs) — requires auth internally
 router.use(courseCategoriesRouter);

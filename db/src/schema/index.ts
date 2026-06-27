@@ -20,6 +20,7 @@ export * from "./faqs";
 export * from "./articles";
 export * from "./success-story-categories";
 export * from "./attendance";
+export * from "./teacher-attendance";
 export * from "./live_classes";
 export * from "./course-categories";
 export * from "./franchise-applications";
