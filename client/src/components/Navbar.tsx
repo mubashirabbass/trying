@@ -63,6 +63,7 @@ export function Navbar() {
     { name: "Success Stories", path: "/success-stories" },
     { name: "About", path: "/about" },
     { name: "Contact", path: "/contact" },
+    { name: "Updates", path: "/resources" },
     { name: "Feedback", path: "/feedback" },
   ];
 

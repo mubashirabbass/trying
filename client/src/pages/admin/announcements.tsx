@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Megaphone, Send, Users, BookOpen, GraduationCap } from "lucide-react";
+import { Loader2, Megaphone, Send, Users, BookOpen, GraduationCap, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
@@ -57,6 +57,20 @@ export default function AdminAnnouncements() {
       toast({ title: "Failed to send", variant: "destructive" });
     }
     setSending(false);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this announcement?")) return;
+    const r = await fetch(`${BASE}/api/announcements/${id}`, {
+      method: "DELETE",
+      headers,
+    });
+    if (r.ok) {
+      toast({ title: "Announcement deleted", description: "The announcement has been deleted successfully." });
+      fetchAnnouncements();
+    } else {
+      toast({ title: "Failed to delete", variant: "destructive" });
+    }
   };
 
   return (
@@ -130,9 +144,19 @@ export default function AdminAnnouncements() {
                 return (
                   <Card key={a.id} className="hover:shadow-sm transition-shadow">
                     <CardContent className="p-5">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-semibold text-gray-900">{a.title}</h3>
-                        <Badge className={`${opt.color} text-xs ml-2 shrink-0`}>{opt.label}</Badge>
+                      <div className="flex items-start justify-between gap-4 mb-2">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold text-gray-900 truncate">{a.title}</h3>
+                          <Badge className={`${opt.color} text-xs mt-1.5`}>{opt.label}</Badge>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 shrink-0"
+                          onClick={() => handleDelete(a.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                       <p className="text-sm text-gray-600 mb-3 leading-relaxed">{a.message}</p>
                       <div className="flex items-center gap-3 text-xs text-gray-400">

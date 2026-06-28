@@ -29,6 +29,13 @@
       "when": 1779471600000,
       "tag": "0003_message_media_links",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782641924509,
+      "tag": "0004_brief_cerebro",
+      "breakpoints": true
     }
   ]
 }

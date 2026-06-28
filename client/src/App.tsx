@@ -101,6 +101,8 @@ import AdminFAQs from "@/pages/admin/faqs";
 import AdminFranchiseApplications from "@/pages/admin/franchise-applications";
 import AdminFees from "@/pages/admin/fees";
 import AdminPayroll from "@/pages/admin/payroll";
+import CashbookIncome from "@/pages/admin/cashbook-income";
+import CashbookExpenses from "@/pages/admin/cashbook-expenses";
 
 const queryClient = new QueryClient();
 
@@ -289,6 +291,15 @@ function Router() {
         </Route>
         <Route path="/admin/payments">
           <ProtectedRoute component={AdminPayments} />
+        </Route>
+        <Route path="/admin/cashbook">
+          <ProtectedRoute component={CashbookIncome} />
+        </Route>
+        <Route path="/admin/cashbook-income">
+          <ProtectedRoute component={CashbookIncome} />
+        </Route>
+        <Route path="/admin/cashbook-expenses">
+          <ProtectedRoute component={CashbookExpenses} />
         </Route>
         <Route path="/admin/fees">
           <ProtectedRoute component={AdminFees} />

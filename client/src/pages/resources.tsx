@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
   Newspaper, Search, Calendar, User, Clock, 
-  ChevronRight, ArrowUpRight, BookOpen, Star
+  ChevronRight, ArrowUpRight, BookOpen, Star,
+  TrendingUp, AlertTriangle, Info, Bell
 } from "lucide-react";
 
 export default function Resources() {
@@ -15,6 +16,7 @@ export default function Resources() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [announcements, setAnnouncements] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchArticles = async () => {
@@ -33,6 +35,34 @@ export default function Resources() {
     fetchArticles();
   }, []);
 
+  useEffect(() => {
+    const fetchAnnouncements = async () => {
+      try {
+        const res = await fetch('/api/announcements/public');
+        console.log('Announcements API Response Status:', res.status);
+        if (res.ok) {
+          const data = await res.json();
+          console.log('Announcements Data Received:', data);
+          console.log('Number of announcements:', data.length);
+          if (Array.isArray(data)) {
+            if (data.length > 0) {
+              console.log('First announcement:', data[0]);
+            }
+            setAnnouncements(data);
+          } else {
+            console.error('Announcements API response is not an array:', data);
+          }
+        } else {
+          const errorText = await res.text();
+          console.error('Failed to fetch announcements:', res.status, res.statusText, errorText);
+        }
+      } catch (err) {
+        console.error("Failed to load announcements - Network error:", err);
+      }
+    };
+    fetchAnnouncements();
+  }, []);
+
   // Extract unique categories
   const categories = ["All", ...Array.from(new Set(articles.map(a => a.category || "General")))];
 
@@ -47,29 +77,95 @@ export default function Resources() {
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-slate-50/50 pb-24">
-        {/* Majestic banner header */}
-        <section className="relative py-24 bg-slate-900 overflow-hidden text-white">
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/80 via-slate-900 to-emerald-950/60 z-0" />
-          <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl z-0" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl z-0" />
-          
-          <div className="relative z-10 w-full px-4 md:px-10 lg:px-16 text-center max-w-4xl mx-auto space-y-6">
-            <span className="bg-[#e6fcf5] text-[#0ca678] border border-[#b2f2bb] rounded-md px-4 py-1.5 text-xs font-black uppercase tracking-wider shadow-md">
-              Knowledge Hub & Blog Studio
-            </span>
-            <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-tight">
-              Explore Our <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-amber-300">Articles & News</span>
-            </h1>
-            <p className="text-slate-300 text-lg md:text-xl font-medium leading-relaxed max-w-2xl mx-auto">
-              Real ecommerce guides, tips, announcements, and success blueprints curated by our expert educators and administrators.
-            </p>
+      <div className="min-h-screen bg-gray-50">
+        
+        {/* Simple Header */}
+        <div className="bg-white border-b-2 border-gray-200">
+          <div className="w-full px-4 md:px-10 lg:px-16 max-w-6xl mx-auto py-8">
+            <div className="text-center">
+              <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-2">
+                Updates & Announcements
+              </h1>
+              <p className="text-gray-600 text-lg">
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+              </p>
+            </div>
           </div>
-        </section>
+        </div>
 
-        {/* Content catalog */}
-        <div className="w-full px-4 md:px-10 lg:px-16 mt-16 max-w-7xl mx-auto">
-          {/* Controls Bar */}
+        {/* All Updates - Simple List */}
+        <div className="w-full px-4 md:px-10 lg:px-16 max-w-6xl mx-auto py-12">
+          
+          {announcements.length > 0 ? (
+            <div className="space-y-6">
+              {announcements.map((announcement, index) => {
+                const date = new Date(announcement.sentAt || announcement.createdAt);
+                // Determine target badge
+                const targetInfo = announcement.targetType === "STUDENTS" 
+                  ? { label: "For Students", color: "bg-emerald-500" }
+                  : announcement.targetType === "TEACHERS"
+                  ? { label: "For Teachers", color: "bg-purple-500" }
+                  : { label: "For Everyone", color: "bg-blue-500" };
+                
+                return (
+                  <div key={announcement.id} className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow">
+                    
+                    {/* Update Header */}
+                    <div className={`${targetInfo.color} text-white px-6 py-3 flex items-center justify-between`}>
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center font-black text-lg border-2 border-white/40">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm flex items-center gap-2">
+                            Update #{index + 1}
+                            <Badge className="bg-white/20 backdrop-blur-sm border-white/30 text-white text-[10px] px-2 py-0.5">
+                              {targetInfo.label}
+                            </Badge>
+                          </p>
+                          <p className="text-xs text-white/90">
+                            {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-white/80">Posted by</p>
+                        <p className="font-bold text-sm">{announcement.sentBy || "Admin"}</p>
+                      </div>
+                    </div>
+
+                    {/* Update Content */}
+                    <div className="p-6">
+                      <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                        {announcement.title}
+                      </h2>
+                      <p className="text-gray-700 text-lg leading-relaxed whitespace-pre-wrap">
+                        {announcement.message}
+                      </p>
+                    </div>
+
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-md border-2 border-dashed border-gray-300 p-16 text-center">
+              <Bell className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">No Updates Yet</h2>
+              <p className="text-gray-600">
+                There are no announcements at this time. Check back later for updates.
+              </p>
+            </div>
+          )}
+
+        </div>
+
+        {/* Divider */}
+        <div className="border-t-2 border-gray-300 my-12" />
+
+        {/* Educational Articles Section */}
+        <div className="w-full px-4 md:px-10 lg:px-16 max-w-6xl mx-auto py-12">
+          <h2 className="text-3xl font-black text-gray-900 mb-8 text-center">Educational Articles</h2>
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
             {/* Horizontal tags filter */}
             <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar w-full md:w-auto py-1">

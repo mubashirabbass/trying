@@ -360,3 +360,357 @@
   background: linear-gradient(135deg, rgba(148, 163, 184, 0.9), rgba(203, 213, 225, 0.95));
   box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
+
+/* ─── Print Styles for Cashbook ─────────────────────────────────────────────── */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 8mm 10mm 8mm;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  
+  /* Hide everything by default */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Show only print content */
+  .print-page,
+  .print-page * {
+    visibility: visible;
+  }
+  
+  /* Position print content at top */
+  .print-page {
+    position: relative;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    color: black !important;
+  }
+  
+  /* Page breaks */
+  .page-break {
+    page-break-after: always;
+    page-break-inside: avoid;
+  }
+  
+  .page-break:last-child {
+    page-break-after: auto;
+  }
+  
+  /* Repeating header on each page */
+  .print-header {
+    display: block;
+    page-break-inside: avoid;
+    page-break-after: avoid;
+    margin-bottom: 4px;
+  }
+  
+  /* Letterhead styling */
+  .print-page .rounded-full {
+    border-radius: 50% !important;
+  }
+  
+  .print-page .w-16 {
+    width: 4rem !important;
+  }
+  
+  .print-page .h-16 {
+    height: 4rem !important;
+  }
+  
+  .print-page .bg-emerald-600 {
+    background: linear-gradient(135deg, #059669, #10b981) !important;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  
+  .print-page .bg-rose-600 {
+    background: linear-gradient(135deg, #dc2626, #ef4444) !important;
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  
+  .print-page .border-emerald-600 {
+    border-color: #059669 !important;
+  }
+  
+  .print-page .border-rose-600 {
+    border-color: #dc2626 !important;
+  }
+  
+  .print-page .from-emerald-50 {
+    background: linear-gradient(to right, #f0fdf4, #ffffff) !important;
+  }
+  
+  .print-page .from-rose-50 {
+    background: linear-gradient(to right, #fef2f2, #ffffff) !important;
+  }
+  
+  .print-page .text-emerald-800,
+  .print-page .text-rose-800 {
+    color: #1e293b !important;
+    font-weight: 900 !important;
+  }
+  
+  .print-page .text-emerald-700,
+  .print-page .text-rose-700 {
+    color: #334155 !important;
+    font-weight: 700 !important;
+  }
+  
+  .print-page .text-white {
+    color: white !important;
+  }
+  
+  .print-page .text-2xl {
+    font-size: 18px !important;
+  }
+  
+  .print-page .text-lg {
+    font-size: 14px !important;
+  }
+  
+  .print-page .grid {
+    display: grid !important;
+  }
+  
+  .print-page .grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+  
+  .print-page .gap-2 {
+    gap: 0.5rem !important;
+  }
+  
+  .print-page .border-4 {
+    border-width: 3px !important;
+  }
+  
+  .print-page .py-2 {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  
+  .print-page .px-4 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  
+  .print-page .mb-1 {
+    margin-bottom: 0.25rem !important;
+  }
+  
+  .print-page .mb-3 {
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .print-page .border-emerald-300 {
+    border-color: #6ee7b7 !important;
+  }
+  
+  .print-page .border-rose-300 {
+    border-color: #fca5a5 !important;
+  }
+  
+  /* Hide all UI elements */
+  header,
+  nav,
+  aside,
+  .sidebar,
+  .toolbar,
+  .navigation,
+  button,
+  .print\\:hidden,
+  [class*="sidebar"],
+  [class*="Sidebar"],
+  [class*="nav"],
+  [class*="Nav"],
+  [class*="toolbar"],
+  [class*="Toolbar"],
+  [data-sidebar],
+  [role="navigation"],
+  [role="banner"],
+  .DashboardLayout > div:first-child,
+  .dashboard-sidebar {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  
+  body {
+    font-family: 'Noto Nastaliq Urdu', serif !important;
+    font-size: 10px;
+    line-height: 1.2;
+    color: black !important;
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .print-page .print-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 9px !important;
+  }
+  
+  .print-page table thead {
+    display: table-header-group;
+  }
+  
+  .print-page table tfoot {
+    display: table-footer-group;
+  }
+  
+  .print-page table th,
+  .print-page table td {
+    border: 1px solid black !important;
+    padding: 3px 4px !important;
+    font-size: 9px !important;
+    line-height: 1.1 !important;
+    text-align: right !important;
+    vertical-align: middle !important;
+    background: white !important;
+    color: black !important;
+    word-wrap: break-word;
+    max-width: none;
+    page-break-inside: avoid;
+  }
+  
+  .print-page table th {
+    font-weight: bold !important;
+    background: #f5f5f5 !important;
+    border: 1.5px solid black !important;
+    padding: 4px !important;
+  }
+  
+  .print-page table tfoot td {
+    font-weight: bold !important;
+    background: #f5f5f5 !important;
+    border: 1.5px solid black !important;
+    padding: 4px !important;
+  }
+  
+  .print-page h1,
+  .print-page h2 {
+    font-size: 13px !important;
+    font-weight: bold !important;
+    margin: 0 0 4px 0 !important;
+    color: black !important;
+    page-break-after: avoid;
+  }
+  
+  .print-page .border-b,
+  .print-page .border-b-2 {
+    border-bottom: 1px solid black !important;
+  }
+  
+  .print-page .text-gray-600,
+  .print-page .text-gray-500,
+  .print-page .text-gray-400 {
+    color: #555 !important;
+  }
+  
+  .print-page .bg-emerald-50,
+  .print-page .bg-rose-50 {
+    background: white !important;
+  }
+  
+  .print-page .bg-emerald-100,
+  .print-page .bg-rose-100,
+  .print-page .bg-gray-100 {
+    background: #f8f8f8 !important;
+  }
+  
+  .print-page .border-emerald-600,
+  .print-page .border-rose-600 {
+    border-color: #333 !important;
+  }
+  
+  .print-page .text-emerald-700,
+  .print-page .text-emerald-800,
+  .print-page .text-emerald-900,
+  .print-page .text-rose-700,
+  .print-page .text-rose-800,
+  .print-page .text-rose-900 {
+    color: black !important;
+  }
+  
+  /* Prevent table row breaks */
+  .print-page table tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  
+  /* Ensure proper RTL direction */
+  .print-page {
+    direction: rtl !important;
+  }
+  
+  .print-page table td:first-child,
+  .print-page table th:first-child {
+    text-align: center !important;
+  }
+  
+  /* Hide shadows and rounded corners for clean print */
+  .print-page * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  
+  .print-page .rounded-lg {
+    border-radius: 0 !important;
+  }
+  
+  /* Optimize space usage */
+  .print-page .mb-4 {
+    margin-bottom: 4px !important;
+  }
+  
+  .print-page .mb-3 {
+    margin-bottom: 3px !important;
+  }
+  
+  .print-page .mb-2 {
+    margin-bottom: 2px !important;
+  }
+  
+  .print-page .pb-2 {
+    padding-bottom: 2px !important;
+  }
+  
+  .print-page .p-4 {
+    padding: 4px !important;
+  }
+  
+  /* Ensure flex layouts work in print */
+  .print-page .flex {
+    display: flex !important;
+  }
+  
+  .print-page .items-center {
+    align-items: center !important;
+  }
+  
+  .print-page .justify-between {
+    justify-content: space-between !important;
+  }
+  
+  /* Compact text sizes for print */
+  .print-page .text-xs {
+    font-size: 8px !important;
+  }
+  
+  .print-page .text-sm {
+    font-size: 9px !important;
+  }
+  
+  .print-page .text-base {
+    font-size: 11px !important;
+  }
+}

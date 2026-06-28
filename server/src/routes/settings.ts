@@ -85,10 +85,11 @@ router.put("/settings", authenticate, authorize("admin"), async (req, res): Prom
 
 router.get("/announcements/public", async (req, res): Promise<void> => {
   try {
+    // Return all announcements for the public updates page
     const rows = await db
       .select()
       .from(announcementLogsTable)
-      .where(eq(announcementLogsTable.targetType, "ALL"))
+      .where(eq(announcementLogsTable.isHidden, false))
       .orderBy(desc(announcementLogsTable.sentAt))
       .limit(30);
     res.json(rows);
@@ -124,6 +125,28 @@ router.post("/announcements", authenticate, authorize("admin"), async (req, res)
     );
   }
   res.status(201).json(row);
+});
+
+router.delete("/announcements/:id", authenticate, authorize("admin"), async (req, res): Promise<void> => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid ID" });
+      return;
+    }
+    const [deleted] = await db
+      .delete(announcementLogsTable)
+      .where(eq(announcementLogsTable.id, id))
+      .returning();
+    
+    if (!deleted) {
+      res.status(404).json({ error: "Announcement not found" });
+      return;
+    }
+    res.json({ message: "Announcement deleted successfully", deleted });
+  } catch (err) {
+    res.status(500).json({ error: "Database error" });
+  }
 });
 
 export default router;

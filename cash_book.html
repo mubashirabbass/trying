@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>کیش بک — Global College of Computer Science</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Nastaliq Urdu', Arial, sans-serif; background: #f0ede8; color: #111; font-size: 13px; }
+
+  /* ── TOOLBAR ── */
+  .toolbar {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    padding: 10px 16px; background: #fff;
+    border-bottom: 2px solid #8b1a2e;
+    position: sticky; top: 0; z-index: 200;
+  }
+  .toolbar-sep { width: 1px; height: 30px; background: #ccc; margin: 0 4px; }
+  .btn { padding: 9px 18px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 700; font-family: inherit; transition: opacity .15s; }
+  .btn:hover { opacity: 0.84; }
+  .btn-income  { background: #1a6e35; color: #fff; }
+  .btn-expense { background: #8b1a2e; color: #fff; }
+  .btn-blue    { background: #1a4a8b; color: #fff; }
+  .btn-gray    { background: #555;    color: #fff; }
+  .btn-sm      { padding: 6px 14px; font-size: 12px; }
+
+  /* ── MODAL OVERLAY ── */
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.52); z-index: 500;
+    align-items: center; justify-content: center;
+  }
+  .overlay.open { display: flex; }
+
+  .modal {
+    background: #fff; border-radius: 10px;
+    width: 460px; max-width: 96vw;
+    box-shadow: 0 10px 40px rgba(0,0,0,.3);
+    overflow: hidden; direction: rtl;
+    animation: popIn .18s ease;
+  }
+  @keyframes popIn { from { transform: scale(.93); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  .modal-hdr {
+    padding: 14px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+    color: #fff; font-size: 16px; font-weight: 900;
+  }
+  .modal-hdr.green { background: #1a6e35; }
+  .modal-hdr.red   { background: #8b1a2e; }
+  .modal-close { background: none; border: none; color: #fff; font-size: 24px; cursor: pointer; line-height: 1; padding: 0 4px; }
+
+  .modal-body { padding: 20px; }
+
+  .fgroup { margin-bottom: 14px; }
+  .fgroup label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 5px; color: #444; }
+  .fgroup input, .fgroup select {
+    width: 100%; padding: 9px 12px;
+    border: 1.5px solid #ccc; border-radius: 5px;
+    font-size: 13px; font-family: inherit; direction: rtl;
+    outline: none; background: #fafafa;
+    transition: border-color .15s, background .15s;
+  }
+  .fgroup input:focus, .fgroup select:focus { border-color: #8b1a2e; background: #fff; }
+  .fgroup.income input:focus, .fgroup.income select:focus { border-color: #1a6e35; }
+
+  .frow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .frow3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  .modal-footer {
+    padding: 14px 20px; display: flex; gap: 10px;
+    justify-content: flex-start; border-top: 1px solid #eee;
+    background: #fafafa;
+  }
+
+  /* category pill */
+  .pill {
+    display: inline-block; font-size: 10px; padding: 2px 7px;
+    border-radius: 20px; font-weight: 700; margin-left: 5px;
+    vertical-align: middle; white-space: nowrap;
+  }
+  .pill-green { background: #d4edda; color: #1a6e35; }
+  .pill-red   { background: #fde8ea; color: #8b1a2e; }
+
+  /* ── LEDGER PAGE ── */
+  .page {
+    width: 100%; max-width: 1120px; margin: 18px auto;
+    background: #fff; border: 1.5px solid #bbb; direction: rtl;
+  }
+
+  .book-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 18px 8px; border-bottom: 2.5px solid #8b1a2e; direction: rtl;
+    gap: 10px;
+  }
+  .hdr-meta { display: flex; align-items: baseline; gap: 12px; font-size: 15px; font-weight: 700; white-space: nowrap; }
+  .hdr-meta input {
+    border: none; border-bottom: 1.5px solid #333;
+    font-size: 15px; font-weight: 700; width: 72px; text-align: center;
+    outline: none; background: transparent; font-family: inherit;
+  }
+  .hdr-center { font-size: 20px; font-weight: 900; flex: 1; text-align: center; white-space: nowrap; }
+  .hdr-center input {
+    font-size: 18px; font-family: inherit; border: none;
+    border-bottom: 2px solid #333; outline: none; background: transparent;
+    font-weight: 900; text-align: center; width: 110px;
+  }
+  .hdr-left { font-size: 20px; font-weight: 900; white-space: nowrap; }
+
+  /* ── TWO SIDES ── */
+  .ledger-body { display: grid; grid-template-columns: 1fr 3px 1fr; min-height: 640px; }
+  .divider { background: #8b1a2e; }
+
+  /* 7 columns: date | detail | page | rq-rs | rq-ps | mz-rs | mz-ps */
+  .c7 { grid-template-columns: 50px 1fr 38px 60px 38px 60px 38px; }
+
+  .col-hdr { display: grid; border-bottom: 1.5px solid #8b1a2e; font-size: 11.5px; font-weight: 700; }
+  .ch {
+    padding: 5px 2px; text-align: center;
+    border-left: 1px solid #d9a0a8; line-height: 1.4;
+  }
+  .ch:last-child { border-left: none; }
+  .ch.rc { border-left: 1.5px solid #c0392b; }
+
+  /* rows */
+  .drow { display: grid; border-bottom: 1px solid #e8c8cc; }
+  .drow:nth-child(even) { background: #fffafa; }
+  .drow:hover { background: #fffde7; }
+
+  .dc { border-left: 1px solid #e0b0b5; }
+  .dc:last-child { border-left: none; }
+  .dc.rc { border-left: 1.5px solid #c0392b; }
+
+  .dc input, .dc .dtext {
+    width: 100%; height: 27px; border: none; outline: none;
+    background: transparent; text-align: center;
+    font-size: 12px; font-family: inherit; padding: 0 3px;
+    direction: rtl; display: flex; align-items: center;
+  }
+  .dc input[type="number"] { direction: ltr; }
+  .dc input:focus { background: #fffde7; }
+  .dc input[readonly] { background: #f5f5f5; color: #666; }
+  .dc .dtext { padding: 0 6px; font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+  /* total bar */
+  .tbar { display: grid; border-top: 2px solid #8b1a2e; font-weight: 700; font-size: 12px; }
+  .tc { padding: 6px 4px; text-align: center; border-left: 1px solid #d9a0a8; }
+  .tc:last-child { border-left: none; }
+  .tc.rc { border-left: 1.5px solid #c0392b; }
+
+  #income-side  .col-hdr { background: #fdf0f1; }
+  #income-side  .tbar    { background: #fdf0f1; }
+  #expense-side .col-hdr { background: #f0f4fd; }
+  #expense-side .tbar    { background: #f0f4fd; }
+
+  /* empty state hint */
+  .empty-hint {
+    text-align: center; padding: 30px 10px; color: #aaa;
+    font-size: 13px; display: none;
+  }
+
+  /* ── PRINT ── */
+  @media print {
+    .toolbar, .overlay { display: none !important; }
+    .page { margin: 0; border: none; max-width: 100%; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .drow:nth-child(even) { background: #fffafa !important; }
+  }
+  @media (max-width: 700px) {
+    .ledger-body { grid-template-columns: 1fr; }
+    .divider { height: 3px; width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════ TOOLBAR ══════ -->
+<div class="toolbar">
+  <button class="btn btn-income"  onclick="openModal('income')">📥 تفصیل آمدن درج کریں</button>
+  <button class="btn btn-expense" onclick="openModal('expense')">📤 تفصیل خرچ درج کریں</button>
+  <div class="toolbar-sep"></div>
+  <button class="btn btn-blue" onclick="window.print()">🖨 پرنٹ</button>
+  <button class="btn btn-gray" onclick="saveData()">💾 محفوظ</button>
+  <button class="btn btn-gray" onclick="loadData()">📂 لوڈ</button>
+  <button class="btn btn-gray" onclick="clearAll()">🗑 صاف</button>
+</div>
+
+<!-- ══════ INCOME MODAL ══════ -->
+<div class="overlay" id="inc-overlay">
+  <div class="modal">
+    <div class="modal-hdr green">
+      <span>📥 تفصیل آمدن — نئی اندراج</span>
+      <button class="modal-close" onclick="closeModal('income')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="frow2">
+        <div class="fgroup income">
+          <label>تاریخ</label>
+          <input type="date" id="inc-date">
+        </div>
+        <div class="fgroup income">
+          <label>صفحہ نمبر</label>
+          <input type="text" id="inc-page" placeholder="۱">
+        </div>
+      </div>
+      <div class="fgroup income">
+        <label>آمدن کی تفصیل</label>
+        <input type="text" id="inc-detail" placeholder="مثلاً: ماہانہ فیس — احمد علی">
+      </div>
+      <div class="fgroup income">
+        <label>آمدن کی قسم</label>
+        <select id="inc-cat">
+          <option value="">-- قسم منتخب کریں --</option>
+          <option>ماہانہ فیس</option>
+          <option>داخلہ فیس</option>
+          <option>سرٹیفکیٹ فیس</option>
+          <option>کتب فروخت</option>
+          <option>گرانٹ / امداد</option>
+          <option>دیگر آمدن</option>
+        </select>
+      </div>
+      <div class="frow2">
+        <div class="fgroup income">
+          <label>رقم — روپیہ</label>
+          <input type="number" id="inc-rs" placeholder="0" min="0" style="direction:ltr;text-align:center;">
+        </div>
+        <div class="fgroup income">
+          <label>رقم — پیسہ</label>
+          <input type="number" id="inc-ps" placeholder="0" min="0" max="99" style="direction:ltr;text-align:center;">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-income" onclick="submitEntry('income')">✔ شامل کریں</button>
+      <button class="btn btn-gray btn-sm" onclick="closeModal('income')">منسوخ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ EXPENSE MODAL ══════ -->
+<div class="overlay" id="exp-overlay">
+  <div class="modal">
+    <div class="modal-hdr red">
+      <span>📤 تفصیل خرچ — نئی اندراج</span>
+      <button class="modal-close" onclick="closeModal('expense')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="frow2">
+        <div class="fgroup">
+          <label>تاریخ</label>
+          <input type="date" id="exp-date">
+        </div>
+        <div class="fgroup">
+          <label>صفحہ نمبر</label>
+          <input type="text" id="exp-page" placeholder="۱">
+        </div>
+      </div>
+      <div class="fgroup">
+        <label>خرچ کی تفصیل</label>
+        <input type="text" id="exp-detail" placeholder="مثلاً: بجلی بل — جون ۲۰۲۶">
+      </div>
+      <div class="fgroup">
+        <label>خرچ کی قسم</label>
+        <select id="exp-cat">
+          <option value="">-- قسم منتخب کریں --</option>
+          <option>تنخواہ</option>
+          <option>بجلی بل</option>
+          <option>کرایہ</option>
+          <option>سٹیشنری</option>
+          <option>مرمت و دیکھ بھال</option>
+          <option>انٹرنیٹ / فون</option>
+          <option>دیگر خرچ</option>
+        </select>
+      </div>
+      <div class="frow2">
+        <div class="fgroup">
+          <label>رقم — روپیہ</label>
+          <input type="number" id="exp-rs" placeholder="0" min="0" style="direction:ltr;text-align:center;">
+        </div>
+        <div class="fgroup">
+          <label>رقم — پیسہ</label>
+          <input type="number" id="exp-ps" placeholder="0" min="0" max="99" style="direction:ltr;text-align:center;">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-expense" onclick="submitEntry('expense')">✔ شامل کریں</button>
+      <button class="btn btn-gray btn-sm" onclick="closeModal('expense')">منسوخ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ LEDGER PAGE ══════ -->
+<div class="page">
+  <div class="book-header">
+    <div class="hdr-meta">
+      <span>سال</span>
+      <input type="text" id="hdr-year" placeholder="۲۰۲۶" style="width:68px;">
+      <span style="margin-right:10px;">صفحہ</span>
+      <input type="text" id="hdr-page" placeholder="۳۰" style="width:44px;">
+    </div>
+    <div class="hdr-center">
+      بابت ماہ &nbsp;
+      <input type="text" id="hdr-month" placeholder="جون">
+    </div>
+    <div class="hdr-left">کیش بک</div>
+  </div>
+
+  <div class="ledger-body">
+
+    <!-- INCOME SIDE -->
+    <div id="income-side">
+      <div class="col-hdr c7">
+        <div class="ch">تاریخ</div>
+        <div class="ch">تفصیل آمدن</div>
+        <div class="ch">صفحہ</div>
+        <div class="ch rc">رقم<br>روپیہ</div>
+        <div class="ch">پیسہ</div>
+        <div class="ch rc">میزان<br>روپیہ</div>
+        <div class="ch">پیسہ</div>
+      </div>
+      <div id="income-rows"></div>
+      <div class="tbar c7">
+        <div class="tc" style="grid-column:1/4">کل آمدن</div>
+        <div class="tc rc" id="inc-tot-rs">0</div>
+        <div class="tc" id="inc-tot-ps">0</div>
+        <div class="tc rc"></div>
+        <div class="tc"></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- EXPENSE SIDE -->
+    <div id="expense-side">
+      <div class="col-hdr c7">
+        <div class="ch">تاریخ</div>
+        <div class="ch">تفصیل خرچ</div>
+        <div class="ch">صفحہ</div>
+        <div class="ch rc">رقم<br>روپیہ</div>
+        <div class="ch">پیسہ</div>
+        <div class="ch rc">میزان<br>روپیہ</div>
+        <div class="ch">پیسہ</div>
+      </div>
+      <div id="expense-rows"></div>
+      <div class="tbar c7">
+        <div class="tc" style="grid-column:1/4">کل خرچ</div>
+        <div class="tc rc" id="exp-tot-rs">0</div>
+        <div class="tc" id="exp-tot-ps">0</div>
+        <div class="tc rc"></div>
+        <div class="tc"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── helpers ──────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function fmtDate(val) {
+  if (!val) return '';
+  const d = new Date(val);
+  return isNaN(d) ? val : (d.getDate() + '/' + (d.getMonth()+1));
+}
+
+function today() {
+  return new Date().toISOString().split('T')[0];
+}
+
+// ── modal open / close ────────────────────────────────────
+function openModal(side) {
+  const pfx = side === 'income' ? 'inc' : 'exp';
+  $(pfx + '-date').value = today();
+  $(pfx + '-rs').value   = '';
+  $(pfx + '-ps').value   = '';
+  $(pfx + '-detail').value = '';
+  $(pfx + '-page').value   = '';
+  $(pfx + '-cat').value    = '';
+  $(side === 'income' ? 'inc-overlay' : 'exp-overlay').classList.add('open');
+  setTimeout(() => $(pfx + '-detail').focus(), 120);
+}
+
+function closeModal(side) {
+  $(side === 'income' ? 'inc-overlay' : 'exp-overlay').classList.remove('open');
+}
+
+// close on backdrop click
+['inc-overlay','exp-overlay'].forEach(id => {
+  $(id).addEventListener('click', e => { if (e.target === $(id)) $(id).classList.remove('open'); });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') ['inc-overlay','exp-overlay'].forEach(id => $(id).classList.remove('open'));
+  if (e.key === 'Enter') {
+    if ($('inc-overlay').classList.contains('open'))  submitEntry('income');
+    if ($('exp-overlay').classList.contains('open'))  submitEntry('expense');
+  }
+});
+
+// ── submit entry ──────────────────────────────────────────
+function submitEntry(side) {
+  const pfx    = side === 'income' ? 'inc' : 'exp';
+  const date   = $(pfx + '-date').value;
+  const detail = $(pfx + '-detail').value.trim();
+  const cat    = $(pfx + '-cat').value;
+  const page   = $(pfx + '-page').value.trim();
+  const rs     = parseFloat($(pfx + '-rs').value) || 0;
+  const ps     = parseFloat($(pfx + '-ps').value) || 0;
+
+  if (!detail && rs === 0) {
+    alert('براہ کرم تفصیل یا رقم درج کریں۔');
+    $(pfx + '-detail').focus();
+    return;
+  }
+
+  const pillClass  = side === 'income' ? 'pill-green' : 'pill-red';
+  const pillHtml   = cat ? `<span class="pill ${pillClass}">${cat}</span>` : '';
+  const displayText = pillHtml + detail;
+
+  appendRow(side, fmtDate(date), displayText, page, rs, ps);
+  calcTotal(side);
+  closeModal(side);
+}
+
+// ── append row to ledger ──────────────────────────────────
+function appendRow(side, date, detailHtml, page, rs, ps) {
+  const container = $(side + '-rows');
+  const row = document.createElement('div');
+  row.className = 'drow c7';
+
+  row.innerHTML = `
+    <div class="dc"><input type="text" value="${date}" placeholder="تاریخ"></div>
+    <div class="dc"><div class="dtext" title="${detailHtml.replace(/<[^>]+>/g,'')}">${detailHtml}</div></div>
+    <div class="dc"><input type="text" value="${page}"></div>
+    <div class="dc rc"><input type="number" value="${rs||''}" min="0" oninput="calcTotal('${side}')"></div>
+    <div class="dc"><input type="number" value="${ps||''}" min="0" max="99" oninput="calcTotal('${side}')"></div>
+    <div class="dc rc"><input type="number" readonly></div>
+    <div class="dc"><input type="number" readonly></div>`;
+
+  container.appendChild(row);
+}
+
+// ── running balance + totals ──────────────────────────────
+function calcTotal(side) {
+  const rows = document.querySelectorAll('#' + side + '-rows .drow');
+  let totRs = 0, totPs = 0, runRs = 0, runPs = 0;
+
+  rows.forEach(row => {
+    const nums = row.querySelectorAll('input[type="number"]');
+    const rs = parseFloat(nums[0].value) || 0;
+    const ps = parseFloat(nums[1].value) || 0;
+    runRs += rs; runPs += ps;
+    const carry = Math.floor(runPs / 100);
+    nums[2].value = (runRs + carry) || '';
+    nums[3].value = (runPs % 100)   || '';
+    totRs += rs; totPs += ps;
+  });
+
+  const pfx = side === 'income' ? 'inc' : 'exp';
+  const carryT = Math.floor(totPs / 100);
+  $(pfx + '-tot-rs').textContent = (totRs + carryT).toLocaleString();
+  $(pfx + '-tot-ps').textContent = totPs % 100;
+}
+
+// ── save / load / clear ───────────────────────────────────
+function saveData() {
+  const getSide = side => {
+    const out = [];
+    document.querySelectorAll('#' + side + '-rows .drow').forEach(row => {
+      const inputs = row.querySelectorAll('input');
+      const dtxt   = row.querySelector('.dtext');
+      out.push({
+        vals: Array.from(inputs).map(i => i.value),
+        html: dtxt ? dtxt.innerHTML : ''
+      });
+    });
+    return out;
+  };
+  localStorage.setItem('gccs_cb3', JSON.stringify({
+    year:    $('hdr-year').value,
+    month:   $('hdr-month').value,
+    page:    $('hdr-page').value,
+    income:  getSide('income'),
+    expense: getSide('expense')
+  }));
+  alert('کیش بک محفوظ ہو گئی! ✓');
+}
+
+function loadData() {
+  const raw = localStorage.getItem('gccs_cb3');
+  if (!raw) { alert('کوئی محفوظ ڈیٹا نہیں ملا۔'); return; }
+  const d = JSON.parse(raw);
+  $('hdr-year').value  = d.year  || '';
+  $('hdr-month').value = d.month || '';
+  $('hdr-page').value  = d.page  || '';
+
+  const fillSide = (side, rows) => {
+    $(side + '-rows').innerHTML = '';
+    (rows || []).forEach(r => {
+      const v   = r.vals || [];
+      const row = document.createElement('div');
+      row.className = 'drow c7';
+      row.innerHTML = `
+        <div class="dc"><input type="text" value="${v[0]||''}"></div>
+        <div class="dc"><div class="dtext">${r.html||''}</div></div>
+        <div class="dc"><input type="text" value="${v[1]||''}"></div>
+        <div class="dc rc"><input type="number" value="${v[2]||''}" min="0" oninput="calcTotal('${side}')"></div>
+        <div class="dc"><input type="number" value="${v[3]||''}" min="0" max="99" oninput="calcTotal('${side}')"></div>
+        <div class="dc rc"><input type="number" value="${v[4]||''}" readonly></div>
+        <div class="dc"><input type="number" value="${v[5]||''}" readonly></div>`;
+      $(side + '-rows').appendChild(row);
+    });
+    calcTotal(side);
+  };
+  fillSide('income',  d.income);
+  fillSide('expense', d.expense);
+}
+
+function clearAll() {
+  if (!confirm('تمام ڈیٹا صاف کریں؟')) return;
+  $('income-rows').innerHTML  = '';
+  $('expense-rows').innerHTML = '';
+  ['hdr-year','hdr-month','hdr-page'].forEach(id => $(id).value = '');
+  calcTotal('income'); calcTotal('expense');
+}
+</script>
+</body>
+</html>

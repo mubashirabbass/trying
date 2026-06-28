@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -18,6 +18,7 @@ export const announcementLogsTable = pgTable("announcement_logs", {
   targetId: text("target_id"),
   title: text("title").notNull(),
   message: text("message").notNull(),
+  isHidden: boolean("is_hidden").notNull().default(false),
   sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
