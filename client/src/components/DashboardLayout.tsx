@@ -167,7 +167,6 @@ const ADMIN_NAV_GROUPS = [
       { name: "Success Stories", path: "/admin/success-stories", icon: Award },
       { name: "Featured Courses", path: "/admin/featured-courses", icon: Star },
       { name: "Articles & News", path: "/admin/articles", icon: Newspaper },
-      { name: "Testimonials", path: "/admin/testimonials", icon: Star },
       { name: "Student Attendance", path: "/admin/attendance", icon: CalendarRange },
       { name: "Teacher Attendance", path: "/admin/teacher-attendance", icon: UserCog },
     ],
@@ -175,7 +174,6 @@ const ADMIN_NAV_GROUPS = [
   {
     label: "PAYMENTS",
     items: [
-      { name: "Manual Enrollment", path: "/admin/enrollments", icon: ClipboardList },
       { name: "Fee Tracker", path: "/admin/fees", icon: CreditCard },
       { name: "Payroll Management", path: "/admin/payroll", icon: Banknote },
     ],
@@ -374,16 +372,16 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="min-h-[100dvh] flex bg-background text-foreground">
+    <div className="h-screen flex bg-background text-foreground overflow-hidden" style={{ zoom: "90%", width: "111.11vw", height: "111.11vh" }}>
       {sidebarOpen && (
         <div className="fixed inset-0 z-20 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-30
-        w-64 bg-sidebar text-sidebar-foreground border-sidebar-border border-r transform transition-transform duration-200 ease-in-out
+        w-64 h-full bg-sidebar text-sidebar-foreground border-sidebar-border border-r transform transition-transform duration-200 ease-in-out
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-        flex flex-col
+        flex flex-col overflow-hidden shrink-0
       `}>
         {/* Logo */}
         <div className="h-16 flex items-center px-4 border-b border-sidebar-border shrink-0 gap-2">
@@ -399,16 +397,16 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2">
+        <nav className="flex-1 overflow-y-auto py-3 px-2 sidebar-scroll">
           {user.role === "admin" ? (
             // Admin: grouped navigation
-            <div className="space-y-4">
+            <div className="space-y-6">
               {ADMIN_NAV_GROUPS.map((group) => (
                 <div key={group.label}>
-                  <p className="text-[9px] font-black text-sidebar-foreground/40 uppercase tracking-[0.2em] px-3 mb-1">
+                  <p className="text-[9px] font-black text-sidebar-foreground/40 uppercase tracking-[0.2em] px-3 mb-2">
                     {group.label}
                   </p>
-                  <div className="space-y-0.5">
+                  <div className="space-y-1">
                     {group.items.map((item) => {
                       const Icon = item.icon;
                       const isActive =
@@ -419,13 +417,17 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                           key={item.path}
                           href={item.path}
                           onClick={() => setSidebarOpen(false)}
-                          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          className={`flex items-center gap-3.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-200 group ${
                             isActive
                               ? "bg-sidebar-primary/10 text-primary dark:bg-sidebar-primary/25 dark:text-primary-foreground"
                               : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                           }`}
                         >
-                          <Icon className={`h-4 w-4 ${isActive ? "text-primary" : "text-sidebar-foreground/45"}`} />
+                          <Icon className={`h-4 w-4 transition-all duration-200 ${
+                            isActive 
+                              ? "text-primary scale-110" 
+                              : "text-sidebar-foreground/45 group-hover:text-sidebar-foreground/80 group-hover:scale-105"
+                          }`} />
                           {item.name}
                         </Link>
                       );
@@ -499,13 +501,17 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                     key={item.path}
                     href={item.path}
                     onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-3.5 px-3 py-2.5 rounded-xl text-[13px] font-semibold transition-all duration-200 group ${
                       isActive
                         ? "bg-sidebar-primary/10 text-primary dark:bg-sidebar-primary/25 dark:text-primary-foreground"
                         : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                     }`}
                   >
-                    <Icon className={`h-4 w-4 ${isActive ? "text-primary" : "text-sidebar-foreground/45"}`} />
+                    <Icon className={`h-4 w-4 transition-all duration-200 ${
+                      isActive 
+                        ? "text-primary scale-110" 
+                        : "text-sidebar-foreground/45 group-hover:text-sidebar-foreground/80 group-hover:scale-105"
+                    }`} />
                     <span>{item.name}</span>
                     {badgeContent}
                   </Link>
@@ -538,30 +544,16 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-12 bg-card text-card-foreground border-border border-b flex items-center justify-between px-4 lg:px-6 shrink-0 gap-4">
-          <button className="lg:hidden text-muted-foreground hover:text-foreground" onClick={() => setSidebarOpen(true)}>
-            <Menu className="h-6 w-6" />
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6 bg-background h-full">
+          {/* Mobile menu trigger — floats over content on small screens */}
+          <button
+            className="lg:hidden fixed top-3 left-3 z-40 text-muted-foreground hover:text-foreground bg-card border border-border rounded-md p-1.5 shadow-sm"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu className="h-5 w-5" />
           </button>
-
-          <div className="flex-1 min-w-0">
-            {headerTitle && (
-              <div className="flex items-center gap-2 text-sm font-black text-slate-900">
-                <CalendarRange className="h-4 w-4 shrink-0 text-primary" />
-                <span className="truncate">{headerTitle}</span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 ml-auto">
-            {/* Icons moved or cleaned for simplified header */}
-          </div>
-        </header>
-
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6 bg-background">
           {children}
         </div>
-      </main>
     </div>
   );
 }

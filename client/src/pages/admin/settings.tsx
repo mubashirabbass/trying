@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Save, Settings, Phone, CreditCard, Award, Play, Share2, MessageSquare, ExternalLink, Users, Clock, Inbox, Megaphone } from "lucide-react";
+import { Loader2, Save, Settings, Phone, CreditCard, Award, Play, Share2, MessageSquare, ExternalLink, Users, Clock, Inbox, Megaphone, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 
@@ -23,6 +23,7 @@ const CATEGORY_META: Record<string, { icon: any; label: string; color: string }>
   homepage: { icon: Settings, label: "Homepage CMS", color: "text-rose-600 bg-rose-50" },
   social: { icon: Share2, label: "Social Media & Live Chat", color: "text-sky-600 bg-sky-50" },
   student_portal: { icon: Megaphone, label: "Student Portal Notice", color: "text-red-600 bg-red-50" },
+  announcement: { icon: AlertTriangle, label: "Critical Announcement Popup", color: "text-amber-600 bg-amber-50" },
 };
 
 export default function AdminSettings() {
@@ -96,22 +97,24 @@ export default function AdminSettings() {
                   {catSettings.map(s => (
                     <div key={s.key}>
                       <Label className="text-sm font-medium">{s.label || s.key}</Label>
-                      {s.key === "student_notice_enabled" ? (
+                      {s.key === "student_notice_enabled" || s.key === "critical_popup_enabled" ? (
                         <div className="flex items-center gap-3 mt-2">
                           <Switch
                             checked={values[s.key] === "true"}
                             onCheckedChange={(checked) => setValues(prev => ({ ...prev, [s.key]: checked ? "true" : "false" }))}
                           />
                           <span className="text-sm text-slate-600">
-                            {values[s.key] === "true" ? "Notice banner is visible" : "Notice banner is hidden"}
+                            {s.key === "critical_popup_enabled"
+                              ? (values[s.key] === "true" ? "Popup is ACTIVE — visitors will see it" : "Popup is hidden")
+                              : (values[s.key] === "true" ? "Notice banner is visible" : "Notice banner is hidden")}
                           </span>
                         </div>
-                      ) : s.key === "student_notice_text" ? (
+                      ) : s.key === "student_notice_text" || s.key === "critical_popup_message" ? (
                         <Textarea
                           value={values[s.key] ?? s.value}
                           onChange={e => setValues(prev => ({ ...prev, [s.key]: e.target.value }))}
-                          className="mt-1 min-h-[80px]"
-                          placeholder="Enter the notice text that will scroll on student portal"
+                          className="mt-1 min-h-[120px]"
+                          placeholder={s.key === "critical_popup_message" ? "Enter the critical announcement message that will appear on the public site..." : "Enter the notice text that will scroll on student portal"}
                         />
                       ) : (
                         <Input

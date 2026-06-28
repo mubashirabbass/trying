@@ -1,5 +1,16 @@
 import { Router, type IRouter } from "express";
-import { db, usersTable, coursesTable, enrollmentsTable, paymentsTable, quizResultsTable, assignmentSubmissionsTable, branchesTable } from "@workspace/db";
+import { 
+  db, 
+  usersTable, 
+  coursesTable, 
+  enrollmentsTable, 
+  paymentsTable, 
+  quizResultsTable, 
+  assignmentSubmissionsTable, 
+  branchesTable,
+  teacherAttendanceTable,
+  installmentLedgerTable
+} from "@workspace/db";
 import { eq, desc, sql, count, avg, sum } from "drizzle-orm";
 import { generatePdf, generateReportHtml } from "../lib/pdf";
 import { logger } from "../lib/logger";
@@ -138,134 +149,429 @@ router.get("/reports/students/:userId/progress", async (req: any, res): Promise<
 });
 
 // Admin-only reports below this line
+
 // 1. Branch Overview
 router.get("/reports/branch", authorize("admin"), async (req, res): Promise<void> => {
-  const branches = await db.select({
-    id: branchesTable.id,
-    name: branchesTable.name,
-    city: branchesTable.city,
-  }).from(branchesTable);
+  try {
+    const branches = await db.select({
+      id: branchesTable.id,
+      name: branchesTable.name,
+      city: branchesTable.city,
+    }).from(branchesTable);
 
-  const reportData = await Promise.all(branches.map(async (b) => {
-    const studentCount = await db.select({ c: count() }).from(usersTable).where(eq(usersTable.branchId, b.id));
-    const activeEnrollments = await db.select({ c: count() })
-      .from(enrollmentsTable)
+    const studentCounts = await db.select({
+      branchId: usersTable.branchId,
+      c: count(usersTable.id)
+    }).from(usersTable).where(eq(usersTable.role, "student")).groupBy(usersTable.branchId);
+    const studentCountMap = Object.fromEntries(studentCounts.map(r => [r.branchId, Number(r.c)]));
+
+    const activeEnrollments = await db.select({
+      branchId: usersTable.branchId,
+      c: count(enrollmentsTable.id)
+    }).from(enrollmentsTable)
       .leftJoin(usersTable, eq(enrollmentsTable.userId, usersTable.id))
-      .where(eq(usersTable.branchId, b.id));
+      .groupBy(usersTable.branchId);
+    const activeEnrollmentsMap = Object.fromEntries(activeEnrollments.map(r => [r.branchId, Number(r.c)]));
 
-    return {
+    const branchCourses = await db.select({
+      branchId: usersTable.branchId,
+      c: sql<number>`count(distinct ${enrollmentsTable.courseId})`
+    }).from(enrollmentsTable)
+      .leftJoin(usersTable, eq(enrollmentsTable.userId, usersTable.id))
+      .groupBy(usersTable.branchId);
+    const branchCoursesMap = Object.fromEntries(branchCourses.map(r => [r.branchId, Number(r.c)]));
+
+    const reportData = branches.map((b) => ({
       name: b.name,
       city: b.city,
-      students: Number(studentCount[0]?.c ?? 0),
-      active: Number(activeEnrollments[0]?.c ?? 0),
-      courses: 12 // Simplified for now
-    };
-  }));
+      students: studentCountMap[b.id] ?? 0,
+      active: activeEnrollmentsMap[b.id] ?? 0,
+      courses: branchCoursesMap[b.id] ?? 0
+    }));
 
-  res.json(reportData);
+    res.json(reportData);
+  } catch (error) {
+    logger.error("Branch report failed:", error);
+    res.status(500).json({ error: "Failed to generate report" });
+  }
 });
 
 // 2. Student Progress
 router.get("/reports/students", authorize("admin"), async (req, res): Promise<void> => {
-  const students = await db.select({
-    id: usersTable.id,
-    name: usersTable.name,
-    branchId: usersTable.branchId,
-  }).from(usersTable).where(eq(usersTable.role, "student")).limit(100);
+  try {
+    const students = await db.select({
+      id: usersTable.id,
+      name: usersTable.name,
+      branchName: branchesTable.name,
+    })
+    .from(usersTable)
+    .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
+    .where(eq(usersTable.role, "student"));
 
-  const reportData = await Promise.all(students.map(async (s) => {
-    const branch = s.branchId ? await db.select().from(branchesTable).where(eq(branchesTable.id, s.branchId)) : [];
-    const enrollments = await db.select({ c: count() }).from(enrollmentsTable).where(eq(enrollmentsTable.userId, s.id));
-    const quizAvg = await db.select({ a: avg(quizResultsTable.percentage) }).from(quizResultsTable).where(eq(quizResultsTable.userId, s.id));
-    const assignAvg = await db.select({ a: avg(assignmentSubmissionsTable.marks) }).from(assignmentSubmissionsTable).where(eq(assignmentSubmissionsTable.userId, s.id));
+    const userEnrollments = await db.select({
+      userId: enrollmentsTable.userId,
+      count: count(enrollmentsTable.id),
+      avgProgress: avg(enrollmentsTable.progress),
+    }).from(enrollmentsTable).groupBy(enrollmentsTable.userId);
+    const enrollMap = Object.fromEntries(userEnrollments.map(e => [e.userId, {
+      count: Number(e.count || 0),
+      avgProgress: Math.round(Number(e.avgProgress || 0))
+    }]));
 
-    return {
-      name: s.name,
-      branch: branch[0]?.name || "Unknown",
-      courses: Number(enrollments[0]?.c ?? 0),
-      completion: "75%", // Simplified
-      quizAvg: `${Math.round(Number(quizAvg[0]?.a ?? 0))}%`,
-      assignAvg: `${Math.round(Number(assignAvg[0]?.a ?? 0))}%`
-    };
-  }));
+    const quizAverages = await db.select({
+      userId: quizResultsTable.userId,
+      avgPercentage: avg(quizResultsTable.percentage),
+    }).from(quizResultsTable).groupBy(quizResultsTable.userId);
+    const quizMap = Object.fromEntries(quizAverages.map(q => [q.userId, Math.round(Number(q.avgPercentage || 0))]));
 
-  res.json(reportData);
+    const assignmentAverages = await db.select({
+      userId: assignmentSubmissionsTable.userId,
+      avgMarks: avg(assignmentSubmissionsTable.marks),
+    }).from(assignmentSubmissionsTable).groupBy(assignmentSubmissionsTable.userId);
+    const assignmentMap = Object.fromEntries(assignmentAverages.map(a => [a.userId, Math.round(Number(a.avgMarks || 0))]));
+
+    const reportData = students.map(s => {
+      const enroll = enrollMap[s.id] || { count: 0, avgProgress: 0 };
+      return {
+        name: s.name,
+        branch: s.branchName || "N/A",
+        courses: enroll.count,
+        completion: `${enroll.avgProgress}%`,
+        quizAvg: `${quizMap[s.id] || 0}%`,
+        assignAvg: `${assignmentMap[s.id] || 0}%`
+      };
+    });
+
+    res.json(reportData);
+  } catch (error) {
+    logger.error("Students progress report failed:", error);
+    res.status(500).json({ error: "Failed to generate report" });
+  }
 });
 
 // 3. Enrollments
 router.get("/reports/enrollments", authorize("admin"), async (req, res): Promise<void> => {
-  const courses = await db.select({
-    id: coursesTable.id,
-    title: coursesTable.title,
-    isFree: coursesTable.isFree,
-  }).from(coursesTable);
+  try {
+    const courses = await db.select({
+      id: coursesTable.id,
+      title: coursesTable.title,
+      isFree: coursesTable.isFree,
+    }).from(coursesTable);
 
-  const reportData = await Promise.all(courses.map(async (c) => {
-    const enrolled = await db.select({ c: count() }).from(enrollmentsTable).where(eq(enrollmentsTable.courseId, c.id));
-    const completed = await db.select({ c: count() }).from(enrollmentsTable).where(sql`${enrollmentsTable.courseId} = ${c.id} AND ${enrollmentsTable.progress} = 100`);
+    const enrollmentsCount = await db.select({
+      courseId: enrollmentsTable.courseId,
+      total: count(enrollmentsTable.id),
+      completed: sum(sql`case when ${enrollmentsTable.progress} = 100 then 1 else 0 end`),
+    }).from(enrollmentsTable).groupBy(enrollmentsTable.courseId);
+    const countsMap = Object.fromEntries(enrollmentsCount.map(e => [e.courseId, {
+      total: Number(e.total || 0),
+      completed: Number(e.completed || 0)
+    }]));
 
-    return {
-      course: c.title,
-      enrolled: Number(enrolled[0]?.c ?? 0),
-      completed: Number(completed[0]?.c ?? 0),
-      active: Number(enrolled[0]?.c ?? 0) - Number(completed[0]?.c ?? 0),
-      free: c.isFree
-    };
-  }));
+    const reportData = courses.map(c => {
+      const counts = countsMap[c.id] || { total: 0, completed: 0 };
+      return {
+        course: c.title,
+        enrolled: counts.total,
+        completed: counts.completed,
+        active: counts.total - counts.completed,
+        free: c.isFree
+      };
+    });
 
-  res.json(reportData);
+    res.json(reportData);
+  } catch (error) {
+    logger.error("Enrollments report failed:", error);
+    res.status(500).json({ error: "Failed to generate report" });
+  }
 });
 
 // 4. Revenue
 router.get("/reports/revenue", authorize("admin"), async (req, res): Promise<void> => {
-  const methods = ["EasyPaisa", "JazzCash", "Bank Transfer", "Card"];
-  
-  const reportData = await Promise.all(methods.map(async (m) => {
+  try {
     const stats = await db.select({
-      count: count(),
+      method: paymentsTable.method,
+      count: count(paymentsTable.id),
       total: sum(paymentsTable.amount),
-    }).from(paymentsTable).where(eq(paymentsTable.method, m));
+      approved: sum(sql`case when ${paymentsTable.status} = 'approved' or ${paymentsTable.status} = 'verified' then 1 else 0 end`),
+      pending: sum(sql`case when ${paymentsTable.status} = 'pending' then 1 else 0 end`),
+    }).from(paymentsTable).groupBy(paymentsTable.method);
 
-    const approved = await db.select({ c: count() }).from(paymentsTable).where(sql`${paymentsTable.method} = ${m} AND ${paymentsTable.status} = 'verified'`);
-    const pending = await db.select({ c: count() }).from(paymentsTable).where(sql`${paymentsTable.method} = ${m} AND ${paymentsTable.status} = 'pending'`);
+    const statsMap = Object.fromEntries(stats.map(s => [s.method, s]));
+    const methods = ["EasyPaisa", "JazzCash", "Bank Transfer", "Card"];
+    const reportData = methods.map(m => {
+      const s = statsMap[m] || { count: 0, total: 0, approved: 0, pending: 0 };
+      return {
+        method: m,
+        transactions: Number(s.count || 0),
+        totalPKR: Number(s.total || 0),
+        approved: Number(s.approved || 0),
+        pending: Number(s.pending || 0)
+      };
+    });
 
-    return {
-      method: m,
-      transactions: Number(stats[0]?.count ?? 0),
-      totalPKR: Number(stats[0]?.total ?? 0),
-      approved: Number(approved[0]?.c ?? 0),
-      pending: Number(pending[0]?.c ?? 0)
-    };
-  }));
-
-  res.json(reportData);
+    res.json(reportData);
+  } catch (error) {
+    logger.error("Revenue report failed:", error);
+    res.status(500).json({ error: "Failed to generate report" });
+  }
 });
 
 // 5. Full Student List
 router.get("/reports/full-list", authorize("admin"), async (req, res): Promise<void> => {
-  const students = await db.select({
-    id: usersTable.id,
-    name: usersTable.name,
-    email: usersTable.email,
-    branchId: usersTable.branchId,
-    createdAt: usersTable.createdAt,
-  }).from(usersTable).where(eq(usersTable.role, "student")).orderBy(desc(usersTable.createdAt));
+  try {
+    const students = await db.select({
+      id: usersTable.id,
+      name: usersTable.name,
+      email: usersTable.email,
+      branchName: branchesTable.name,
+      createdAt: usersTable.createdAt,
+    })
+    .from(usersTable)
+    .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
+    .where(eq(usersTable.role, "student"))
+    .orderBy(desc(usersTable.createdAt));
 
-  const reportData = await Promise.all(students.map(async (s) => {
-    const branch = s.branchId ? await db.select().from(branchesTable).where(eq(branchesTable.id, s.branchId)) : [];
-    const enrollments = await db.select({ c: count() }).from(enrollmentsTable).where(eq(enrollmentsTable.userId, s.id));
+    const enrollCounts = await db.select({
+      userId: enrollmentsTable.userId,
+      c: count(),
+    }).from(enrollmentsTable).groupBy(enrollmentsTable.userId);
+    const countMap = Object.fromEntries(enrollCounts.map(e => [e.userId, Number(e.c)]));
 
-    return {
+    const reportData = students.map(s => ({
       name: s.name,
       email: s.email,
-      branch: branch[0]?.name || "N/A",
-      enrolled: Number(enrollments[0]?.c ?? 0),
+      branch: s.branchName || "N/A",
+      enrolled: countMap[s.id] ?? 0,
       status: "Active",
       joined: s.createdAt ? new Date(s.createdAt).toISOString().split('T')[0] : "N/A"
-    };
-  }));
+    }));
 
-  res.json(reportData);
+    res.json(reportData);
+  } catch (error) {
+    logger.error("Full Student List report failed:", error);
+    res.status(500).json({ error: "Failed to generate report" });
+  }
+});
+
+// 6. Student Performance Analysis
+router.get("/reports/student-performance", authorize("admin"), async (req, res): Promise<void> => {
+  try {
+    const students = await db.select({
+      id: usersTable.id,
+      name: usersTable.name,
+      branchName: branchesTable.name,
+    })
+    .from(usersTable)
+    .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
+    .where(eq(usersTable.role, "student"));
+
+    const userEnrollments = await db.select({
+      userId: enrollmentsTable.userId,
+      count: count(enrollmentsTable.id),
+      avgProgress: avg(enrollmentsTable.progress),
+    }).from(enrollmentsTable).groupBy(enrollmentsTable.userId);
+    const enrollMap = Object.fromEntries(userEnrollments.map(e => [e.userId, {
+      count: Number(e.count || 0),
+      avgProgress: Math.round(Number(e.avgProgress || 0))
+    }]));
+
+    const quizAverages = await db.select({
+      userId: quizResultsTable.userId,
+      avgPercentage: avg(quizResultsTable.percentage),
+    }).from(quizResultsTable).groupBy(quizResultsTable.userId);
+    const quizMap = Object.fromEntries(quizAverages.map(q => [q.userId, Math.round(Number(q.avgPercentage || 0))]));
+
+    const assignmentAverages = await db.select({
+      userId: assignmentSubmissionsTable.userId,
+      avgMarks: avg(assignmentSubmissionsTable.marks),
+    }).from(assignmentSubmissionsTable).groupBy(assignmentSubmissionsTable.userId);
+    const assignmentMap = Object.fromEntries(assignmentAverages.map(a => [a.userId, Math.round(Number(a.avgMarks || 0))]));
+
+    const reportData = students.map(s => {
+      const enroll = enrollMap[s.id] || { count: 0, avgProgress: 0 };
+      return {
+        name: s.name,
+        branch: s.branchName || "N/A",
+        courses: enroll.count,
+        quizAvg: `${quizMap[s.id] || 0}%`,
+        assignAvg: `${assignmentMap[s.id] || 0}%`,
+        completion: `${enroll.avgProgress}%`
+      };
+    });
+
+    res.json(reportData);
+  } catch (error) {
+    logger.error("Student performance report failed:", error);
+    res.status(500).json({ error: "Failed to generate report" });
+  }
+});
+
+// 7. Teacher Attendance Report
+router.get("/reports/teacher-attendance", authorize("admin"), async (req, res): Promise<void> => {
+  try {
+    const teachers = await db.select({
+      id: usersTable.id,
+      name: usersTable.name,
+      branchName: branchesTable.name,
+    })
+    .from(usersTable)
+    .leftJoin(branchesTable, eq(usersTable.branchId, branchesTable.id))
+    .where(eq(usersTable.role, "teacher"));
+
+    const attendanceStats = await db.select({
+      teacherId: teacherAttendanceTable.teacherId,
+      totalDays: count(teacherAttendanceTable.id),
+      present: sum(sql`case when ${teacherAttendanceTable.status} = 'present' then 1 else 0 end`),
+      absent: sum(sql`case when ${teacherAttendanceTable.status} = 'absent' then 1 else 0 end`),
+    }).from(teacherAttendanceTable).groupBy(teacherAttendanceTable.teacherId);
+    const attMap = Object.fromEntries(attendanceStats.map(a => [a.teacherId, {
+      totalDays: Number(a.totalDays || 0),
+      present: Number(a.present || 0),
+      absent: Number(a.absent || 0)
+    }]));
+
+    const reportData = teachers.map(t => {
+      const att = attMap[t.id] || { totalDays: 0, present: 0, absent: 0 };
+      const rate = att.totalDays > 0 ? Math.round((att.present / att.totalDays) * 100) : 100;
+      return {
+        name: t.name,
+        branch: t.branchName || "N/A",
+        totalDays: att.totalDays,
+        present: att.present,
+        absent: att.absent,
+        rate: `${rate}%`
+      };
+    });
+
+    res.json(reportData);
+  } catch (error) {
+    logger.error("Teacher attendance report failed:", error);
+    res.status(500).json({ error: "Failed to generate report" });
+  }
+});
+
+// 8. Fee Installments ledger Report
+router.get("/reports/fee-installments", authorize("admin"), async (req, res): Promise<void> => {
+  try {
+    const ledgers = await db.select({
+      id: installmentLedgerTable.id,
+      studentName: usersTable.name,
+      courseName: coursesTable.title,
+      month: installmentLedgerTable.monthNumber,
+      amount: installmentLedgerTable.installmentAmount,
+      paid: installmentLedgerTable.totalPaid,
+      remaining: installmentLedgerTable.remainingBalance,
+      status: installmentLedgerTable.status,
+    })
+    .from(installmentLedgerTable)
+    .leftJoin(usersTable, eq(installmentLedgerTable.userId, usersTable.id))
+    .leftJoin(coursesTable, eq(installmentLedgerTable.courseId, coursesTable.id))
+    .orderBy(desc(installmentLedgerTable.createdAt));
+
+    const reportData = ledgers.map(l => ({
+      studentName: l.studentName || "Unknown",
+      courseName: l.courseName || "Unknown",
+      month: `Month ${l.month}`,
+      amount: l.amount,
+      paid: l.paid,
+      remaining: l.remaining,
+      status: l.status ? l.status.toUpperCase() : "UNPAID"
+    }));
+
+    res.json(reportData);
+  } catch (error) {
+    logger.error("Fee installments report failed:", error);
+    res.status(500).json({ error: "Failed to generate report" });
+  }
+});
+
+// 9. Course Revenue Breakdown
+router.get("/reports/course-revenue", authorize("admin"), async (req, res): Promise<void> => {
+  try {
+    const courses = await db.select({
+      id: coursesTable.id,
+      title: coursesTable.title,
+      fee: coursesTable.fee,
+      isFree: coursesTable.isFree,
+    }).from(coursesTable);
+
+    const enrollmentCounts = await db.select({
+      courseId: enrollmentsTable.courseId,
+      c: count(enrollmentsTable.id),
+    }).from(enrollmentsTable).groupBy(enrollmentsTable.courseId);
+    const enrollMap = Object.fromEntries(enrollmentCounts.map(e => [e.courseId, Number(e.c || 0)]));
+
+    const collectedPayments = await db.select({
+      courseId: paymentsTable.courseId,
+      total: sum(paymentsTable.amount),
+    })
+    .from(paymentsTable)
+    .where(sql`${paymentsTable.status} = 'approved' or ${paymentsTable.status} = 'verified'`)
+    .groupBy(paymentsTable.courseId);
+    const collectMap = Object.fromEntries(collectedPayments.map(p => [p.courseId, Number(p.total || 0)]));
+
+    const reportData = courses.map(c => {
+      const enrolled = enrollMap[c.id] || 0;
+      const collected = collectMap[c.id] || 0;
+      const expected = c.isFree ? 0 : enrolled * c.fee;
+      return {
+        course: c.title,
+        enrolled,
+        fee: c.isFree ? 0 : c.fee,
+        expected,
+        collected,
+        pending: Math.max(0, expected - collected)
+      };
+    });
+
+    res.json(reportData);
+  } catch (error) {
+    logger.error("Course revenue report failed:", error);
+    res.status(500).json({ error: "Failed to generate report" });
+  }
+});
+
+// 10. Monthly Trends Report
+router.get("/reports/monthly-trends", authorize("admin"), async (req, res): Promise<void> => {
+  try {
+    const enrollmentsByMonth = await db.select({
+      monthStr: sql<string>`to_char(${enrollmentsTable.enrolledAt}, 'YYYY-MM')`,
+      c: count(enrollmentsTable.id)
+    }).from(enrollmentsTable).groupBy(sql`to_char(${enrollmentsTable.enrolledAt}, 'YYYY-MM')`);
+
+    const paymentsByMonth = await db.select({
+      monthStr: sql<string>`to_char(${paymentsTable.createdAt}, 'YYYY-MM')`,
+      transactions: count(paymentsTable.id),
+      total: sum(paymentsTable.amount),
+    })
+    .from(paymentsTable)
+    .where(sql`${paymentsTable.status} = 'approved' or ${paymentsTable.status} = 'verified'`)
+    .groupBy(sql`to_char(${paymentsTable.createdAt}, 'YYYY-MM')`);
+
+    const allMonths = Array.from(new Set([
+      ...enrollmentsByMonth.map(e => e.monthStr),
+      ...paymentsByMonth.map(p => p.monthStr)
+    ])).filter(Boolean).sort().reverse();
+
+    const enrollMap = Object.fromEntries(enrollmentsByMonth.map(e => [e.monthStr, e.c]));
+    const payMap = Object.fromEntries(paymentsByMonth.map(p => [p.monthStr, p]));
+
+    const reportData = allMonths.map(m => {
+      const pay = payMap[m] || { transactions: 0, total: 0 };
+      return {
+        month: m,
+        enrollments: Number(enrollMap[m] || 0),
+        transactions: Number(pay.transactions || 0),
+        revenue: Number(pay.total || 0)
+      };
+    });
+
+    res.json(reportData);
+  } catch (error) {
+    logger.error("Monthly trends report failed:", error);
+    res.status(500).json({ error: "Failed to generate report" });
+  }
 });
 
 // PDF Export

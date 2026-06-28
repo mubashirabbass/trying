@@ -57,9 +57,10 @@ interface Message {
 interface ChatInputProps {
   onSend: (body: string) => Promise<void>;
   disabled: boolean;
+  onType?: () => void;
 }
 
-function ChatInput({ onSend, disabled }: ChatInputProps) {
+function ChatInput({ onSend, disabled, onType }: ChatInputProps) {
   const [body, setBody] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,7 +78,13 @@ function ChatInput({ onSend, disabled }: ChatInputProps) {
         <div className="flex-1 relative">
           <Input
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={(e) => {
+              setBody(e.target.value);
+              if (onType) onType();
+            }}
+            onFocus={() => {
+              if (onType) onType();
+            }}
             placeholder="Type a message to instructor..."
             className="h-11 rounded-full border-transparent bg-white px-5 pr-12 font-medium shadow-sm transition-all focus:border-emerald-200 focus:bg-white"
             disabled={disabled}
@@ -110,6 +117,7 @@ export default function StudentMessages() {
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [creatingThread, setCreatingThread] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const prevThreadIdRef = useRef<number | null>(null);
 
   const authHeaders = { Authorization: `Bearer ${token}` };
   const headers = { ...authHeaders, "Content-Type": "application/json" };
@@ -219,7 +227,19 @@ export default function StudentMessages() {
     return () => window.clearInterval(interval);
   }, [selectedThread?.id, user?.id, token]);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  // Professional auto-scroll logic: instant on thread switch, smooth on new message in active thread
+  useEffect(() => {
+    if (!selectedThread) return;
+    const isSwitchingThread = prevThreadIdRef.current !== selectedThread.id;
+    prevThreadIdRef.current = selectedThread.id;
+
+    const timer = setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ 
+        behavior: isSwitchingThread ? "auto" : "smooth" 
+      });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [messages, selectedThread?.id]);
 
   const handleSendMessage = async (text: string) => {
     if (!selectedThread || !user?.id) return;
@@ -514,7 +534,13 @@ export default function StudentMessages() {
                 </div>
 
                 {/* Subcomponent handles input, attachments and recording internally */}
-                <ChatInput onSend={handleSendMessage} disabled={sending} />
+                <ChatInput 
+                  onSend={handleSendMessage} 
+                  disabled={sending} 
+                  onType={() => {
+                    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                />
               </>
             )}
           </div>

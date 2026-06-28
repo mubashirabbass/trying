@@ -29,8 +29,8 @@ export const uploadToCloudinary = async (
 
     if (resourceType === "image") {
       options.transformation = [
-        { width: 800, crop: "limit" },
-        { quality: "auto", fetch_format: "auto" }
+        { width: 1280, crop: "limit" },
+        { quality: 80, fetch_format: "webp" }
       ];
     }
 

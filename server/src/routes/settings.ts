@@ -28,6 +28,9 @@ const DEFAULT_SETTINGS = [
   { key: "video_completion_threshold", value: "80", label: "Video Completion Threshold (%)", category: "learning" },
   { key: "student_notice_enabled", value: "true", label: "Enable Student Notice Banner", category: "student_portal" },
   { key: "student_notice_text", value: "Important Note: Attendance criteria for Spring, 2026 is 75%.", label: "Student Notice Text", category: "student_portal" },
+  { key: "critical_popup_enabled", value: "false", label: "Enable Critical Announcement Popup", category: "announcement" },
+  { key: "critical_popup_title", value: "Important Announcement", label: "Popup Title", category: "announcement" },
+  { key: "critical_popup_message", value: "", label: "Popup Message (supports line breaks)", category: "announcement" },
 ];
 
 router.get("/settings", async (req, res): Promise<void> => {
@@ -78,6 +81,20 @@ router.put("/settings", authenticate, authorize("admin"), async (req, res): Prom
     }
   }
   res.json(results);
+});
+
+router.get("/announcements/public", async (req, res): Promise<void> => {
+  try {
+    const rows = await db
+      .select()
+      .from(announcementLogsTable)
+      .where(eq(announcementLogsTable.targetType, "ALL"))
+      .orderBy(desc(announcementLogsTable.sentAt))
+      .limit(30);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: "Database error" });
+  }
 });
 
 router.get("/announcements", authenticate, authorize("admin"), async (req, res): Promise<void> => {

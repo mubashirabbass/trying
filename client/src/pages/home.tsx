@@ -62,6 +62,9 @@ import {
   CheckCircle2,
   Loader2,
   X,
+  Megaphone,
+  Bell,
+  Calendar,
 } from "lucide-react";
 import {
   Accordion,
@@ -71,6 +74,7 @@ import {
 } from "@/components/ui/accordion";
 import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { CriticalAnnouncementPopup } from "@/components/CriticalAnnouncementPopup";
 
 const CATEGORY_COLORS: Record<string, string> = {
   IT: "from-blue-600 to-blue-400",
@@ -167,6 +171,8 @@ export default function Home() {
   const [faqs, setFaqs] = useState<any[]>([]);
   const [selectedStory, setSelectedStory] = useState<any | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [announcementsOpen, setAnnouncementsOpen] = useState(false);
 
   // Franchise form state
   const [franchiseOpen, setFranchiseOpen] = useState(false);
@@ -208,6 +214,11 @@ export default function Home() {
   useEffect(() => {
     fetchPublic("/api/articles").then(setArticles);
     fetchPublic("/api/faqs").then(setFaqs);
+    fetchPublic("/api/announcements/public").then((data) => {
+      if (Array.isArray(data)) {
+        setAnnouncements(data);
+      }
+    });
   }, []);
 
   const rawSuccessStories = (successStories && successStories.filter((s: any) => !s.isHidden).length > 0)
@@ -436,6 +447,9 @@ export default function Home() {
 
   return (
     <MainLayout>
+      {/* ── Critical Announcement Popup (admin-controlled) ────────────── */}
+      <CriticalAnnouncementPopup />
+
       {/* ── Hero Section ──────────────────────────────────────────────────── */}
         <section className="relative min-h-[90vh] flex items-end justify-center overflow-hidden bg-slate-950 pb-8 md:pb-12">
           {/* High-quality poster fallback displayed immediately, fades out when video plays */}
@@ -890,6 +904,68 @@ export default function Home() {
         </div>
       </section>
       {/* ────────────────────────────────────────────────────────────────── */}
+
+      {/* ── Announcements & News Feed Section ───────────────────────────── */}
+      <section className="py-16 bg-white relative overflow-hidden border-t border-slate-100">
+        <div className="w-full px-4 md:px-10 lg:px-16">
+          <div className="max-w-6xl mx-auto bg-gradient-to-br from-[#0f2c6f] to-[#1a47b8] rounded-[2.5rem] p-8 md:p-12 text-white relative overflow-hidden shadow-2xl shadow-blue-900/20">
+            {/* Background Glow */}
+            <div className="absolute top-0 right-0 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl -z-10" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-emerald-400/10 rounded-full blur-3xl -z-10" />
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+              {/* Left Column: Heading & Button */}
+              <div className="lg:col-span-5 text-left">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-6">
+                  <Megaphone className="h-4 w-4 text-[#ffec99] animate-pulse" />
+                  <span className="text-xs font-black uppercase tracking-wider text-[#ffec99]">Academic News</span>
+                </div>
+                <h2 className="text-3xl md:text-4xl lg:text-5xl font-black mb-6 leading-tight">
+                  Critical Updates & Notices
+                </h2>
+                <p className="text-blue-100/90 text-sm md:text-base leading-relaxed mb-8 font-medium">
+                  Stay informed with direct notices, guidelines, and official announcements published in real time by the Global College administration.
+                </p>
+                <Button
+                  onClick={() => setAnnouncementsOpen(true)}
+                  className="bg-[#20c997] hover:bg-[#12b886] text-white font-bold text-base px-8 h-14 rounded-2xl shadow-lg transition-all hover:scale-105 border-0"
+                >
+                  <Bell className="mr-2 h-5 w-5" /> View All Announcements
+                </Button>
+              </div>
+
+              {/* Right Column: Mini Feed */}
+              <div className="lg:col-span-7 space-y-4">
+                {announcements.length > 0 ? (
+                  announcements.slice(0, 2).map((ann) => (
+                    <div
+                      key={ann.id}
+                      className="bg-white/5 backdrop-blur-md border border-white/10 rounded-3xl p-6 text-left hover:bg-white/10 transition-colors"
+                    >
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <span className="text-[10px] text-white/60 font-black uppercase tracking-widest flex items-center gap-1.5">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(ann.sentAt).toLocaleDateString()}
+                        </span>
+                        <Badge className="bg-white/15 text-[#ffec99] border-0 text-[9px] font-black uppercase tracking-wider">
+                          By {ann.sentBy || "Admin"}
+                        </Badge>
+                      </div>
+                      <h3 className="text-lg font-bold text-white mb-2 line-clamp-1">{ann.title}</h3>
+                      <p className="text-sm text-blue-100/80 leading-relaxed line-clamp-2">{ann.message}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="bg-white/5 border border-white/10 rounded-[2rem] p-12 text-center text-blue-200">
+                    <Bell className="h-10 w-10 mx-auto text-blue-300 mb-3 opacity-40" />
+                    <p className="text-sm font-semibold">No active announcements at the moment.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* ── Edu-Sphere Achievers (Success Stories Carousel) ───────────────── */}
       <section className="py-16 bg-slate-50 relative overflow-hidden">
@@ -1883,6 +1959,58 @@ export default function Home() {
               </div>
             );
           })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Announcements Timeline Modal ── */}
+      <Dialog open={announcementsOpen} onOpenChange={setAnnouncementsOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-8 rounded-3xl border-none shadow-2xl bg-slate-900 text-white">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-10 w-10 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+              <Megaphone className="h-5 w-5" />
+            </div>
+            <div className="text-left">
+              <h3 className="text-xl font-black text-white leading-tight">All Academic Announcements</h3>
+              <p className="text-xs text-slate-400 mt-1">Official updates and notices from the administration</p>
+            </div>
+          </div>
+
+          <div className="h-px bg-slate-800 mb-6" />
+
+          {announcements.length > 0 ? (
+            <div className="space-y-6 text-left">
+              {announcements.map((ann) => (
+                <div key={ann.id} className="relative pl-6 border-l-2 border-slate-700/60 pb-6 last:pb-0 last:border-l-0">
+                  {/* Timeline dot */}
+                  <div className="absolute -left-[7px] top-1.5 h-3 w-3 rounded-full bg-blue-500 shadow-[0_0_0_4px_rgba(59,130,246,0.15)]" />
+                  
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <span className="text-xs text-slate-400 font-bold flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      {new Date(ann.sentAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric"
+                      })}
+                    </span>
+                    <Badge className="border-blue-500/30 bg-blue-500/5 text-blue-400 text-[10px] font-black uppercase tracking-wider px-2 py-0.5">
+                      By {ann.sentBy || "Admin"}
+                    </Badge>
+                  </div>
+
+                  <h4 className="text-base font-bold text-white mb-2">{ann.title}</h4>
+                  <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap bg-slate-800/40 p-4 rounded-xl border border-slate-800">
+                    {ann.message}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-slate-500 font-medium">
+              <Bell className="h-10 w-10 mx-auto text-slate-600 mb-3" />
+              No announcements uploaded yet.
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </MainLayout>

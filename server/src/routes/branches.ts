@@ -52,24 +52,40 @@ router.get("/branches", catchAsync(async (req, res) => {
   const branches = includeInactive
     ? await db.select().from(branchesTable)
     : await db.select().from(branchesTable).where(eq(branchesTable.isActive, true));
-  
-  // Enrich with student count
-  const enrichedBranches = await Promise.all(branches.map(async (branch) => {
-    const studentCount = await db
-      .select({ c: count() })
-      .from(usersTable)
-      .where(sql`${usersTable.branchId} = ${branch.id} AND ${usersTable.isActive} = true`);
-    
-    const actualCount = Number(studentCount[0]?.c ?? 0);
-    const manualCount = branch.manualStudentCount || 0;
 
+  if (branches.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  // Batched single query for all student counts — eliminates N+1 problem
+  const branchIds = branches.map(b => b.id);
+  const countsResult = await db
+    .select({
+      branchId: usersTable.branchId,
+      c: count(),
+    })
+    .from(usersTable)
+    .where(sql`${usersTable.branchId} = ANY(${sql.raw(`ARRAY[${branchIds.join(",")}]::integer[]`)}) AND ${usersTable.isActive} = true`)
+    .groupBy(usersTable.branchId);
+
+  const countMap = new Map<number, number>();
+  for (const row of countsResult) {
+    if (row.branchId != null) countMap.set(row.branchId, Number(row.c));
+  }
+
+  const enrichedBranches = branches.map(branch => {
+    const actualCount = countMap.get(branch.id) ?? 0;
+    const manualCount = branch.manualStudentCount || 0;
     return {
       ...branch,
       studentCount: actualCount + manualCount,
       actualStudentCount: actualCount,
     };
-  }));
+  });
 
+  // Set cache headers so browser/CDN can cache for 30s
+  res.set("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
   res.json(enrichedBranches);
 }));
 

@@ -183,7 +183,7 @@ export default function LessonPlayerPro() {
     { query: { enabled: !!user?.id } } as any
   );
   const currentEnrollment = enrollments?.find((e: any) => e.courseId === courseId);
-  const isEnrollmentBlocked = currentEnrollment?.status === "blocked";
+  const isEnrollmentBlocked = (currentEnrollment?.status as any) === "blocked";
   
   // Fetch sections
   const { data: sections } = useListSections({ courseId }, {
@@ -456,7 +456,7 @@ export default function LessonPlayerPro() {
 
   const getStudyMaterials = () => {
     const list: any[] = [];
-    lessons?.forEach((les, index) => {
+    lessons?.forEach((les: any, index) => {
       if (les.pdfUrl) {
         list.push({
           id: `pdf-${les.id}`,
@@ -524,10 +524,30 @@ export default function LessonPlayerPro() {
 
     const sequential = getSequentialLessons();
     const targetIndex = sequential.findIndex(l => l.id === lessonToCheckId);
-    if (targetIndex <= 0) return false;
+    if (targetIndex < 0) return false;
+
+    const targetLesson = sequential[targetIndex];
+    // If the target lecture itself is a live class record, allow students to access it directly
+    const isTargetLiveClass = 
+      targetLesson?.title.includes("[Live Class Record]") || 
+      targetLesson?.title.includes("🎥") || 
+      targetLesson?.title.toLowerCase().includes("live class");
+    
+    if (isTargetLiveClass) return false;
+    if (targetIndex === 0) return false;
 
     for (let i = 0; i < targetIndex; i++) {
-      if (!sequential[i].isCompleted) return true;
+      const prevLesson = sequential[i];
+      if (prevLesson.isCompleted) continue;
+
+      // If the preceding lesson is a live class record, students can skip its completion check
+      const isPrevLiveClass = 
+        prevLesson.title.includes("[Live Class Record]") || 
+        prevLesson.title.includes("🎥") || 
+        prevLesson.title.toLowerCase().includes("live class");
+      if (isPrevLiveClass) continue;
+
+      return true;
     }
     return false;
   };
