@@ -119,6 +119,7 @@ import attendanceRouter from "./attendance";
 import teacherAttendanceRouter from "./teacher-attendance";
 import liveClassesRouter from "./live-classes";
 import installmentLedgerRouter from "./installment-ledger";
+import entryRecordsRouter from "./entry-records";
 
 console.log("✓ Teacher attendance router imported successfully");
 
@@ -145,6 +146,7 @@ router.use(courseCategoriesRouter);
 router.use(franchiseApplicationsRouter);
 
 router.use(authenticate);
+router.use(entryRecordsRouter);
 router.use(lessonsRouter);
 router.use(enrollmentsRouter);
 router.use(assignmentsRouter);

@@ -132,7 +132,6 @@ export default function AdminForms() {
   // Auto-trigger search when typing
   useEffect(() => {
     if (debouncedQuery.trim().length >= 2) {
-      searchStudents();
       setShowSearchResults(true);
     } else {
       setShowSearchResults(false);
@@ -140,14 +139,15 @@ export default function AdminForms() {
   }, [debouncedQuery]);
 
   // Search students
-  const { data: searchResults, refetch: searchStudents, isLoading: isSearching, error } = useQuery({
+  const { data: searchResults, isLoading: isSearching, error } = useQuery({
     queryKey: ["/api/users/students/search", debouncedQuery],
     queryFn: async () => {
       if (debouncedQuery.trim().length < 2) return [];
       const data = await apiClient.get(`/api/users/students/search?q=${encodeURIComponent(debouncedQuery)}`);
       return data;
     },
-    enabled: false,
+    enabled: debouncedQuery.trim().length >= 2,
+    staleTime: 30000, // Keep results for 30 seconds
   });
 
   const handleSearch = () => {
@@ -155,7 +155,6 @@ export default function AdminForms() {
       toast({ title: "Please enter at least 2 characters", variant: "destructive" });
       return;
     }
-    searchStudents();
     setShowSearchResults(true);
   };
 
@@ -670,7 +669,14 @@ function AdmissionRecordForm({ student }: FormProps) {
   const [month, setMonth] = useState("");
   const [records, setRecords] = useState<any[]>([]);
 
+  // Get current date for header
+  const currentDate = new Date().toLocaleDateString("en-GB");
+  const currentMonth = new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+
   useEffect(() => {
+    // Set current month as default
+    setMonth(currentMonth);
+    
     if (student && student.enrollments) {
       const newRecords = student.enrollments.map((enrollment, idx) => ({
         id: idx + 1,
@@ -696,7 +702,7 @@ function AdmissionRecordForm({ student }: FormProps) {
         amount: 0,
       }]);
     }
-  }, [student]);
+  }, [student, currentMonth]);
 
   const addRow = () => {
     setRecords([...records, {
@@ -722,133 +728,208 @@ function AdmissionRecordForm({ student }: FormProps) {
   const total = records.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
 
   return (
-    <div>
-      <div className="text-center mb-6 print:mb-4">
-        <h1 className="text-2xl font-black text-[#6b1a2e] mb-1">
-          GLOBAL COLLEGE OF COMPUTER SCIENCE
-        </h1>
-        <p className="text-sm text-gray-600">Admission Record</p>
+    <div className="max-w-5xl mx-auto">
+      {/* Professional Header */}
+      <div className="border-2 border-[#6b1a2e] rounded-lg overflow-hidden mb-6">
+        {/* College Header */}
+        <div className="bg-[#6b1a2e] text-white text-center py-4">
+          <h1 className="text-2xl font-black mb-1">
+            GLOBAL COLLEGE OF COMPUTER SCIENCE
+          </h1>
+          <p className="text-sm opacity-90">18 Hazari, Jhang District, Punjab, Pakistan</p>
+          <p className="text-sm opacity-90">Phone: +92 301 989 0076 | Email: info@globalcollege.edu.pk</p>
+        </div>
+
+        {/* Form Title */}
+        <div className="bg-gray-100 border-b-2 border-[#6b1a2e] py-3">
+          <h2 className="text-xl font-bold text-center text-[#6b1a2e]">
+            STUDENT ADMISSION RECORD
+          </h2>
+        </div>
+
+        {/* Form Info Header */}
+        <div className="p-4 bg-white">
+          <div className="grid grid-cols-2 gap-6 mb-4">
+            <div className="flex items-center gap-3">
+              <Label className="font-bold text-gray-700 whitespace-nowrap">Record for Month:</Label>
+              <Input
+                type="text"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                placeholder="e.g. June 2026"
+                className="flex-1 h-9 border-b-2 border-t-0 border-x-0 rounded-none focus:border-[#6b1a2e]"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <Label className="font-bold text-gray-700">Date Prepared:</Label>
+              <span className="text-gray-800 font-medium">{currentDate}</span>
+            </div>
+          </div>
+
+          {/* Student Info (if selected) */}
+          {student && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <span className="font-bold text-gray-700">Student:</span>
+                  <span className="ml-2 text-gray-900">{student.fullName}</span>
+                </div>
+                <div>
+                  <span className="font-bold text-gray-700">Roll No:</span>
+                  <span className="ml-2 text-gray-900">{student.rollNumber || "N/A"}</span>
+                </div>
+                <div>
+                  <span className="font-bold text-gray-700">Reg No:</span>
+                  <span className="ml-2 text-gray-900">{student.registrationNumber || "N/A"}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="flex items-center gap-3 mb-4">
-        <Label className="font-bold">ADMISSION RECORD FOR THE MONTH:</Label>
-        <Input
-          type="text"
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          placeholder="e.g. June 2026"
-          className="w-64"
-        />
-      </div>
-
-      <div className="mb-4 print:hidden">
-        <Button onClick={addRow} size="sm">
+      {/* Controls */}
+      <div className="mb-6 print:hidden">
+        <Button onClick={addRow} size="sm" className="bg-[#6b1a2e] hover:bg-[#5a1628]">
           <Plus className="h-4 w-4 mr-2" />
-          Add Row
+          Add Student Record
         </Button>
       </div>
 
-      <table className="w-full border-collapse border-2 border-black text-sm">
-        <thead>
-          <tr className="bg-[#6b1a2e] text-white">
-            <th className="border border-black px-2 py-2">Sr.No</th>
-            <th className="border border-black px-2 py-2">Name of Trainee</th>
-            <th className="border border-black px-2 py-2">Hist. No.</th>
-            <th className="border border-black px-2 py-2">Course</th>
-            <th className="border border-black px-2 py-2">Add. Date</th>
-            <th className="border border-black px-2 py-2">Course Month</th>
-            <th className="border border-black px-2 py-2">Fee Rec. No.</th>
-            <th className="border border-black px-2 py-2">Fees Amount</th>
-            <th className="border border-black px-2 py-2 print:hidden">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {records.map((record, idx) => (
-            <tr key={record.id} className="hover:bg-gray-50">
-              <td className="border border-black px-2 py-1 text-center font-bold">
-                {idx + 1}
-              </td>
-              <td className="border border-black px-2 py-1">
-                <Input
-                  type="text"
-                  value={record.name}
-                  onChange={(e) => updateRecord(record.id, "name", e.target.value)}
-                  className="border-0 h-8 text-sm"
-                />
-              </td>
-              <td className="border border-black px-2 py-1">
-                <Input
-                  type="text"
-                  value={record.histNo}
-                  onChange={(e) => updateRecord(record.id, "histNo", e.target.value)}
-                  className="border-0 h-8 text-sm"
-                />
-              </td>
-              <td className="border border-black px-2 py-1">
-                <Input
-                  type="text"
-                  value={record.course}
-                  onChange={(e) => updateRecord(record.id, "course", e.target.value)}
-                  className="border-0 h-8 text-sm"
-                />
-              </td>
-              <td className="border border-black px-2 py-1">
-                <Input
-                  type="text"
-                  value={record.admDate}
-                  onChange={(e) => updateRecord(record.id, "admDate", e.target.value)}
-                  className="border-0 h-8 text-sm"
-                />
-              </td>
-              <td className="border border-black px-2 py-1">
-                <Input
-                  type="text"
-                  value={record.duration}
-                  onChange={(e) => updateRecord(record.id, "duration", e.target.value)}
-                  className="border-0 h-8 text-sm"
-                />
-              </td>
-              <td className="border border-black px-2 py-1">
-                <Input
-                  type="text"
-                  value={record.recNo}
-                  onChange={(e) => updateRecord(record.id, "recNo", e.target.value)}
-                  className="border-0 h-8 text-sm"
-                />
-              </td>
-              <td className="border border-black px-2 py-1">
-                <Input
-                  type="number"
-                  value={record.amount}
-                  onChange={(e) => updateRecord(record.id, "amount", e.target.value)}
-                  className="border-0 h-8 text-sm"
-                />
-              </td>
-              <td className="border border-black px-2 py-1 text-center print:hidden">
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => deleteRow(record.id)}
-                  className="h-7 px-2"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </td>
+      {/* Admission Records Table */}
+      <div className="border-2 border-[#6b1a2e] rounded-lg overflow-hidden">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="bg-[#6b1a2e] text-white">
+              <th className="border border-gray-300 px-3 py-3 text-center font-bold">Sr.No</th>
+              <th className="border border-gray-300 px-3 py-3 font-bold">Name of Trainee</th>
+              <th className="border border-gray-300 px-3 py-3 font-bold">Hist. No.</th>
+              <th className="border border-gray-300 px-3 py-3 font-bold">Course</th>
+              <th className="border border-gray-300 px-3 py-3 font-bold">Add. Date</th>
+              <th className="border border-gray-300 px-3 py-3 font-bold">Duration</th>
+              <th className="border border-gray-300 px-3 py-3 font-bold">Fee Rec. No.</th>
+              <th className="border border-gray-300 px-3 py-3 font-bold">Fees Amount</th>
+              <th className="border border-gray-300 px-3 py-3 font-bold print:hidden">Action</th>
             </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr className="bg-[#6b1a2e] text-white font-bold">
-            <td colSpan={7} className="border-2 border-black px-2 py-2 text-center">
-              TOTAL
-            </td>
-            <td className="border-2 border-black px-2 py-2 text-center">
-              {total.toLocaleString()}
-            </td>
-            <td className="print:hidden"></td>
-          </tr>
-        </tfoot>
-      </table>
+          </thead>
+          <tbody>
+            {records.map((record, idx) => (
+              <tr key={record.id} className="hover:bg-gray-50 even:bg-gray-25">
+                <td className="border border-gray-300 px-2 py-2 text-center font-bold text-[#6b1a2e]">
+                  {idx + 1}
+                </td>
+                <td className="border border-gray-300 px-2 py-1">
+                  <Input
+                    type="text"
+                    value={record.name}
+                    onChange={(e) => updateRecord(record.id, "name", e.target.value)}
+                    className="border-0 h-8 text-sm font-medium"
+                    placeholder="Student name"
+                  />
+                </td>
+                <td className="border border-gray-300 px-2 py-1">
+                  <Input
+                    type="text"
+                    value={record.histNo}
+                    onChange={(e) => updateRecord(record.id, "histNo", e.target.value)}
+                    className="border-0 h-8 text-sm"
+                    placeholder="Reg. number"
+                  />
+                </td>
+                <td className="border border-gray-300 px-2 py-1">
+                  <Input
+                    type="text"
+                    value={record.course}
+                    onChange={(e) => updateRecord(record.id, "course", e.target.value)}
+                    className="border-0 h-8 text-sm"
+                    placeholder="Course name"
+                  />
+                </td>
+                <td className="border border-gray-300 px-2 py-1">
+                  <Input
+                    type="text"
+                    value={record.admDate}
+                    onChange={(e) => updateRecord(record.id, "admDate", e.target.value)}
+                    className="border-0 h-8 text-sm"
+                    placeholder="DD/MM/YYYY"
+                  />
+                </td>
+                <td className="border border-gray-300 px-2 py-1">
+                  <Input
+                    type="text"
+                    value={record.duration}
+                    onChange={(e) => updateRecord(record.id, "duration", e.target.value)}
+                    className="border-0 h-8 text-sm"
+                    placeholder="e.g. 6 months"
+                  />
+                </td>
+                <td className="border border-gray-300 px-2 py-1">
+                  <Input
+                    type="text"
+                    value={record.recNo}
+                    onChange={(e) => updateRecord(record.id, "recNo", e.target.value)}
+                    className="border-0 h-8 text-sm"
+                    placeholder="Receipt no."
+                  />
+                </td>
+                <td className="border border-gray-300 px-2 py-1">
+                  <Input
+                    type="number"
+                    value={record.amount}
+                    onChange={(e) => updateRecord(record.id, "amount", e.target.value)}
+                    className="border-0 h-8 text-sm text-right"
+                    placeholder="Amount"
+                  />
+                </td>
+                <td className="border border-gray-300 px-2 py-1 text-center print:hidden">
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => deleteRow(record.id)}
+                    className="h-7 px-2"
+                    title="Delete this record"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="bg-[#6b1a2e] text-white font-bold">
+              <td colSpan={7} className="border-2 border-gray-300 px-3 py-3 text-center text-lg">
+                GRAND TOTAL
+              </td>
+              <td className="border-2 border-gray-300 px-3 py-3 text-center text-lg">
+                Rs. {total.toLocaleString()}
+              </td>
+              <td className="print:hidden"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {/* Footer Section */}
+      <div className="mt-8 print:mt-6">
+        <div className="grid grid-cols-3 gap-8 text-center">
+          <div className="border-t-2 border-gray-400 pt-2">
+            <p className="text-sm font-bold text-gray-700">Prepared By</p>
+            <p className="text-xs text-gray-500 mt-1">Admin Officer</p>
+          </div>
+          <div className="border-t-2 border-gray-400 pt-2">
+            <p className="text-sm font-bold text-gray-700">Verified By</p>
+            <p className="text-xs text-gray-500 mt-1">Academic Supervisor</p>
+          </div>
+          <div className="border-t-2 border-gray-400 pt-2">
+            <p className="text-sm font-bold text-gray-700">Approved By</p>
+            <p className="text-xs text-gray-500 mt-1">Principal/Director</p>
+          </div>
+        </div>
+        
+        <div className="mt-6 text-center text-xs text-gray-500">
+          <p>This is a computer-generated document. For any queries, contact administration office.</p>
+        </div>
+      </div>
     </div>
   );
 }
