@@ -103,6 +103,7 @@ import AdminFees from "@/pages/admin/fees";
 import AdminPayroll from "@/pages/admin/payroll";
 import CashbookIncome from "@/pages/admin/cashbook-income";
 import CashbookExpenses from "@/pages/admin/cashbook-expenses";
+import AdminForms from "@/pages/admin/forms";
 
 const queryClient = new QueryClient();
 
@@ -300,6 +301,9 @@ function Router() {
         </Route>
         <Route path="/admin/cashbook-expenses">
           <ProtectedRoute component={CashbookExpenses} />
+        </Route>
+        <Route path="/admin/forms">
+          <ProtectedRoute component={AdminForms} />
         </Route>
         <Route path="/admin/fees">
           <ProtectedRoute component={AdminFees} />

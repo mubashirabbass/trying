@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global College of Computer Science — Forms</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 13px; background: #f5f5f5; color: #111; }
+
+  /* NAV TABS */
+  .tab-nav { display: flex; gap: 4px; padding: 16px 16px 0; background: #fff; border-bottom: 2px solid #6b1a2e; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+  .tab-btn { padding: 10px 22px; border: 1px solid #ccc; border-bottom: none; border-radius: 6px 6px 0 0; cursor: pointer; background: #eee; font-size: 13px; font-weight: 600; color: #555; transition: background 0.2s; }
+  .tab-btn.active { background: #6b1a2e; color: #fff; border-color: #6b1a2e; }
+  .tab-btn:hover:not(.active) { background: #ddd; }
+  .tab-pane { display: none; padding: 24px 16px; max-width: 960px; margin: 0 auto; }
+  .tab-pane.active { display: block; }
+
+  /* BUTTONS */
+  .btn-row { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .btn { padding: 9px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 600; }
+  .btn-primary { background: #6b1a2e; color: #fff; }
+  .btn-secondary { background: #444; color: #fff; }
+  .btn-success { background: #1a7a3c; color: #fff; }
+  .btn-danger { background: #c0392b; color: #fff; }
+  .btn:hover { opacity: 0.88; }
+
+  /* COLLEGE HEADER */
+  .college-header { text-align: center; margin-bottom: 18px; }
+  .college-header h1 { font-size: 18px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #6b1a2e; }
+  .college-header p { font-size: 12px; color: #555; margin-top: 2px; }
+
+  /* ===== FORM 1: ADMISSION RECORD ===== */
+  .month-field { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; font-weight: 700; font-size: 14px; }
+  .month-field input { border: none; border-bottom: 2px solid #333; padding: 4px 8px; font-size: 14px; font-weight: 700; width: 220px; outline: none; }
+  .month-field input:focus { border-bottom-color: #6b1a2e; }
+
+  table.admission-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.admission-table th { background: #6b1a2e; color: #fff; padding: 7px 5px; border: 1px solid #999; text-align: center; font-weight: 700; }
+  table.admission-table td { border: 1px solid #aaa; padding: 4px 4px; vertical-align: middle; }
+  table.admission-table td.srno { text-align: center; font-weight: 700; color: #555; width: 36px; }
+  table.admission-table input[type="text"], table.admission-table input[type="date"], table.admission-table input[type="number"] {
+    width: 100%; border: none; padding: 3px 4px; font-size: 12px; background: transparent; outline: none; color: #111;
+  }
+  table.admission-table input:focus { background: #fff8e1; border-radius: 2px; }
+  table.admission-table tr:nth-child(even) td { background: #fafafa; }
+  table.admission-table tr:hover td { background: #fef3f3; }
+  .total-row td { background: #6b1a2e !important; color: #fff; font-weight: 700; text-align: center; padding: 6px 4px; }
+
+  /* ===== FORM 2: STUDENT FEE CHART ===== */
+  .fee-form-wrapper { border: 2px solid #6b1a2e; border-radius: 4px; background: #fff; max-width: 520px; margin: 0 auto; }
+  .fee-form-header { background: #6b1a2e; color: #fff; text-align: center; font-size: 15px; font-weight: 900; letter-spacing: 1px; padding: 10px; text-transform: uppercase; }
+  .fee-form-body { padding: 14px 16px; }
+
+  .fee-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; align-items: center; }
+  .fee-row.three { grid-template-columns: 1fr 1fr 1fr; }
+  .fee-row.single { grid-template-columns: 1fr; }
+  .fee-label { font-size: 11px; font-weight: 700; color: #333; margin-bottom: 2px; }
+  .fee-input { width: 100%; border: none; border-bottom: 1.5px solid #999; padding: 4px 4px; font-size: 12px; outline: none; background: transparent; }
+  .fee-input:focus { border-bottom-color: #6b1a2e; background: #fff8e1; }
+
+  /* Name grid boxes */
+  .name-grid { display: flex; gap: 3px; margin-bottom: 10px; }
+  .name-box { width: 26px; height: 26px; border: 1.5px solid #999; text-align: center; font-size: 12px; padding: 0; outline: none; }
+  .name-box:focus { border-color: #6b1a2e; background: #fff8e1; }
+
+  .fee-section-title { background: #6b1a2e; color: #fff; font-size: 11px; font-weight: 700; padding: 5px 10px; margin: 10px -16px 10px; letter-spacing: 0.5px; }
+  
+  .fee-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px; }
+  .fee-table th { background: #6b1a2e; color: #fff; padding: 6px 6px; border: 1px solid #999; font-size: 11px; }
+  .fee-table td { border: 1px solid #ccc; padding: 3px 6px; }
+  .fee-table td.month-label { font-weight: 700; color: #6b1a2e; white-space: nowrap; }
+  .fee-table input { width: 100%; border: none; outline: none; font-size: 12px; background: transparent; padding: 2px 0; }
+  .fee-table input:focus { background: #fff8e1; }
+  .fee-table tr:nth-child(even) td { background: #fef9f9; }
+
+  .sig-row { display: flex; justify-content: space-between; margin-top: 18px; padding-top: 10px; border-top: 1.5px solid #999; font-size: 11px; font-weight: 700; color: #333; }
+  .sig-line { text-align: center; min-width: 120px; }
+  .sig-line::before { content: ''; display: block; border-top: 1.5px solid #333; margin: 30px 0 4px; }
+
+  /* Photo box */
+  .photo-box { border: 1.5px solid #999; width: 80px; height: 95px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #aaa; text-align: center; cursor: pointer; position: relative; overflow: hidden; }
+  .photo-box img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+  .photo-input { display: none; }
+  .top-info-row { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 12px; }
+  .top-info-main { flex: 1; }
+
+  /* ===== FORM 3: URDU REGISTER ===== */
+  .urdu-section { direction: rtl; font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleem', Arial, sans-serif; }
+  .urdu-table { width: 100%; border-collapse: collapse; direction: rtl; }
+  .urdu-table th { background: #6b1a2e; color: #fff; padding: 7px 6px; border: 1px solid #999; font-size: 12px; text-align: center; }
+  .urdu-table td { border: 1px solid #ccc; padding: 4px 5px; }
+  .urdu-table td.num { direction: ltr; text-align: center; font-weight: 700; color: #555; width: 36px; }
+  .urdu-table input { width: 100%; border: none; outline: none; font-size: 12px; background: transparent; direction: rtl; padding: 2px 4px; }
+  .urdu-table input:focus { background: #fff8e1; }
+  .urdu-table tr:nth-child(even) td { background: #fafafa; }
+  .urdu-table tr:hover td { background: #fef3f3; }
+  .urdu-month-field { direction: rtl; margin-bottom: 14px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .urdu-month-field input { border: none; border-bottom: 2px solid #333; padding: 4px 6px; font-size: 14px; font-weight: 700; width: 180px; direction: rtl; outline: none; }
+
+  /* PRINT STYLES */
+  @media print {
+    body { background: #fff; font-size: 11px; }
+    .tab-nav, .btn-row, .no-print { display: none !important; }
+    .tab-pane { display: block !important; padding: 10px 0; page-break-after: always; }
+    .tab-pane:last-child { page-break-after: auto; }
+    table.admission-table th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .fee-form-header, .fee-section-title, .fee-table th, .urdu-table th, .total-row td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .fee-row { grid-template-columns: 1fr; }
+    .fee-row.three { grid-template-columns: 1fr; }
+    table.admission-table { font-size: 10px; }
+    .top-info-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="showTab('admission')">Admission Record</button>
+  <button class="tab-btn" onclick="showTab('feechart')">Student Fee Chart</button>
+  <button class="tab-btn" onclick="showTab('urdu')">اردو رجسٹر</button>
+</div>
+
+<!-- ============================= TAB 1: ADMISSION RECORD ============================= -->
+<div id="tab-admission" class="tab-pane active">
+  <div class="btn-row no-print">
+    <button class="btn btn-primary" onclick="addAdmissionRow()">+ Add Row</button>
+    <button class="btn btn-success" onclick="window.print()">🖨 Print</button>
+    <button class="btn btn-secondary" onclick="clearAdmission()">🗑 Clear All</button>
+    <button class="btn btn-secondary" onclick="saveAdmission()">💾 Save</button>
+    <button class="btn btn-secondary" onclick="loadAdmission()">📂 Load</button>
+  </div>
+
+  <div class="college-header">
+    <h1>Global College of Computer Science</h1>
+    <p>Admission Record</p>
+  </div>
+
+  <div class="month-field">
+    <span>ADMISSION RECORD FOR THE MONTH:</span>
+    <input type="text" id="adm-month" placeholder="e.g. June 2026">
+  </div>
+
+  <table class="admission-table" id="admission-table">
+    <thead>
+      <tr>
+        <th style="width:36px">Sr.no</th>
+        <th style="min-width:140px">Name of Trainee</th>
+        <th style="width:80px">Hist. No.</th>
+        <th style="width:90px">Course</th>
+        <th style="width:90px">Add. Date</th>
+        <th style="width:90px">Course Month</th>
+        <th style="width:80px">Fee Rec. No.</th>
+        <th style="width:90px">Fees Amount</th>
+        <th class="no-print" style="width:40px">Del</th>
+      </tr>
+    </thead>
+    <tbody id="admission-tbody">
+    </tbody>
+    <tfoot>
+      <tr class="total-row">
+        <td colspan="7">TOTAL</td>
+        <td id="adm-total">0</td>
+        <td class="no-print"></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<!-- ============================= TAB 2: STUDENT FEE CHART ============================= -->
+<div id="tab-feechart" class="tab-pane">
+  <div class="btn-row no-print">
+    <button class="btn btn-success" onclick="window.print()">🖨 Print</button>
+    <button class="btn btn-primary" onclick="newFeeForm()">+ New Form</button>
+    <button class="btn btn-secondary" onclick="saveFeeForm()">💾 Save</button>
+    <button class="btn btn-secondary" onclick="loadFeeForm()">📂 Load</button>
+    <button class="btn btn-danger" onclick="clearFeeForm()">🗑 Clear</button>
+  </div>
+
+  <div class="fee-form-wrapper" id="fee-form">
+    <div class="fee-form-header">Global College of Computer Science — Student Fee Chart</div>
+    <div class="fee-form-body">
+
+      <!-- Top row: Roll, Admission, Photo -->
+      <div class="top-info-row">
+        <div class="top-info-main">
+          <div class="fee-row three">
+            <div>
+              <div class="fee-label">Roll No.</div>
+              <input class="fee-input" type="text" id="f-rollno" placeholder="0160">
+            </div>
+            <div>
+              <div class="fee-label">Admission No.</div>
+              <input class="fee-input" type="text" id="f-admno">
+            </div>
+            <div>
+              <div class="fee-label">Admission Date</div>
+              <input class="fee-input" type="date" id="f-admdate">
+            </div>
+          </div>
+
+          <!-- Trainee Name -->
+          <div style="margin-top:10px;">
+            <div class="fee-label" style="margin-bottom:4px;">Trainee Name</div>
+            <input class="fee-input" type="text" id="f-trainee-name" placeholder="Enter trainee name" style="width:100%;">
+          </div>
+          <!-- Father Name -->
+          <div style="margin-top:8px;">
+            <div class="fee-label" style="margin-bottom:4px;">Father Name</div>
+            <input class="fee-input" type="text" id="f-father-name" placeholder="Enter father name" style="width:100%;">
+          </div>
+        </div>
+        <!-- Photo box -->
+        <div>
+          <div class="fee-label" style="text-align:center;margin-bottom:4px;">PHOTO</div>
+          <div class="photo-box" onclick="document.getElementById('photo-input').click()">
+            <img id="photo-preview" src="" style="display:none">
+            <span id="photo-placeholder">Click to add photo</span>
+          </div>
+          <input type="file" id="photo-input" class="photo-input" accept="image/*" onchange="previewPhoto(event)">
+        </div>
+      </div>
+
+      <!-- DOB / Mobile / From-To -->
+      <div class="fee-row three" style="margin-bottom:10px;">
+        <div>
+          <div class="fee-label">Date of Birth</div>
+          <input class="fee-input" type="date" id="f-dob">
+        </div>
+        <div>
+          <div class="fee-label">Mobile #</div>
+          <input class="fee-input" type="tel" id="f-mobile" placeholder="03xx-xxxxxxx">
+        </div>
+        <div style="display:flex;gap:6px;align-items:flex-end;">
+          <div style="flex:1">
+            <div class="fee-label">From</div>
+            <input class="fee-input" type="date" id="f-from">
+          </div>
+          <div style="flex:1">
+            <div class="fee-label">To</div>
+            <input class="fee-input" type="date" id="f-to">
+          </div>
+        </div>
+      </div>
+
+      <!-- Admission Fee -->
+      <div class="fee-row" style="margin-bottom:10px;">
+        <div>
+          <div class="fee-label">Admission Fee</div>
+          <input class="fee-input" type="number" id="f-admfee" placeholder="Amount">
+        </div>
+        <div>
+          <div class="fee-label">Rec. No.</div>
+          <input class="fee-input" type="text" id="f-admfee-recno">
+        </div>
+      </div>
+
+      <!-- Course Fee Table -->
+      <div class="fee-section-title">COURSE FEE RECORD</div>
+      <table class="fee-table">
+        <thead>
+          <tr>
+            <th>Course Fee</th>
+            <th>Rec. No</th>
+            <th>Submission Date</th>
+          </tr>
+        </thead>
+        <tbody id="fee-months-tbody">
+        </tbody>
+      </table>
+
+      <!-- Certificate / Total / Signature -->
+      <div class="fee-row">
+        <div>
+          <div class="fee-label">Certificate Fee</div>
+          <input class="fee-input" type="number" id="f-certfee" placeholder="Amount">
+        </div>
+        <div>
+          <div class="fee-label">Rec. No.</div>
+          <input class="fee-input" type="text" id="f-certfee-rec">
+        </div>
+        <div>
+          <div class="fee-label">Date</div>
+          <input class="fee-input" type="date" id="f-certfee-date">
+        </div>
+      </div>
+
+      <div class="fee-row" style="margin-top:10px;">
+        <div>
+          <div class="fee-label">Total Fees in Figure</div>
+          <input class="fee-input" type="number" id="f-total-fig" readonly placeholder="Auto-calculated">
+        </div>
+        <div>
+          <div class="fee-label">in Words</div>
+          <input class="fee-input" type="text" id="f-total-words" placeholder="e.g. Five Thousand Only">
+        </div>
+      </div>
+
+      <div class="fee-row three" style="margin-top:10px;">
+        <div>
+          <div class="fee-label">Trainee Signature</div>
+          <input class="fee-input" type="text" id="f-sig">
+        </div>
+        <div>
+          <div class="fee-label">Certificate Board</div>
+          <input class="fee-input" type="text" id="f-certboard">
+        </div>
+        <div>
+          <div class="fee-label">Certificate No.</div>
+          <input class="fee-input" type="text" id="f-certno">
+        </div>
+      </div>
+
+      <div class="sig-row">
+        <div class="sig-line">Sign. Principal</div>
+        <div class="sig-line">Sign. Director</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================= TAB 3: URDU REGISTER ============================= -->
+<div id="tab-urdu" class="tab-pane">
+  <div class="btn-row no-print">
+    <button class="btn btn-primary" onclick="addUrduRow()">+ قطار شامل کریں</button>
+    <button class="btn btn-success" onclick="window.print()">🖨 پرنٹ</button>
+    <button class="btn btn-secondary" onclick="clearUrdu()">🗑 صاف کریں</button>
+    <button class="btn btn-secondary" onclick="saveUrdu()">💾 محفوظ</button>
+    <button class="btn btn-secondary" onclick="loadUrdu()">📂 لوڈ</button>
+  </div>
+
+  <div class="college-header">
+    <h1>Global College of Computer Science</h1>
+  </div>
+
+  <div class="urdu-section">
+    <div class="urdu-month-field">
+      <input type="text" id="urdu-month" placeholder="ماہ درج کریں">
+      <span>: ماہ</span>
+    </div>
+
+    <table class="urdu-table" id="urdu-table">
+      <thead>
+        <tr>
+          <th style="width:36px">نمبر شمار</th>
+          <th>نام طالب علم</th>
+          <th style="width:110px">والد کا نام</th>
+          <th style="width:90px">کورس</th>
+          <th style="width:90px">داخلہ تاریخ</th>
+          <th style="width:80px">رسید نمبر</th>
+          <th style="width:90px">فیس رقم</th>
+          <th class="no-print" style="width:36px">حذف</th>
+        </tr>
+      </thead>
+      <tbody id="urdu-tbody">
+      </tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td colspan="6">کل</td>
+          <td id="urdu-total">0</td>
+          <td class="no-print"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<script>
+// ================== ADMISSION TABLE ==================
+let admRowCount = 0;
+
+function addAdmissionRow() {
+  admRowCount++;
+  const tbody = document.getElementById('admission-tbody');
+  const tr = document.createElement('tr');
+  tr.id = 'adm-row-' + admRowCount;
+  tr.innerHTML = `
+    <td class="srno">${admRowCount}</td>
+    <td><input type="text" placeholder="Trainee name"></td>
+    <td><input type="text" placeholder="Hist. No."></td>
+    <td><input type="text" placeholder="Course"></td>
+    <td><input type="date"></td>
+    <td><input type="text" placeholder="e.g. 3 months"></td>
+    <td><input type="text" placeholder="Rec. No."></td>
+    <td><input type="number" placeholder="0" oninput="calcAdmTotal()"></td>
+    <td class="no-print" style="text-align:center"><button onclick="deleteAdmRow(${admRowCount})" style="background:#c0392b;color:#fff;border:none;border-radius:3px;padding:3px 7px;cursor:pointer;font-size:11px">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function deleteAdmRow(id) {
+  document.getElementById('adm-row-' + id).remove();
+  calcAdmTotal();
+  renumberAdmRows();
+}
+
+function renumberAdmRows() {
+  const rows = document.querySelectorAll('#admission-tbody tr');
+  rows.forEach((r, i) => { r.querySelector('.srno').textContent = i + 1; });
+}
+
+function calcAdmTotal() {
+  let total = 0;
+  document.querySelectorAll('#admission-tbody input[type="number"]').forEach(inp => {
+    total += parseFloat(inp.value) || 0;
+  });
+  document.getElementById('adm-total').textContent = total.toLocaleString();
+}
+
+function clearAdmission() {
+  if (confirm('Clear all admission records?')) {
+    document.getElementById('admission-tbody').innerHTML = '';
+    admRowCount = 0;
+    calcAdmTotal();
+  }
+}
+
+function saveAdmission() {
+  const rows = [];
+  document.querySelectorAll('#admission-tbody tr').forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    rows.push(Array.from(inputs).map(i => i.value));
+  });
+  const data = { month: document.getElementById('adm-month').value, rows };
+  localStorage.setItem('gccs_admission', JSON.stringify(data));
+  alert('Admission record saved!');
+}
+
+function loadAdmission() {
+  const raw = localStorage.getItem('gccs_admission');
+  if (!raw) { alert('No saved data found.'); return; }
+  const data = JSON.parse(raw);
+  document.getElementById('admission-tbody').innerHTML = '';
+  admRowCount = 0;
+  document.getElementById('adm-month').value = data.month || '';
+  data.rows.forEach(row => {
+    addAdmissionRow();
+    const inputs = document.querySelector('#adm-row-' + admRowCount).querySelectorAll('input');
+    inputs.forEach((inp, i) => { if (row[i] !== undefined) inp.value = row[i]; });
+  });
+  calcAdmTotal();
+}
+
+// Auto-add 10 rows on load
+for (let i = 0; i < 10; i++) addAdmissionRow();
+
+// ================== FEE CHART ==================
+function buildNameGrid(containerId, len) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = '';
+  for (let i = 0; i < len; i++) {
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.maxLength = 1; inp.className = 'name-box';
+    inp.addEventListener('input', function() { if (this.value && this.nextElementSibling) this.nextElementSibling.focus(); });
+    c.appendChild(inp);
+  }
+}
+
+function buildFeeMonths() {
+  const tbody = document.getElementById('fee-months-tbody');
+  tbody.innerHTML = '';
+  for (let m = 1; m <= 12; m++) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="month-label">Month ${m} Fee</td>
+      <td><input type="text" placeholder="Rec. No." id="fee-rec-${m}" oninput="calcFeeTotal()"></td>
+      <td><input type="date" id="fee-date-${m}"></td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function calcFeeTotal() {
+  // Fee total is informational sum; in practice fees are text-entered
+  let total = parseFloat(document.getElementById('f-admfee').value) || 0;
+  total += parseFloat(document.getElementById('f-certfee').value) || 0;
+  document.getElementById('f-total-fig').value = total > 0 ? total : '';
+}
+
+function previewPhoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    document.getElementById('photo-preview').src = ev.target.result;
+    document.getElementById('photo-preview').style.display = 'block';
+    document.getElementById('photo-placeholder').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+function newFeeForm() {
+  if (confirm('Clear this form and start new?')) clearFeeForm();
+}
+
+function clearFeeForm() {
+  document.querySelectorAll('#fee-form input[type="text"], #fee-form input[type="number"], #fee-form input[type="tel"], #fee-form input[type="date"]').forEach(i => i.value = '');
+  document.querySelectorAll('.name-box').forEach(b => b.value = '');
+  document.getElementById('photo-preview').style.display = 'none';
+  document.getElementById('photo-placeholder').style.display = 'block';
+  document.getElementById('photo-preview').src = '';
+}
+
+function saveFeeForm() {
+  const data = {};
+  document.querySelectorAll('#fee-form input:not(.photo-input)').forEach(inp => { if (inp.id) data[inp.id] = inp.value; });
+  localStorage.setItem('gccs_feechart', JSON.stringify(data));
+  alert('Fee chart saved!');
+}
+
+function loadFeeForm() {
+  const raw = localStorage.getItem('gccs_feechart');
+  if (!raw) { alert('No saved data found.'); return; }
+  const data = JSON.parse(raw);
+  Object.entries(data).forEach(([k, v]) => {
+    const el = document.getElementById(k);
+    if (el) el.value = v;
+  });
+}
+
+// Init fee form
+buildFeeMonths();
+document.getElementById('f-admfee').addEventListener('input', calcFeeTotal);
+document.getElementById('f-certfee').addEventListener('input', calcFeeTotal);
+
+// ================== URDU REGISTER ==================
+let urduRowCount = 0;
+
+function addUrduRow() {
+  urduRowCount++;
+  const tbody = document.getElementById('urdu-tbody');
+  const tr = document.createElement('tr');
+  tr.id = 'urdu-row-' + urduRowCount;
+  tr.innerHTML = `
+    <td class="num">${urduRowCount}</td>
+    <td><input type="text" placeholder="نام"></td>
+    <td><input type="text" placeholder="والد کا نام"></td>
+    <td><input type="text" placeholder="کورس"></td>
+    <td><input type="date"></td>
+    <td><input type="text" placeholder="رسید نمبر"></td>
+    <td><input type="number" placeholder="0" oninput="calcUrduTotal()"></td>
+    <td class="no-print" style="text-align:center"><button onclick="deleteUrduRow(${urduRowCount})" style="background:#c0392b;color:#fff;border:none;border-radius:3px;padding:3px 7px;cursor:pointer;font-size:11px">✕</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function deleteUrduRow(id) {
+  document.getElementById('urdu-row-' + id).remove();
+  calcUrduTotal();
+  renumberUrduRows();
+}
+
+function renumberUrduRows() {
+  const rows = document.querySelectorAll('#urdu-tbody tr');
+  rows.forEach((r, i) => { r.querySelector('.num').textContent = i + 1; });
+}
+
+function calcUrduTotal() {
+  let total = 0;
+  document.querySelectorAll('#urdu-tbody input[type="number"]').forEach(inp => {
+    total += parseFloat(inp.value) || 0;
+  });
+  document.getElementById('urdu-total').textContent = total.toLocaleString();
+}
+
+function clearUrdu() {
+  if (confirm('تمام ریکارڈ صاف کریں؟')) {
+    document.getElementById('urdu-tbody').innerHTML = '';
+    urduRowCount = 0;
+    calcUrduTotal();
+  }
+}
+
+function saveUrdu() {
+  const rows = [];
+  document.querySelectorAll('#urdu-tbody tr').forEach(tr => {
+    const inputs = tr.querySelectorAll('input');
+    rows.push(Array.from(inputs).map(i => i.value));
+  });
+  const data = { month: document.getElementById('urdu-month').value, rows };
+  localStorage.setItem('gccs_urdu', JSON.stringify(data));
+  alert('محفوظ ہو گیا!');
+}
+
+function loadUrdu() {
+  const raw = localStorage.getItem('gccs_urdu');
+  if (!raw) { alert('کوئی ڈیٹا نہیں ملا۔'); return; }
+  const data = JSON.parse(raw);
+  document.getElementById('urdu-tbody').innerHTML = '';
+  urduRowCount = 0;
+  document.getElementById('urdu-month').value = data.month || '';
+  data.rows.forEach(row => {
+    addUrduRow();
+    const inputs = document.querySelector('#urdu-row-' + urduRowCount).querySelectorAll('input');
+    inputs.forEach((inp, i) => { if (row[i] !== undefined) inp.value = row[i]; });
+  });
+  calcUrduTotal();
+}
+
+// Auto-add 10 Urdu rows on load
+for (let i = 0; i < 10; i++) addUrduRow();
+
+// ================== TAB SWITCHING ==================
+function showTab(name) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

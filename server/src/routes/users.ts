@@ -48,6 +48,292 @@ router.post(
 
 
 /**
+ * @route GET /api/v1/users/students/test
+ * @desc Test endpoint to check if students exist
+ */
+router.get(
+  "/users/students/test",
+  authenticate,
+  authorize("admin", "teacher"),
+  catchAsync(async (req: AuthRequest, res: Response) => {
+    // Get all active students
+    const students = await db
+      .select({
+        id: usersTable.id,
+        name: usersTable.name,
+        rollNo: usersTable.rollNo,
+        regNo: usersTable.regNo,
+        role: usersTable.role,
+        isActive: usersTable.isActive,
+      })
+      .from(usersTable)
+      .where(eq(usersTable.role, "student"))
+      .limit(5);
+
+    const activeStudents = students.filter(s => s.isActive);
+    
+    return res.json({
+      totalStudents: students.length,
+      activeStudents: activeStudents.length,
+      sampleStudents: students,
+      message: students.length === 0 ? "No students found in database" : "Students found"
+    });
+  })
+);
+
+/**
+ * @route GET /api/v1/users/students/search
+ * @desc Search students for forms auto-fill
+ */
+router.get(
+  "/users/students/search",
+  authenticate,
+  authorize("admin", "teacher"),
+  catchAsync(async (req: AuthRequest, res: Response) => {
+    console.log("=== SEARCH REQUEST ===");
+    console.log("Query params:", req.query);
+    console.log("User role:", req.user?.role);
+    console.log("User ID:", req.user?.id);
+    
+    const { q } = req.query as any;
+    
+    if (!q || q.trim().length < 2) {
+      console.log("Search query too short:", q);
+      throw new AppError("Search query must be at least 2 characters", 400);
+    }
+
+    const searchTerm = q.trim();
+    console.log("Search term:", searchTerm);
+
+    // First, let's check if there are any students at all
+    const totalStudents = await db
+      .select({ count: usersTable.id })
+      .from(usersTable)
+      .where(and(
+        eq(usersTable.role, "student"),
+        eq(usersTable.isActive, true)
+      ));
+    
+    console.log("Total active students in database:", totalStudents.length);
+
+    const students = await db
+      .select({
+        id: usersTable.id,
+        fullName: usersTable.name,
+        rollNumber: usersTable.rollNo,
+        registrationNumber: usersTable.regNo,
+        fatherName: usersTable.fatherName,
+      })
+      .from(usersTable)
+      .where(
+        and(
+          eq(usersTable.role, "student"),
+          eq(usersTable.isActive, true),
+          or(
+            ilike(usersTable.name, `%${searchTerm}%`),
+            ilike(usersTable.rollNo, `%${searchTerm}%`),
+            ilike(usersTable.regNo, `%${searchTerm}%`),
+            ilike(usersTable.fatherName, `%${searchTerm}%`)
+          )
+        )
+      )
+      .limit(10)
+      .orderBy(usersTable.name);
+
+    console.log("Search results count:", students.length);
+    console.log("Search results:", students);
+
+    return res.json(students);
+  })
+);
+
+/**
+ * @route GET /api/v1/users/:id/details
+ * @desc Get full student details for forms (enrollments, payments, etc.)
+ */
+router.get(
+  "/users/:id/details",
+  authenticate,
+  authorize("admin", "teacher"),
+  catchAsync(async (req: AuthRequest, res: Response) => {
+    console.log("=== STUDENT DETAILS REQUEST ===");
+    console.log("Student ID requested:", req.params.id);
+    console.log("User making request:", req.user?.id, req.user?.role);
+    
+    const id = parseInt(req.params.id as string);
+    if (isNaN(id)) {
+      console.log("Invalid ID provided:", req.params.id);
+      throw new AppError("Invalid user ID", 400);
+    }
+
+    console.log("Looking for student with ID:", id);
+
+    try {
+      const [user] = await db
+        .select({
+          id: usersTable.id,
+          fullName: usersTable.name,
+          fatherName: usersTable.fatherName,
+          email: usersTable.email,
+          phoneNumber: usersTable.phone,
+          dateOfBirth: usersTable.dob,
+          address: usersTable.address,
+          rollNumber: usersTable.rollNo,
+          registrationNumber: usersTable.regNo,
+          profilePicture: usersTable.avatar,
+          nameUrdu: usersTable.nameUrdu,
+          gender: usersTable.gender,
+          cnic: usersTable.cnic,
+          session: usersTable.session,
+          shift: usersTable.shift,
+          department: usersTable.department,
+        })
+        .from(usersTable)
+        .where(and(eq(usersTable.id, id), eq(usersTable.role, "student")));
+
+      console.log("User found:", user ? "YES" : "NO");
+      if (user) {
+        console.log("User details:", { id: user.id, name: user.fullName, role: "student" });
+      }
+
+      if (!user) {
+        console.log("Student not found for ID:", id);
+        throw new AppError("Student not found", 404);
+      }
+
+      console.log("Fetching enrollments for student:", id);
+      // Get enrollments - use raw approach to avoid complex joins
+      let enrollments = [];
+      try {
+        const userEnrollments = await db
+          .select({
+            id: enrollmentsTable.id,
+            courseId: enrollmentsTable.courseId,
+            enrollmentDate: enrollmentsTable.enrolledAt,
+          })
+          .from(enrollmentsTable)
+          .where(eq(enrollmentsTable.userId, id))
+          .orderBy(desc(enrollmentsTable.enrolledAt));
+
+        console.log("Raw enrollments found:", userEnrollments.length);
+        
+        // Get course details separately for each enrollment
+        enrollments = await Promise.all(
+          userEnrollments.map(async (enrollment) => {
+            try {
+              const [course] = await db
+                .select({
+                  title: coursesTable.title,
+                  duration: coursesTable.duration,
+                })
+                .from(coursesTable)
+                .where(eq(coursesTable.id, enrollment.courseId))
+                .limit(1);
+              
+              return {
+                id: enrollment.id,
+                courseId: enrollment.courseId,
+                enrollmentDate: enrollment.enrollmentDate,
+                course: course ? {
+                  title: course.title,
+                  duration: course.duration,
+                } : {
+                  title: "Unknown Course",
+                  duration: "N/A",
+                },
+              };
+            } catch (courseError) {
+              console.error("Error fetching course for enrollment:", enrollment.id, courseError);
+              return {
+                id: enrollment.id,
+                courseId: enrollment.courseId,
+                enrollmentDate: enrollment.enrollmentDate,
+                course: {
+                  title: "Unknown Course",
+                  duration: "N/A",
+                },
+              };
+            }
+          })
+        );
+      } catch (enrollError: any) {
+        console.error("Error fetching enrollments:", enrollError.message);
+        enrollments = [];
+      }
+
+      console.log("Enrollments found:", enrollments.length);
+
+      console.log("Fetching payments for student:", id);
+      // Get payments - handle gracefully
+      let payments = [];
+      try {
+        payments = await db
+          .select({
+            id: paymentsTable.id,
+            amount: paymentsTable.amount,
+            paymentDate: paymentsTable.createdAt,
+            receiptUrl: paymentsTable.receiptUrl,
+            method: paymentsTable.method,
+            status: paymentsTable.status,
+            notes: paymentsTable.notes,
+          })
+          .from(paymentsTable)
+          .where(eq(paymentsTable.userId, id))
+          .orderBy(desc(paymentsTable.createdAt));
+      } catch (paymentError: any) {
+        console.error("Error fetching payments:", paymentError.message);
+        payments = [];
+      }
+
+      console.log("Payments found:", payments.length);
+
+      // Ensure all fields have safe values (handle nulls)
+      const safeUser = {
+        id: user.id,
+        fullName: user.fullName || "",
+        fatherName: user.fatherName || "",
+        email: user.email || "",
+        phoneNumber: user.phoneNumber || "",
+        dateOfBirth: user.dateOfBirth || null,
+        address: user.address || "",
+        rollNumber: user.rollNumber || "",
+        registrationNumber: user.registrationNumber || "",
+        profilePicture: user.profilePicture || null,
+        nameUrdu: user.nameUrdu || "",
+        gender: user.gender || "",
+        cnic: user.cnic || "",
+        session: user.session || "",
+        shift: user.shift || "",
+        department: user.department || "",
+      };
+
+      const result = {
+        ...safeUser,
+        enrollments: enrollments || [],
+        payments: payments || [],
+      };
+
+      console.log("Returning student details:", {
+        id: result.id,
+        name: result.fullName,
+        enrollmentsCount: enrollments.length,
+        paymentsCount: payments.length
+      });
+
+      return res.json(result);
+      
+    } catch (dbError: any) {
+      console.error("❌ Database error:", dbError);
+      console.error("❌ Error message:", dbError.message);
+      console.error("❌ Error stack:", dbError.stack);
+      
+      // Return a proper error response
+      throw new AppError(`Database error: ${dbError.message}`, 500);
+    }
+  })
+);
+
+/**
  * @route GET /api/v1/users
  * @desc List users with filters (Admin only)
  */

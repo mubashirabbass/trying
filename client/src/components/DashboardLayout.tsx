@@ -199,6 +199,7 @@ const ADMIN_NAV_GROUPS = [
       { name: "Reports", path: "/admin/reports", icon: FileBarChart },
       { name: "Payment Records", path: "/admin/payments", icon: CreditCard },
       { name: "Cashbook", path: "/admin/cashbook", icon: BookOpen },
+      { name: "Forms", path: "/admin/forms", icon: FileText },
     ],
   },
   {
