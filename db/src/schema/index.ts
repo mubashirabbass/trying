@@ -26,4 +26,5 @@ export * from "./course-categories";
 export * from "./franchise-applications";
 export * from "./installment-ledger";
 export * from "./entry-records";
+export * from "./cashbook";
 

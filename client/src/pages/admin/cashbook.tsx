@@ -4,28 +4,92 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Printer, Save, FolderOpen, Trash2 } from "lucide-react";
+import { Printer, Save, FolderOpen, Trash2, Loader2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface LedgerEntry {
-  id: string;
-  date: string;
+  id: number;
+  entryDate: string;
   pageNo: string;
   description: string;
   category: string;
-  rs: number;
-  ps: number;
+  rupees: number;
+  paisa: number;
+  entryType: 'income' | 'expense';
+  month: string;
+  year: string;
 }
 
 type ActiveTab = "income" | "expenses";
 
-interface CashbookData {
-  year: string;
-  month: string;
-  incomeEntries: LedgerEntry[];
-  expenseEntries: LedgerEntry[];
+interface CashbookSummary {
+  income: { rupees: number; paisa: number; count: number };
+  expense: { rupees: number; paisa: number; count: number };
+  balance: { rupees: number; paisa: number };
 }
+
+// ─── API Client ────────────────────────────────────────────────────────────────
+
+const apiClient = {
+  async get(url: string) {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    
+    const response = await fetch(url, {
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Network error' }));
+      throw new Error(errorData.message || `HTTP ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+
+  async post(url: string, data: any) {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Network error' }));
+      throw new Error(errorData.message || `HTTP ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+
+  async delete(url: string) {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Network error' }));
+      throw new Error(errorData.message || `HTTP ${response.status}`);
+    }
+    
+    return response.status === 204 ? null : await response.json();
+  }
+};
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -57,34 +121,26 @@ const STORAGE_KEY = "gccs_cashbook_urdu_v1";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const uid = () => Math.random().toString(36).slice(2, 10);
-
 const getTotal = (arr: LedgerEntry[]) => {
-  let rs = 0, ps = 0;
-  arr.forEach(e => { rs += e.rs; ps += e.ps; });
-  const carry = Math.floor(ps / 100);
-  return { rs: rs + carry, ps: ps % 100 };
+  let rupees = 0, paisa = 0;
+  arr.forEach(e => { rupees += e.rupees; paisa += e.paisa; });
+  const carry = Math.floor(paisa / 100);
+  return { rupees: rupees + carry, paisa: paisa % 100 };
 };
 
-const fmtAmt = (rs: number, ps: number) =>
-  `${rs.toLocaleString()}.${ps.toString().padStart(2, "0")}`;
-
-const makeEmpty = (): CashbookData => ({
-  year: new Date().getFullYear().toString(),
-  month: MONTHS[new Date().getMonth()],
-  incomeEntries: [],
-  expenseEntries: [],
-});
+const fmtAmt = (rupees: number, paisa: number) =>
+  `${rupees.toLocaleString()}.${paisa.toString().padStart(2, "0")}`;
 
 // ─── Entry Form Component ────────────────────────────────────────────────────
 
 interface EntryFormProps {
   type: ActiveTab;
-  onAdd: (e: LedgerEntry) => void;
+  onAdd: (e: Omit<LedgerEntry, 'id'>) => void;
   onClose: () => void;
+  isSubmitting?: boolean;
 }
 
-function EntryForm({ type, onAdd, onClose }: EntryFormProps) {
+function EntryForm({ type, onAdd, onClose, isSubmitting = false }: EntryFormProps) {
   const { toast } = useToast();
   const isIncome = type === "income";
   const cats = isIncome ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
@@ -93,14 +149,16 @@ function EntryForm({ type, onAdd, onClose }: EntryFormProps) {
   const [pageNo, setPageNo] = useState("");
   const [desc, setDesc] = useState("");
   const [cat, setCat] = useState("");
-  const [rs, setRs] = useState("");
-  const [ps, setPs] = useState("");
+  const [rupees, setRupees] = useState("");
+  const [paisa, setPaisa] = useState("");
+  const [year, setYear] = useState(new Date().getFullYear().toString());
+  const [month, setMonth] = useState(MONTHS[new Date().getMonth()]);
 
   const reset = () => {
     setDesc("");
     setCat("");
-    setRs("");
-    setPs("");
+    setRupees("");
+    setPaisa("");
     setPageNo("");
     setDate(new Date().toISOString().split("T")[0]);
   };
@@ -112,17 +170,16 @@ function EntryForm({ type, onAdd, onClose }: EntryFormProps) {
       return;
     }
     onAdd({
-      id: uid(),
-      date,
+      entryDate: date,
       pageNo,
       description: desc.trim(),
       category: cat,
-      rs: parseInt(rs) || 0,
-      ps: Math.min(parseInt(ps) || 0, 99),
+      rupees: parseInt(rupees) || 0,
+      paisa: Math.min(parseInt(paisa) || 0, 99),
+      entryType: isIncome ? 'income' : 'expense',
+      month,
+      year,
     });
-    toast({ title: isIncome ? "آمدن شامل ہو گئی ✓" : "خرچ شامل ہو گیا ✓" });
-    reset();
-    onClose();
   };
 
   return (
@@ -209,8 +266,8 @@ function EntryForm({ type, onAdd, onClose }: EntryFormProps) {
               <Label className="text-sm font-semibold text-gray-700 mb-1.5 block">رقم — روپیہ</Label>
               <Input
                 type="number"
-                value={rs}
-                onChange={e => setRs(e.target.value)}
+                value={rupees}
+                onChange={e => setRupees(e.target.value)}
                 className="h-10 text-right"
                 placeholder="0"
                 min="0"
@@ -221,8 +278,8 @@ function EntryForm({ type, onAdd, onClose }: EntryFormProps) {
               <Label className="text-sm font-semibold text-gray-700 mb-1.5 block">رقم — پیسہ</Label>
               <Input
                 type="number"
-                value={ps}
-                onChange={e => setPs(e.target.value)}
+                value={paisa}
+                onChange={e => setPaisa(e.target.value)}
                 className="h-10 text-right"
                 placeholder="00"
                 min="0"
@@ -231,11 +288,50 @@ function EntryForm({ type, onAdd, onClose }: EntryFormProps) {
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-sm font-semibold text-gray-700 mb-1.5 block">سال</Label>
+              <Input
+                type="number"
+                value={year}
+                onChange={e => setYear(e.target.value)}
+                className="h-10 text-right"
+                required
+              />
+            </div>
+            <div>
+              <Label className="text-sm font-semibold text-gray-700 mb-1.5 block">ماہ</Label>
+              <select
+                value={month}
+                onChange={e => setMonth(e.target.value)}
+                className="w-full h-10 border border-input rounded-md px-3 text-right bg-background outline-none focus:ring-2 focus:ring-ring"
+                required
+              >
+                {MONTHS.map(m => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div className="flex gap-3 pt-2">
-            <Button type="submit" className={`flex-1 h-11 text-base font-bold ${
-              isIncome ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"
-            }`}>
-              ✔ شامل کریں
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+              className={`flex-1 h-11 text-base font-bold ${
+                isIncome ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"
+              }`}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin ml-2" />
+                  محفوظ کر رہا ہے...
+                </>
+              ) : (
+                "✔ شامل کریں"
+              )}
             </Button>
             <Button type="button" variant="outline" onClick={onClose} className="px-6 h-11 text-base font-bold">
               منسوخ
@@ -252,10 +348,11 @@ function EntryForm({ type, onAdd, onClose }: EntryFormProps) {
 interface LedgerTableProps {
   type: ActiveTab;
   entries: LedgerEntry[];
-  onRemove: (id: string) => void;
+  onRemove: (id: number) => void;
+  isDeleting?: boolean;
 }
 
-function LedgerTable({ type, entries, onRemove }: LedgerTableProps) {
+function LedgerTable({ type, entries, onRemove, isDeleting = false }: LedgerTableProps) {
   const isIncome = type === "income";
   const total = getTotal(entries);
 
@@ -297,7 +394,7 @@ function LedgerTable({ type, entries, onRemove }: LedgerTableProps) {
                 return (
                   <tr key={entry.id} className="hover:bg-gray-50">
                     <td className="border border-gray-300 px-3 py-2 text-sm text-right">
-                      {new Date(entry.date).toLocaleDateString("en-GB")}
+                      {new Date(entry.entryDate).toLocaleDateString("en-GB")}
                     </td>
                     <td className="border border-gray-300 px-3 py-2 text-sm text-right">
                       <div className="font-semibold">{entry.description}</div>
@@ -309,24 +406,29 @@ function LedgerTable({ type, entries, onRemove }: LedgerTableProps) {
                       {entry.pageNo || "-"}
                     </td>
                     <td className="border border-gray-300 px-3 py-2 text-sm text-right font-mono font-semibold">
-                      {entry.rs.toLocaleString()}
+                      {entry.rupees.toLocaleString()}
                     </td>
                     <td className="border border-gray-300 px-3 py-2 text-sm text-right font-mono">
-                      {entry.ps.toString().padStart(2, "0")}
+                      {entry.paisa.toString().padStart(2, "0")}
                     </td>
                     <td className="border border-gray-300 px-3 py-2 text-sm text-right font-mono font-semibold bg-gray-50">
-                      {runningTotal.rs.toLocaleString()}
+                      {runningTotal.rupees.toLocaleString()}
                     </td>
                     <td className="border border-gray-300 px-3 py-2 text-sm text-right font-mono bg-gray-50">
-                      {runningTotal.ps.toString().padStart(2, "0")}
+                      {runningTotal.paisa.toString().padStart(2, "0")}
                     </td>
                     <td className="border border-gray-300 px-2 py-2 text-center print:hidden">
                       <button
                         onClick={() => onRemove(entry.id)}
-                        className="text-red-600 hover:bg-red-50 rounded p-1 transition-colors"
+                        disabled={isDeleting}
+                        className="text-red-600 hover:bg-red-50 rounded p-1 transition-colors disabled:opacity-50"
                         title="حذف کریں"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {isDeleting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
                       </button>
                     </td>
                   </tr>
@@ -340,10 +442,10 @@ function LedgerTable({ type, entries, onRemove }: LedgerTableProps) {
                 {isIncome ? "کل آمدن" : "کل خرچ"}
               </td>
               <td className="border border-white/30 px-3 py-3 text-base text-right font-mono">
-                {total.rs.toLocaleString()}
+                {total.rupees.toLocaleString()}
               </td>
               <td className="border border-white/30 px-3 py-3 text-base text-right font-mono">
-                {total.ps.toString().padStart(2, "0")}
+                {total.paisa.toString().padStart(2, "0")}
               </td>
               <td colSpan={3} className="border border-white/30"></td>
             </tr>
@@ -358,74 +460,116 @@ function LedgerTable({ type, entries, onRemove }: LedgerTableProps) {
 
 export default function AdminCashbook() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<ActiveTab>("income");
-  const [data, setData] = useState<CashbookData>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return makeEmpty();
-      }
-    }
-    return makeEmpty();
-  });
   const [showForm, setShowForm] = useState(false);
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear().toString());
+  const [currentMonth, setCurrentMonth] = useState(MONTHS[new Date().getMonth()]);
 
-  const set = (p: Partial<CashbookData>) => {
-    const newData = { ...data, ...p };
-    setData(newData);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+  // Fetch entries from API
+  const { data: entries = [], isLoading: entriesLoading, error: entriesError } = useQuery({
+    queryKey: ['/api/cashbook/entries', currentMonth, currentYear],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (currentMonth) params.append('month', currentMonth);
+      if (currentYear) params.append('year', currentYear);
+      
+      const url = `/api/cashbook/entries${params.toString() ? `?${params.toString()}` : ''}`;
+      return await apiClient.get(url);
+    },
+    staleTime: 30000,
+  });
+
+  // Fetch summary from API
+  const { data: summary, isLoading: summaryLoading } = useQuery<CashbookSummary>({
+    queryKey: ['/api/cashbook/summary', currentMonth, currentYear],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (currentMonth) params.append('month', currentMonth);
+      if (currentYear) params.append('year', currentYear);
+      
+      const url = `/api/cashbook/summary${params.toString() ? `?${params.toString()}` : ''}`;
+      return await apiClient.get(url);
+    },
+    staleTime: 30000,
+  });
+
+  // Create entry mutation
+  const createMutation = useMutation({
+    mutationFn: (data: Omit<LedgerEntry, 'id'>) => apiClient.post('/api/cashbook/entries', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/cashbook/entries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/cashbook/summary'] });
+      toast({ title: "اندراج شامل ہو گیا ✓" });
+      setShowForm(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "خرابی",
+        description: error.message || "اندراج شامل نہیں ہو سکا",
+        variant: "destructive"
+      });
+    },
+  });
+
+  // Delete entry mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/api/cashbook/entries/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/cashbook/entries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/cashbook/summary'] });
+      toast({ title: "اندراج حذف ہو گیا" });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "خرابی",
+        description: error.message || "اندراج حذف نہیں ہو سکا",
+        variant: "destructive"
+      });
+    },
+  });
+
+  const addEntry = (entry: Omit<LedgerEntry, 'id'>) => {
+    createMutation.mutate(entry);
   };
 
-  const addEntry = (type: ActiveTab, entry: LedgerEntry) => {
-    if (type === "income") set({ incomeEntries: [...data.incomeEntries, entry] });
-    else set({ expenseEntries: [...data.expenseEntries, entry] });
-  };
-
-  const removeEntry = (type: ActiveTab, id: string) => {
+  const removeEntry = (id: number) => {
     if (!window.confirm("کیا آپ واقعی یہ اندراج حذف کرنا چاہتے ہیں؟")) return;
-    if (type === "income") set({ incomeEntries: data.incomeEntries.filter(e => e.id !== id) });
-    else set({ expenseEntries: data.expenseEntries.filter(e => e.id !== id) });
-    toast({ title: "اندراج حذف ہو گیا" });
+    deleteMutation.mutate(id);
   };
 
-  const saveData = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    toast({ title: "کیش بک محفوظ ہو گئی ✓" });
+  // Filter entries by type
+  const incomeEntries = entries.filter((e: LedgerEntry) => e.entryType === 'income');
+  const expenseEntries = entries.filter((e: LedgerEntry) => e.entryType === 'expense');
+
+  // Get totals from summary or calculate locally
+  const incomeTotal = summary?.income || getTotal(incomeEntries);
+  const expenseTotal = summary?.expense || getTotal(expenseEntries);
+  const balance = summary?.balance || {
+    rupees: incomeTotal.rupees - expenseTotal.rupees,
+    paisa: incomeTotal.paisa - expenseTotal.paisa
   };
 
-  const loadData = () => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      toast({ title: "کوئی ڈیٹا موجود نہیں", variant: "destructive" });
-      return;
-    }
-    try {
-      const d = JSON.parse(raw);
-      setData(d);
-      toast({ title: "ڈیٹا لوڈ ہو گیا ✓" });
-    } catch {
-      toast({ title: "ڈیٹا لوڈ نہیں ہو سکا", variant: "destructive" });
-    }
-  };
-
-  const clearAll = () => {
-    if (!window.confirm("کیا آپ تمام ڈیٹا صاف کرنا چاہتے ہیں؟")) return;
-    const empty = makeEmpty();
-    setData(empty);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(empty));
-    toast({ title: "تمام ڈیٹا صاف ہو گیا" });
-  };
-
-  const incomeTotal = getTotal(data.incomeEntries);
-  const expenseTotal = getTotal(data.expenseEntries);
-  const balanceRs = incomeTotal.rs - expenseTotal.rs;
-  const balancePs = incomeTotal.ps - expenseTotal.ps;
+  const isLoading = entriesLoading || summaryLoading;
 
   return (
     <DashboardLayout>
       <div className="pb-12" style={{ fontFamily: "'Noto Nastaliq Urdu', serif" }}>
+        
+        {/* Loading State */}
+        {isLoading && (
+          <div className="mb-6 bg-white border border-gray-200 rounded-lg p-6 text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-gray-400" />
+            <p className="text-gray-500">کیش بک لوڈ ہو رہی ہے...</p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {entriesError && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+            <p className="text-red-700 font-semibold">خرابی: {(entriesError as Error).message}</p>
+          </div>
+        )}
         
         {/* Toolbar */}
         <div className="mb-6 bg-white border-b-4 border-rose-700 p-4 flex flex-wrap items-center gap-3 print:hidden sticky top-0 z-10 shadow-md">
@@ -434,6 +578,7 @@ export default function AdminCashbook() {
               setActiveTab("income");
               setShowForm(true);
             }}
+            disabled={isLoading}
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 px-5"
             style={{ fontFamily: "'Noto Nastaliq Urdu', serif" }}
           >
@@ -445,6 +590,7 @@ export default function AdminCashbook() {
               setActiveTab("expenses");
               setShowForm(true);
             }}
+            disabled={isLoading}
             className="bg-rose-600 hover:bg-rose-700 text-white font-bold h-10 px-5"
             style={{ fontFamily: "'Noto Nastaliq Urdu', serif" }}
           >
@@ -461,33 +607,6 @@ export default function AdminCashbook() {
           >
             <Printer className="h-4 w-4 ml-2" /> 🖨 پرنٹ
           </Button>
-
-          <Button
-            onClick={saveData}
-            variant="outline"
-            className="font-bold h-10 px-4"
-            style={{ fontFamily: "'Noto Nastaliq Urdu', serif" }}
-          >
-            <Save className="h-4 w-4 ml-2" /> 💾 محفوظ
-          </Button>
-
-          <Button
-            onClick={loadData}
-            variant="outline"
-            className="font-bold h-10 px-4"
-            style={{ fontFamily: "'Noto Nastaliq Urdu', serif" }}
-          >
-            <FolderOpen className="h-4 w-4 ml-2" /> 📂 لوڈ
-          </Button>
-
-          <Button
-            onClick={clearAll}
-            variant="outline"
-            className="font-bold h-10 px-4 border-red-300 text-red-600 hover:bg-red-50"
-            style={{ fontFamily: "'Noto Nastaliq Urdu', serif" }}
-          >
-            <Trash2 className="h-4 w-4 ml-2" /> 🗑 صاف
-          </Button>
         </div>
 
         {/* Header Section */}
@@ -501,16 +620,16 @@ export default function AdminCashbook() {
                 <Label className="text-sm font-semibold text-gray-600 mb-1 block">سال</Label>
                 <Input
                   type="number"
-                  value={data.year}
-                  onChange={e => set({ year: e.target.value })}
+                  value={currentYear}
+                  onChange={e => setCurrentYear(e.target.value)}
                   className="w-28 h-10 text-right font-bold"
                 />
               </div>
               <div>
                 <Label className="text-sm font-semibold text-gray-600 mb-1 block">بابت ماہ</Label>
                 <select
-                  value={data.month}
-                  onChange={e => set({ month: e.target.value })}
+                  value={currentMonth}
+                  onChange={e => setCurrentMonth(e.target.value)}
                   className="h-10 px-3 border border-input rounded-md text-right bg-background font-bold w-32"
                 >
                   {MONTHS.map(m => (
@@ -532,27 +651,27 @@ export default function AdminCashbook() {
             <div className="bg-emerald-50 border-2 border-emerald-200 rounded-lg p-4 text-center">
               <p className="text-xs font-bold text-emerald-700 uppercase mb-1">کل آمدن</p>
               <p className="text-2xl font-black text-emerald-700 font-mono">
-                {fmtAmt(incomeTotal.rs, incomeTotal.ps)} روپے
+                {fmtAmt(incomeTotal.rupees, incomeTotal.paisa)} روپے
               </p>
             </div>
             <div className="bg-rose-50 border-2 border-rose-200 rounded-lg p-4 text-center">
               <p className="text-xs font-bold text-rose-700 uppercase mb-1">کل خرچ</p>
               <p className="text-2xl font-black text-rose-700 font-mono">
-                {fmtAmt(expenseTotal.rs, expenseTotal.ps)} روپے
+                {fmtAmt(expenseTotal.rupees, expenseTotal.paisa)} روپے
               </p>
             </div>
             <div className={`border-2 rounded-lg p-4 text-center ${
-              balanceRs >= 0 ? "bg-blue-50 border-blue-200" : "bg-amber-50 border-amber-200"
+              balance.rupees >= 0 ? "bg-blue-50 border-blue-200" : "bg-amber-50 border-amber-200"
             }`}>
               <p className={`text-xs font-bold uppercase mb-1 ${
-                balanceRs >= 0 ? "text-blue-700" : "text-amber-700"
+                balance.rupees >= 0 ? "text-blue-700" : "text-amber-700"
               }`}>
                 باقی رقم
               </p>
               <p className={`text-2xl font-black font-mono ${
-                balanceRs >= 0 ? "text-blue-700" : "text-amber-700"
+                balance.rupees >= 0 ? "text-blue-700" : "text-amber-700"
               }`}>
-                {balanceRs >= 0 ? "" : "-"}{fmtAmt(Math.abs(balanceRs), Math.abs(balancePs))} روپے
+                {balance.rupees >= 0 ? "" : "-"}{fmtAmt(Math.abs(balance.rupees), Math.abs(balance.paisa))} روپے
               </p>
             </div>
           </div>
@@ -569,13 +688,14 @@ export default function AdminCashbook() {
             >
               <span>📥 آمدن کی تفصیل</span>
               <span className="text-sm bg-white/20 px-3 py-1 rounded-full">
-                {data.incomeEntries.length} اندراج
+                {incomeEntries.length} اندراج
               </span>
             </div>
             <LedgerTable
               type="income"
-              entries={data.incomeEntries}
-              onRemove={id => removeEntry("income", id)}
+              entries={incomeEntries}
+              onRemove={removeEntry}
+              isDeleting={deleteMutation.isPending}
             />
           </div>
 
@@ -587,13 +707,14 @@ export default function AdminCashbook() {
             >
               <span>📤 خرچ کی تفصیل</span>
               <span className="text-sm bg-white/20 px-3 py-1 rounded-full">
-                {data.expenseEntries.length} اندراج
+                {expenseEntries.length} اندراج
               </span>
             </div>
             <LedgerTable
               type="expenses"
-              entries={data.expenseEntries}
-              onRemove={id => removeEntry("expenses", id)}
+              entries={expenseEntries}
+              onRemove={removeEntry}
+              isDeleting={deleteMutation.isPending}
             />
           </div>
 
@@ -603,11 +724,9 @@ export default function AdminCashbook() {
         {showForm && (
           <EntryForm
             type={activeTab}
-            onAdd={entry => {
-              addEntry(activeTab, entry);
-              setShowForm(false);
-            }}
+            onAdd={addEntry}
             onClose={() => setShowForm(false)}
+            isSubmitting={createMutation.isPending}
           />
         )}
       </div>

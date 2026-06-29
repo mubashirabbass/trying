@@ -145,23 +145,70 @@ export default function EntryRecordsPage() {
     const style = document.createElement('style');
     style.textContent = `
       @media print {
+        /* Page setup */
+        @page {
+          margin: 2cm 1cm 2cm 1cm;
+          size: A4;
+        }
+        
+        /* Force header to repeat on each page */
+        .print-header {
+          display: table-header-group !important;
+          page-break-inside: avoid !important;
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          z-index: 9999 !important;
+        }
+        
+        /* Table header repetition */
+        thead {
+          display: table-header-group !important;
+        }
+        
+        tbody {
+          display: table-row-group !important;
+        }
+        
+        /* Fix table styling */
         .print-table-container table {
           font-size: 10px !important;
+          width: 100% !important;
+          border-collapse: collapse !important;
         }
+        
         .print-table-container th {
           background-color: #6b1a2e !important;
           color: white !important;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          page-break-inside: avoid !important;
         }
+        
         .print-table-container tr:nth-child(even) {
           background-color: #f8f9fa !important;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
         }
+        
         .entry-records-table {
           box-shadow: none !important;
           border-radius: 0 !important;
+        }
+        
+        /* Ensure content starts below fixed header */
+        body {
+          padding-top: 150px !important;
+        }
+        
+        /* Page break controls */
+        .print-info, .print-table-container {
+          page-break-inside: avoid !important;
+        }
+        
+        tr {
+          page-break-inside: avoid !important;
         }
       }
     `;
@@ -196,9 +243,19 @@ export default function EntryRecordsPage() {
       if (selectedMonth) params.append("month", selectedMonth);
       if (params.toString()) url += `?${params.toString()}`;
       
-      return await apiClient.get(url);
+      console.log("🔍 Making API call to:", url);
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      console.log("🔑 Token exists:", !!token);
+      
+      const result = await apiClient.get(url);
+      console.log("✅ API Response:", result);
+      return result;
     },
     staleTime: 30000,
+    retry: (failureCount, error: any) => {
+      console.error("❌ API Error:", error);
+      return failureCount < 2;
+    },
   });
 
   // Create entry record mutation
@@ -367,73 +424,113 @@ export default function EntryRecordsPage() {
                 box-sizing: border-box;
               }
               
-              body { 
-                font-family: 'Arial', sans-serif; 
-                padding: 1cm; 
-                background: white;
-                color: #000;
-                line-height: 1.4;
+              @page {
+                margin: 2cm 1cm 2cm 1cm;
+                size: A4 portrait;
+                @top-center {
+                  content: "GLOBAL COLLEGE OF COMPUTER SCIENCE - STUDENT ENTRY RECORDS REGISTER";
+                  font-size: 12px;
+                  font-weight: bold;
+                  color: #6b1a2e;
+                }
               }
               
+              body { 
+                font-family: 'Arial', sans-serif; 
+                background: white;
+                color: #000;
+                line-height: 1.3;
+                padding-top: 0;
+              }
+              
+              /* Fixed header that repeats on all pages */
               .print-header {
-                text-align: center;
-                margin-bottom: 2rem;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                z-index: 1000;
+                page-break-inside: avoid;
+                page-break-after: avoid;
                 border-bottom: 3px solid #6b1a2e;
-                padding-bottom: 1rem;
+                padding: 15px;
+                margin-bottom: 20px;
               }
               
               .college-name {
                 color: #6b1a2e;
-                font-size: 24px;
+                font-size: 20px;
                 font-weight: bold;
-                margin-bottom: 5px;
-                letter-spacing: 1px;
+                margin-bottom: 3px;
+                letter-spacing: 0.5px;
+                text-align: center;
               }
               
               .college-subtitle {
                 color: #8b1538;
-                font-size: 14px;
-                margin-bottom: 3px;
+                font-size: 12px;
+                margin-bottom: 2px;
                 font-style: italic;
+                text-align: center;
               }
               
               .document-title {
                 color: #6b1a2e;
-                font-size: 20px;
+                font-size: 16px;
                 font-weight: bold;
-                margin-top: 15px;
+                margin-top: 8px;
                 text-decoration: underline;
+                text-align: center;
+              }
+              
+              /* Main content starts below fixed header */
+              .print-content {
+                margin-top: 140px;
+                position: relative;
               }
               
               .print-info {
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
-                margin-bottom: 1rem;
-                font-size: 12px;
+                margin-bottom: 15px;
+                font-size: 11px;
                 color: #666;
                 page-break-inside: avoid;
               }
               
               .print-table-container {
                 width: 100%;
-                overflow-x: auto;
-                clear: both;
-                page-break-inside: avoid;
+                overflow: visible;
+                page-break-inside: auto;
               }
               
               table { 
                 width: 100%; 
                 border-collapse: collapse; 
-                font-size: 11px;
-                margin-bottom: 2rem;
+                font-size: 9px;
+                margin-bottom: 15px;
+                page-break-inside: auto;
+              }
+              
+              /* Table header that repeats on each page */
+              thead {
+                display: table-header-group;
+                page-break-inside: avoid;
+                page-break-after: avoid;
+              }
+              
+              tbody {
+                display: table-row-group;
               }
               
               th, td { 
-                border: 2px solid #000; 
-                padding: 8px 6px; 
+                border: 1.5px solid #000; 
+                padding: 6px 4px; 
                 text-align: left;
                 vertical-align: top;
+                word-wrap: break-word;
               }
               
               th { 
@@ -441,15 +538,22 @@ export default function EntryRecordsPage() {
                 color: white !important;
                 font-weight: bold;
                 text-align: center;
-                font-size: 10px;
+                font-size: 8px;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                page-break-inside: avoid;
+                page-break-after: avoid;
               }
               
               tr:nth-child(even) {
                 background-color: #f8f9fa !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+              }
+              
+              tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
               }
               
               .sr-no {
@@ -459,26 +563,30 @@ export default function EntryRecordsPage() {
                 color: #6b1a2e !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                width: 8%;
               }
               
               .student-name {
                 font-weight: bold;
                 color: #333;
+                width: 18%;
               }
               
               .amount {
                 text-align: right !important;
                 font-weight: bold;
                 color: #2d8f3f;
+                width: 12%;
               }
               
               .type-badge {
                 display: inline-block;
-                padding: 2px 6px;
-                border-radius: 4px;
-                font-size: 9px;
+                padding: 2px 4px;
+                border-radius: 3px;
+                font-size: 7px;
                 font-weight: bold;
                 text-align: center;
+                width: 8%;
               }
               
               .type-auto {
@@ -497,13 +605,39 @@ export default function EntryRecordsPage() {
                 print-color-adjust: exact;
               }
               
-              .print-footer {
-                margin-top: 3rem;
-                border-top: 2px solid #6b1a2e;
-                padding-top: 1rem;
+              .summary-box {
+                border: 2px solid #6b1a2e;
+                padding: 8px;
+                background-color: #f8f9fa !important;
+                display: inline-block;
+                min-width: 180px;
+                font-size: 10px;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              
+              .summary-title {
+                color: #6b1a2e;
+                font-weight: bold;
+                font-size: 11px;
+                margin-bottom: 4px;
+                text-align: center;
+              }
+              
+              .summary-row {
                 display: flex;
                 justify-content: space-between;
-                font-size: 12px;
+                margin-bottom: 2px;
+              }
+              
+              .print-footer {
+                margin-top: 25px;
+                border-top: 2px solid #6b1a2e;
+                padding-top: 15px;
+                display: flex;
+                justify-content: space-between;
+                font-size: 11px;
+                page-break-inside: avoid;
               }
               
               .signature-section {
@@ -513,8 +647,8 @@ export default function EntryRecordsPage() {
               
               .signature-line {
                 border-bottom: 2px solid #000;
-                margin-top: 2rem;
-                margin-bottom: 0.5rem;
+                margin-top: 25px;
+                margin-bottom: 5px;
               }
               
               .signature-label {
@@ -522,29 +656,19 @@ export default function EntryRecordsPage() {
                 color: #6b1a2e;
               }
               
-              @page {
-                margin: 1cm;
-                @bottom-center {
-                  content: "Page " counter(page) " of " counter(pages);
-                  font-size: 10px;
-                  color: #666;
-                }
+              /* Print-specific settings */
+              body { 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
               }
               
-              @media print {
-                .print-hidden { display: none !important; }
-                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                .print-header { page-break-after: avoid; }
-                .print-info { page-break-after: avoid; }
-                .print-table-container { page-break-before: avoid; }
-                table { page-break-inside: auto; }
-                thead { page-break-after: avoid; }
-                tr { page-break-inside: avoid; page-break-after: auto; }
-                td { page-break-inside: avoid; }
+              .print-hidden { 
+                display: none !important; 
               }
             </style>
           </head>
           <body>
+            <!-- Fixed header that repeats on all pages -->
             <div class="print-header">
               <div class="college-name">GLOBAL COLLEGE OF COMPUTER SCIENCE</div>
               <div class="college-subtitle">Excellence in Technical Education</div>
@@ -552,70 +676,71 @@ export default function EntryRecordsPage() {
               <div class="document-title">STUDENT ENTRY RECORDS REGISTER</div>
             </div>
             
-            <div class="print-info">
-              <div>
-                <strong>Generated on:</strong> ${currentDate} at ${currentTime}<br/>
-                <strong>Total Records:</strong> ${allRecords.length}
-                ${selectedMonth ? `<br/><strong>Filtered by:</strong> ${selectedMonth}` : ''}
-                ${searchQuery ? `<br/><strong>Search:</strong> ${searchQuery}` : ''}
-              </div>
-              <div style="text-align: right; font-size: 11px;">
-                <div style="border: 2px solid #6b1a2e; padding: 8px; background-color: #f8f9fa; display: inline-block; min-width: 200px;">
-                  <div style="color: #6b1a2e; font-weight: bold; font-size: 12px; margin-bottom: 6px; text-align: center;">Summary</div>
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+            <!-- Main content -->
+            <div class="print-content">
+              <div class="print-info">
+                <div>
+                  <strong>Generated on:</strong> ${currentDate} at ${currentTime}<br/>
+                  <strong>Total Records:</strong> ${allRecords.length}
+                  ${selectedMonth ? `<br/><strong>Filtered by:</strong> ${selectedMonth}` : ''}
+                  ${searchQuery ? `<br/><strong>Search:</strong> ${searchQuery}` : ''}
+                </div>
+                <div class="summary-box">
+                  <div class="summary-title">Summary</div>
+                  <div class="summary-row">
                     <span>Total Students:</span>
                     <span><strong>${allRecords.length}</strong></span>
                   </div>
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                  <div class="summary-row">
                     <span>Auto Generated:</span>
                     <span><strong>${allRecords.filter(r => r.isAutoGenerated).length}</strong></span>
                   </div>
-                  <div style="display: flex; justify-content: space-between; margin-bottom: 3px;">
+                  <div class="summary-row">
                     <span>Manual Entries:</span>
                     <span><strong>${allRecords.filter(r => !r.isAutoGenerated).length}</strong></span>
                   </div>
-                  <div style="display: flex; justify-content: space-between;">
+                  <div class="summary-row">
                     <span>Total Amount:</span>
                     <span><strong>Rs. ${allRecords.reduce((sum, r) => sum + r.amount, 0).toLocaleString()}</strong></span>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div class="print-table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Sr.No</th>
-                    <th>Name of Trainee</th>
-                    <th>Hist. No.</th>
-                    <th>Course</th>
-                    <th>Admission Date</th>
-                    <th>Duration</th>
-                    <th>Fee Rec. No.</th>
-                    <th>Amount</th>
-                    <th>Month</th>
-                    <th>Type</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${tableRows}
-                </tbody>
-              </table>
-            </div>
-            
-            <div class="print-footer">
-              <div class="signature-section">
-                <div class="signature-line"></div>
-                <div class="signature-label">Prepared By</div>
+              <div class="print-table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th class="sr-no">Sr.No</th>
+                      <th>Name of Trainee</th>
+                      <th>Hist. No.</th>
+                      <th>Course</th>
+                      <th>Admission Date</th>
+                      <th>Duration</th>
+                      <th>Fee Rec. No.</th>
+                      <th class="amount">Amount</th>
+                      <th>Month</th>
+                      <th>Type</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${tableRows}
+                  </tbody>
+                </table>
               </div>
-              <div class="signature-section">
-                <div class="signature-line"></div>
-                <div class="signature-label">Verified By</div>
-              </div>
-              <div class="signature-section">
-                <div class="signature-line"></div>
-                <div class="signature-label">Principal</div>
+              
+              <div class="print-footer">
+                <div class="signature-section">
+                  <div class="signature-line"></div>
+                  <div class="signature-label">Prepared By</div>
+                </div>
+                <div class="signature-section">
+                  <div class="signature-line"></div>
+                  <div class="signature-label">Verified By</div>
+                </div>
+                <div class="signature-section">
+                  <div class="signature-line"></div>
+                  <div class="signature-label">Principal</div>
+                </div>
               </div>
             </div>
           </body>
@@ -650,6 +775,20 @@ export default function EntryRecordsPage() {
             Student admission entry records - Auto-generated on enrollment + Manual entries
           </p>
         </div>
+
+        {/* Debug Info for Authentication */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+            <div className="text-sm text-yellow-800">
+              <div className="font-semibold mb-1">🔍 Debug Info:</div>
+              <div>Token: {localStorage.getItem('token') ? 'Found in localStorage' : sessionStorage.getItem('token') ? 'Found in sessionStorage' : 'Not found'}</div>
+              <div>API URL: {`/api/entry-records`}</div>
+              <div>Loading: {isLoading.toString()}</div>
+              <div>Error: {error ? (error as any).message || 'Unknown error' : 'None'}</div>
+              <div>Records Count: {entryRecords.length}</div>
+            </div>
+          </div>
+        )}
 
         {/* Compact Controls */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 mb-4">

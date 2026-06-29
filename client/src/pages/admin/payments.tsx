@@ -102,8 +102,8 @@ export default function AdminPayments() {
   };
 
   const handleManualPayment = async () => {
-    if (!manualAmount || parseFloat(manualAmount) <= 0) {
-      toast({ title: "Please enter a valid amount", variant: "destructive" });
+    if (!manualPaymentStudent?.installmentAmount || manualPaymentStudent.installmentAmount <= 0) {
+      toast({ title: "Invalid installment amount", variant: "destructive" });
       return;
     }
 
@@ -112,6 +112,7 @@ export default function AdminPayments() {
       const BASE = window.location.origin;
       const courseId = Number(selectedCourse);
       const monthNum = Number(selectedMonth);
+      const fullInstallmentAmount = manualPaymentStudent.installmentAmount; // Always use full amount
       
       const course = coursesArr.find((c: any) => c.id === courseId);
       const courseFee = course?.fee || 0;
@@ -126,15 +127,15 @@ export default function AdminPayments() {
         body: JSON.stringify({
           userId: manualPaymentStudent.userId,
           courseId: courseId,
-          amount: parseFloat(manualAmount),
+          amount: fullInstallmentAmount, // Always use full installment amount
           totalFee: courseFee,
-          remainingFee: Math.max(0, courseFee - parseFloat(manualAmount)),
+          remainingFee: Math.max(0, courseFee - fullInstallmentAmount),
           paymentPlan: "monthly",
           installmentMonths: installmentMonths,
           installmentNumber: monthNum,
           method: manualMethod,
           receiptUrl: null,
-          notes: `Manual payment recorded by admin - ${manualMethod.toUpperCase()} payment for ${course ? getMonthName(course.createdAt, monthNum) : `Month #${monthNum}`}. ${manualNotes}`,
+          notes: `Manual FULL payment collected by admin - ${manualMethod.toUpperCase()} payment for ${course ? getMonthName(course.createdAt, monthNum) : `Month #${monthNum}`} (Rs. ${fullInstallmentAmount.toLocaleString()}). ${manualNotes}`,
         }),
       });
 
@@ -146,7 +147,7 @@ export default function AdminPayments() {
         id: payment.id, 
         data: { 
           status: "verified", 
-          notes: `Manually recorded by admin on ${new Date().toLocaleDateString()} - ${manualMethod.toUpperCase()}. ${manualNotes}` 
+          notes: `FULL monthly fee collected by admin on ${new Date().toLocaleDateString()} - ${manualMethod.toUpperCase()} (Rs. ${fullInstallmentAmount.toLocaleString()}). ${manualNotes}` 
         } 
       });
 
@@ -155,7 +156,7 @@ export default function AdminPayments() {
         id: payment.id,
         userName: manualPaymentStudent.userName,
         courseName: manualPaymentStudent.courseName,
-        amount: parseFloat(manualAmount),
+        amount: fullInstallmentAmount, // Show full amount in receipt
         method: manualMethod,
         installmentNumber: monthNum,
         createdAt: new Date().toISOString(),
@@ -164,8 +165,8 @@ export default function AdminPayments() {
       });
 
       toast({
-        title: "✅ Payment Recorded Successfully!",
-        description: `Rs. ${parseFloat(manualAmount).toLocaleString()} recorded for ${manualPaymentStudent.userName}`,
+        title: "✅ Full Payment Collected!",
+        description: `Rs. ${fullInstallmentAmount.toLocaleString()} collected from ${manualPaymentStudent.userName} (Full monthly fee)`,
       });
 
       queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey({}) });
@@ -765,7 +766,7 @@ export default function AdminPayments() {
                             className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold"
                             onClick={() => {
                               setManualPaymentStudent(student);
-                              setManualAmount(String(student.installmentAmount));
+                              setManualAmount(String(student.installmentAmount)); // Set full amount (though not used in logic)
                               setIsManualPaymentOpen(true);
                             }}
                           >
@@ -784,90 +785,84 @@ export default function AdminPayments() {
       </Card>
 
       <Dialog open={isManualPaymentOpen} onOpenChange={setIsManualPaymentOpen}>
-        <DialogContent className="max-w-lg rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-black flex items-center gap-2">
-              <HandCoins className="h-5 w-5 text-indigo-500" />
-              Record Manual Payment
-            </DialogTitle>
-            <DialogDescription>
-              Record cash or offline payment received from student
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-md rounded-2xl p-0 overflow-hidden">
+          {/* Professional Invoice Header */}
+          <div className="bg-gradient-to-r from-[#6b1a2e] to-[#8b1538] text-white p-4">
+            <div className="text-center">
+              <div className="text-sm font-bold">Global College</div>
+              <div className="text-xs opacity-90">Fee Collection Receipt</div>
+              <div className="text-xs opacity-75 mt-1">#{new Date().getTime().toString().slice(-6)}</div>
+            </div>
+          </div>
 
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs font-bold text-slate-500">Student</Label>
-                <Input value={manualPaymentStudent?.userName || ""} disabled className="mt-1.5 bg-slate-50" />
+          <div className="p-4 space-y-3">
+            {/* Compact Student Info */}
+            <div className="bg-gray-50 rounded-lg p-3 text-sm">
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-gray-500">Student:</span>
+                  <div className="font-semibold text-gray-900">{manualPaymentStudent?.userName}</div>
+                </div>
+                <div>
+                  <span className="text-gray-500">Course:</span>
+                  <div className="font-semibold text-gray-900">{manualPaymentStudent?.courseName}</div>
+                </div>
               </div>
-              <div>
-                <Label className="text-xs font-bold text-slate-500">Course</Label>
-                <Input value={manualPaymentStudent?.courseName || ""} disabled className="mt-1.5 bg-slate-50" />
+              <div className="mt-2 pt-2 border-t border-gray-200">
+                <span className="text-gray-500 text-xs">Month:</span>
+                <div className="font-semibold text-gray-900 text-xs">
+                  {selectedCourseData ? getMonthName(selectedCourseData.createdAt, Number(selectedMonth)) : `Month #${selectedMonth}`}
+                </div>
               </div>
             </div>
 
-            <div>
-              <Label className="text-xs font-bold text-slate-500">Month</Label>
-              <Input 
-                value={selectedCourseData ? getMonthName(selectedCourseData.createdAt, Number(selectedMonth)) : `Month #${selectedMonth}`} 
-                disabled 
-                className="mt-1.5 bg-slate-50" 
-              />
-            </div>
-
-            <div>
-              <Label className="text-xs font-bold text-slate-600">Amount Received (Rs.) *</Label>
-              <div className="relative mt-1.5">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  type="number"
-                  value={manualAmount}
-                  onChange={(e) => setManualAmount(e.target.value)}
-                  placeholder="8000"
-                  className="pl-9 h-11 rounded-xl border-slate-200 font-bold text-lg"
-                />
+            {/* Amount Section - Invoice Style */}
+            <div className="border border-green-200 rounded-lg p-3 bg-green-50">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-700">Monthly Fee:</span>
+                <span className="text-xl font-bold text-green-700">
+                  Rs. {manualPaymentStudent?.installmentAmount.toLocaleString()}
+                </span>
               </div>
-              <p className="text-xs text-gray-500 mt-1">Expected: Rs. {manualPaymentStudent?.installmentAmount.toLocaleString()}</p>
+              <div className="text-xs text-green-600 mt-1 text-center">
+                ✓ Full Payment - No Partial Allowed
+              </div>
             </div>
 
+            {/* Compact Payment Method */}
             <div>
-              <Label className="text-xs font-bold text-slate-600">Payment Method *</Label>
+              <Label className="text-xs font-semibold text-gray-700 mb-1 block">Payment Method</Label>
               <Select value={manualMethod} onValueChange={setManualMethod}>
-                <SelectTrigger className="mt-1.5 h-11 rounded-xl">
+                <SelectTrigger className="h-9 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="bank_deposit">Bank Deposit</SelectItem>
-                  <SelectItem value="check">Check</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="cash">💵 Cash</SelectItem>
+                  <SelectItem value="bank_deposit">🏦 Bank Deposit</SelectItem>
+                  <SelectItem value="check">📄 Check</SelectItem>
+                  <SelectItem value="other">📱 Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
+            {/* Compact Notes */}
             <div>
-              <Label className="text-xs font-bold text-slate-600">Notes (Optional)</Label>
+              <Label className="text-xs font-semibold text-gray-700 mb-1 block">Notes</Label>
               <Textarea
                 value={manualNotes}
                 onChange={(e) => setManualNotes(e.target.value)}
-                placeholder="e.g. Received cash payment in office"
-                className="mt-1.5 rounded-xl border-slate-200 resize-none"
-                rows={3}
+                placeholder="Payment details..."
+                className="text-sm resize-none"
+                rows={2}
               />
             </div>
 
-            <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl p-3">
-              <AlertTriangle className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
-              <p className="text-xs text-blue-700 font-medium leading-relaxed">
-                This payment will be automatically verified and the student's {selectedCourseData ? getMonthName(selectedCourseData.createdAt, Number(selectedMonth)) : `Month #${selectedMonth}`} will be marked as PAID.
-              </p>
-            </div>
-
-            <div className="flex gap-3 pt-2">
+            {/* Compact Action Buttons */}
+            <div className="flex gap-2 pt-2">
               <Button
                 variant="outline"
-                className="flex-1 rounded-xl"
+                size="sm"
+                className="flex-1"
                 onClick={() => {
                   setIsManualPaymentOpen(false);
                   setManualPaymentStudent(null);
@@ -880,16 +875,36 @@ export default function AdminPayments() {
                 Cancel
               </Button>
               <Button
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold"
+                size="sm"
+                className="flex-1 bg-[#6b1a2e] hover:bg-[#5a1628] text-white font-bold"
                 onClick={handleManualPayment}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
-                  <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Recording...</>
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    Collecting...
+                  </>
                 ) : (
-                  <><CheckCircle2 className="h-4 w-4 mr-2" /> Record & Mark Paid</>
+                  <>
+                    <HandCoins className="h-3 w-3 mr-1" />
+                    Collect Rs. {manualPaymentStudent?.installmentAmount.toLocaleString()}
+                  </>
                 )}
               </Button>
+            </div>
+          </div>
+
+          {/* Invoice Footer */}
+          <div className="bg-gray-50 px-4 py-2 text-center">
+            <div className="text-xs text-gray-500">
+              {new Date().toLocaleDateString('en-GB', { 
+                day: '2-digit', 
+                month: 'short', 
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
             </div>
           </div>
         </DialogContent>
