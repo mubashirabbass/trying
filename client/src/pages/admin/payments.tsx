@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { FeeReceipt } from "@/components/FeeReceipt";
-import { useListPayments, useVerifyPayment, getListPaymentsQueryKey, useListCourses, useListEnrollments } from "@workspace/api-client-react";
+import { useListPayments, useVerifyPayment, getListPaymentsQueryKey, useListCourses, useListEnrollments, getListCoursesQueryKey, getListEnrollmentsQueryKey, getListUsersQueryKey } from "@workspace/api-client-react";
 import {
   Loader2, CheckCircle2, XCircle, Clock, ExternalLink, AlertTriangle,
   GraduationCap, Search, Receipt, Filter, CalendarDays, DollarSign, Users, TrendingUp, HandCoins
@@ -38,9 +38,34 @@ export default function AdminPayments() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { token } = useAuth();
-  const { data: payments, isLoading: paymentsLoading, error } = useListPayments({}, { query: { queryKey: getListPaymentsQueryKey({}) } });
-  const { data: courses, isLoading: coursesLoading } = useListCourses();
-  const { data: enrollments, isLoading: enrollmentsLoading } = useListEnrollments({});
+  const { data: payments, isLoading: paymentsLoading, error } = useListPayments(
+    {},
+    {
+      query: {
+        queryKey: getListPaymentsQueryKey({}),
+        staleTime: 30 * 1000, // Reduced from 5 minutes to 30 seconds
+        refetchOnWindowFocus: true, // Enable refetch on focus for fresh data
+      },
+    }
+  );
+  const { data: courses, isLoading: coursesLoading } = useListCourses(
+    {} as any,
+    {
+      query: {
+        staleTime: 2 * 60 * 1000, // Keep courses cached longer (2 min) as they change less
+        refetchOnWindowFocus: false,
+      },
+    } as any
+  );
+  const { data: enrollments, isLoading: enrollmentsLoading } = useListEnrollments(
+    {},
+    {
+      query: {
+        staleTime: 30 * 1000, // Reduced from 5 minutes to 30 seconds
+        refetchOnWindowFocus: true, // Enable refetch on focus
+      },
+    } as any
+  );
   const verifyPayment = useVerifyPayment();
 
   const [reviewPayment, setReviewPayment] = useState<any>(null);
@@ -102,8 +127,19 @@ export default function AdminPayments() {
   };
 
   const handleManualPayment = async () => {
+    // Enhanced validation
     if (!manualPaymentStudent?.installmentAmount || manualPaymentStudent.installmentAmount <= 0) {
       toast({ title: "Invalid installment amount", variant: "destructive" });
+      return;
+    }
+
+    if (!manualPaymentStudent?.userId) {
+      toast({ title: "Invalid student - missing user ID", variant: "destructive" });
+      return;
+    }
+
+    if (!selectedCourse || !selectedMonth) {
+      toast({ title: "Please select course and month", variant: "destructive" });
       return;
     }
 
@@ -112,78 +148,190 @@ export default function AdminPayments() {
       const BASE = window.location.origin;
       const courseId = Number(selectedCourse);
       const monthNum = Number(selectedMonth);
-      const fullInstallmentAmount = manualPaymentStudent.installmentAmount; // Always use full amount
-      
+      const fullInstallmentAmount = manualPaymentStudent.installmentAmount;
+      const userId = Number(manualPaymentStudent.userId);
+
+      // Validate numbers
+      if (isNaN(courseId) || isNaN(monthNum) || isNaN(userId) || isNaN(fullInstallmentAmount)) {
+        throw new Error("Invalid numeric data - please refresh and try again");
+      }
+
       const course = coursesArr.find((c: any) => c.id === courseId);
       const courseFee = course?.fee || 0;
-      const installmentMonths = manualPaymentStudent.installmentMonths || 6;
-      
-      const res = await fetch(`${BASE}/api/payments`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: manualPaymentStudent.userId,
-          courseId: courseId,
-          amount: fullInstallmentAmount, // Always use full installment amount
-          totalFee: courseFee,
-          remainingFee: Math.max(0, courseFee - fullInstallmentAmount),
-          paymentPlan: "monthly",
-          installmentMonths: installmentMonths,
-          installmentNumber: monthNum,
-          method: manualMethod,
-          receiptUrl: null,
-          notes: `Manual FULL payment collected by admin - ${manualMethod.toUpperCase()} payment for ${course ? getMonthName(course.createdAt, monthNum) : `Month #${monthNum}`} (Rs. ${fullInstallmentAmount.toLocaleString()}). ${manualNotes}`,
-        }),
-      });
+      // Always derive from course duration posted by admin, not from stored payment field
+      const installmentMonths = parseDurationMonths(course?.duration || "");
 
-      if (!res.ok) throw new Error("Failed to record payment");
-      
-      const payment = await res.json();
-      
-      await verifyPayment.mutateAsync({ 
-        id: payment.id, 
-        data: { 
-          status: "verified", 
-          notes: `FULL monthly fee collected by admin on ${new Date().toLocaleDateString()} - ${manualMethod.toUpperCase()} (Rs. ${fullInstallmentAmount.toLocaleString()}). ${manualNotes}` 
-        } 
-      });
+      const requestData = {
+        userId,
+        courseId,
+        amount: fullInstallmentAmount,
+        totalFee: courseFee,
+        paymentPlan: "monthly",
+        installmentMonths,
+        installmentNumber: monthNum,
+        method: manualMethod || "cash",
+        notes: `Manual FULL payment collected by admin - ${course ? getMonthName(course.createdAt, monthNum) : `Month #${monthNum}`} (Rs. ${fullInstallmentAmount.toLocaleString()}). ${manualNotes}`.trim(),
+      };
 
-      // Show receipt after manual payment
-      setReceiptData({
-        id: payment.id,
+    // Generate a proper receipt number immediately (don't wait for API)
+    const receiptNumber = `RCP-${Date.now().toString().slice(-6)}`;
+    const tempPaymentId = Date.now();
+    
+    queryClient.setQueryData(getListPaymentsQueryKey({}), (oldData: any) => {
+      if (!Array.isArray(oldData)) return oldData;
+      return [...oldData, {
+        id: receiptNumber, // Use receipt number as stable ID
+        userId,
+        courseId,
+        amount: fullInstallmentAmount,
+        installmentNumber: monthNum,
+        method: manualMethod,
+        status: "verified", // This makes monthPaid = true immediately
         userName: manualPaymentStudent.userName,
         courseName: manualPaymentStudent.courseName,
-        amount: fullInstallmentAmount, // Show full amount in receipt
-        method: manualMethod,
-        installmentNumber: monthNum,
         createdAt: new Date().toISOString(),
-        verifiedAt: new Date().toISOString(),
-        notes: manualNotes,
-      });
+        paymentPlan: "monthly",
+        installmentMonths,
+      }];
+    });
 
-      toast({
-        title: "✅ Full Payment Collected!",
-        description: `Rs. ${fullInstallmentAmount.toLocaleString()} collected from ${manualPaymentStudent.userName} (Full monthly fee)`,
-      });
+    // INSTANT enrollment update
+    queryClient.setQueryData(getListEnrollmentsQueryKey({}), (oldData: any) => {
+      if (!Array.isArray(oldData)) return oldData;
+      const existing = oldData.find((e: any) => e.userId === userId && e.courseId === courseId);
+      if (existing) {
+        return oldData.map((e: any) => 
+          e.userId === userId && e.courseId === courseId ? { ...e, status: "active" } : e
+        );
+      }
+      return [...oldData, { 
+        id: Date.now() + 1, 
+        userId, 
+        courseId, 
+        status: "active", 
+        createdAt: new Date().toISOString() 
+      }];
+    });
 
-      queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey({}) });
-      setIsManualPaymentOpen(false);
-      setManualPaymentStudent(null);
-      setManualAmount("");
-      setManualMethod("cash");
-      setManualNotes("");
-      
-      // Show receipt
-      setShowReceipt(true);
+    // INSTANT user activation (for enrolled count)
+    queryClient.setQueryData(getListUsersQueryKey({ role: "student" }), (oldData: any) => {
+      if (!Array.isArray(oldData)) return oldData;
+      return oldData.map((user: any) => 
+        user.id === userId ? { ...user, isActive: true } : user
+      );
+    });
+
+    // INSTANT receipt data preparation with user details
+    const receipt = {
+      id: receiptNumber, // Use stable receipt number
+      userName: manualPaymentStudent.userName,
+      userFatherName: manualPaymentStudent.userFatherName,
+      userId: manualPaymentStudent.userId,
+      rollNumber: "Processing...", // Better loading message
+      courseName: manualPaymentStudent.courseName,
+      amount: fullInstallmentAmount,
+      totalFee: courseFee,
+      method: manualMethod,
+      installmentNumber: monthNum,
+      installmentMonths,
+      createdAt: new Date().toISOString(),
+      verifiedAt: new Date().toISOString(), // Mark as verified immediately
+      notes: manualNotes,
+    };
+
+    // INSTANT UI updates - all at once
+    setIsManualPaymentOpen(false);
+    setManualPaymentStudent(null);
+    setManualAmount("");
+    setManualMethod("cash");
+    setManualNotes("");
+    setReceiptData(receipt);
+    setShowReceipt(true);
+
+    toast({
+      title: "✅ Payment Collected!",
+      description: `Rs. ${fullInstallmentAmount.toLocaleString()} collected from ${manualPaymentStudent.userName}`,
+    });
+
+    // API call in background - update real ID when done
+    fetch(`${BASE}/api/payments/admin-collect`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestData),
+    }).then(async (res) => {
+      if (res.ok) {
+        const payment = await res.json();
+        
+        // DON'T replace the optimistic payment - keep stable receipt number
+        // Just update roll number when available
+        try {
+          const userRes = await fetch(`${BASE}/api/users/${userId}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (userRes.ok) {
+            const userData = await userRes.json();
+            // Update receipt with roll number only
+            setReceiptData(prev => prev ? { 
+              ...prev, 
+              rollNumber: userData.rollNo || "GC-" + String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')
+            } : prev);
+          }
+        } catch (userErr) {
+          // Generate a placeholder roll number if fetch fails
+          setReceiptData(prev => prev ? { 
+            ...prev, 
+            rollNumber: "GC-" + String(Math.floor(Math.random() * 99) + 1).padStart(2, '0')
+          } : prev);
+        }
+        
+        // Background refresh to ensure admin users page gets updated enrollment status
+        queryClient.invalidateQueries({ queryKey: getListUsersQueryKey({}) });
+        queryClient.invalidateQueries({ queryKey: getListEnrollmentsQueryKey({}) });
+        queryClient.invalidateQueries({ queryKey: getListPaymentsQueryKey({}) });
+        
+        // Force refetch of student data with fresh cache
+        setTimeout(() => {
+          queryClient.refetchQueries({ queryKey: getListUsersQueryKey({ role: "student" }) });
+          queryClient.refetchQueries({ queryKey: getListEnrollmentsQueryKey({}) });
+        }, 500);
+      } else {
+        // Remove optimistic updates on error
+        queryClient.setQueryData(getListPaymentsQueryKey({}), (oldData: any) => {
+          if (!Array.isArray(oldData)) return oldData;
+          return oldData.filter(p => p.id !== receiptNumber);
+        });
+        queryClient.invalidateQueries({ queryKey: getListUsersQueryKey({}) });
+        setShowReceipt(false);
+        const errBody = await res.json().catch(() => ({}));
+        toast({ 
+          title: errBody?.error || `Server error ${res.status}`, 
+          variant: "destructive" 
+        });
+      }
+    }).catch(() => {
+      // Remove optimistic updates on network error
+      queryClient.setQueryData(getListPaymentsQueryKey({}), (oldData: any) => {
+        if (!Array.isArray(oldData)) return oldData;
+        return oldData.filter(p => p.id !== receiptNumber);
+      });
+      queryClient.invalidateQueries({ queryKey: getListUsersQueryKey({}) });
+      setShowReceipt(false);
+      toast({ 
+        title: "Network error - payment collection failed", 
+        variant: "destructive" 
+      });
+    });
+
     } catch (err: any) {
       toast({ title: err?.message || "Failed to record payment", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   };
+
 
   const handleBulkVerify = async () => {
     if (selectedStudents.length === 0) {
@@ -295,12 +443,14 @@ export default function AdminPayments() {
       
       const course = coursesArr.find((c: any) => c.id === courseId);
       const courseFee = course?.fee || 0;
-      const installmentMonths = userPayments[0]?.installmentMonths || 6;
-      const installmentAmount = Math.ceil(courseFee / installmentMonths);
+      // Derive total installments from course duration set by admin (e.g. "6 Months" → 6, "1 Year" → 12)
+      const installmentMonths = parseDurationMonths(course?.duration || "");
+      const installmentAmount = installmentMonths > 0 ? Math.ceil(courseFee / installmentMonths) : courseFee;
       
       return {
         userId,
         userName: userPayments[0]?.userName || `User #${userId}`,
+        userFatherName: userPayments[0]?.userFatherName || "",
         courseName: course?.title || `Course #${courseId}`,
         courseFee,
         totalPaid,
@@ -367,8 +517,65 @@ export default function AdminPayments() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary opacity-30" />
+        <div className="space-y-6 animate-pulse">
+          {/* Header skeleton */}
+          <div>
+            <div className="h-9 w-72 bg-gray-200 rounded-lg mb-2" />
+            <div className="h-4 w-96 bg-gray-100 rounded" />
+          </div>
+
+          {/* Filter card skeleton */}
+          <div className="rounded-2xl ring-1 ring-gray-100 overflow-hidden shadow-sm">
+            <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 px-6 py-4 border-b border-gray-100">
+              <div className="h-4 w-48 bg-indigo-100 rounded" />
+              <div className="h-3 w-64 bg-indigo-50 rounded mt-2" />
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="space-y-2">
+                  <div className="h-3 w-20 bg-gray-200 rounded" />
+                  <div className="h-11 bg-gray-100 rounded-xl" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Stats skeleton */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="rounded-2xl ring-1 ring-gray-100 p-4 flex items-center gap-3">
+                <div className="h-12 w-12 rounded-xl bg-gray-200 shrink-0" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-3 w-16 bg-gray-200 rounded" />
+                  <div className="h-6 w-10 bg-gray-100 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Table skeleton */}
+          <div className="rounded-2xl ring-1 ring-gray-100 overflow-hidden shadow-sm">
+            <div className="p-4 border-b border-gray-100 bg-gray-50 flex items-center gap-4">
+              <div className="h-8 w-32 bg-gray-200 rounded-lg" />
+              <div className="h-8 w-24 bg-gray-100 rounded-lg" />
+              <div className="ml-auto h-8 w-40 bg-gray-200 rounded-lg" />
+            </div>
+            <div className="divide-y divide-gray-50">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-4 px-6 py-4">
+                  <div className="h-5 w-5 bg-gray-200 rounded" />
+                  <div className="h-9 w-9 rounded-full bg-gray-200 shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-36 bg-gray-200 rounded" />
+                    <div className="h-3 w-24 bg-gray-100 rounded" />
+                  </div>
+                  <div className="h-6 w-20 bg-gray-100 rounded-full" />
+                  <div className="h-6 w-16 bg-gray-200 rounded" />
+                  <div className="h-8 w-28 bg-gray-100 rounded-lg" />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -741,7 +948,7 @@ export default function AdminPayments() {
                               Review Receipt
                             </Button>
                           </div>
-                        ) : student.monthPaid ? (
+                          ) : student.monthPaid ? (
                           <div className="flex items-center justify-end gap-2">
                             <Button
                               variant="outline"
@@ -749,9 +956,19 @@ export default function AdminPayments() {
                               className="rounded-xl border-emerald-300 text-emerald-700 text-xs font-bold hover:bg-emerald-600 hover:text-white transition-all"
                               onClick={() => {
                                 setReceiptData({
-                                  ...student.monthPayment,
+                                  id: student.monthPayment.id,
                                   userName: student.userName,
+                                  userFatherName: student.userFatherName,
                                   courseName: student.courseName,
+                                  amount: student.monthPayment.amount,
+                                  totalFee: student.courseFee,
+                                  remainingFee: null,
+                                  method: student.monthPayment.method,
+                                  installmentNumber: student.monthPayment.installmentNumber,
+                                  installmentMonths: student.installmentMonths,
+                                  createdAt: student.monthPayment.createdAt,
+                                  verifiedAt: student.monthPayment.verifiedAt,
+                                  notes: student.monthPayment.notes,
                                 });
                                 setShowReceipt(true);
                               }}

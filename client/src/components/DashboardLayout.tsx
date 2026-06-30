@@ -165,7 +165,6 @@ const ADMIN_NAV_GROUPS = [
       { name: "Lecture Reviews", path: "/admin/reviews", icon: Star },
       { name: "FAQs", path: "/admin/faqs", icon: ClipboardList },
       { name: "Success Stories", path: "/admin/success-stories", icon: Award },
-      { name: "Featured Courses", path: "/admin/featured-courses", icon: Star },
       { name: "Articles & News", path: "/admin/articles", icon: Newspaper },
       { name: "Student Attendance", path: "/admin/attendance", icon: CalendarRange },
       { name: "Teacher Attendance", path: "/admin/teacher-attendance", icon: UserCog },

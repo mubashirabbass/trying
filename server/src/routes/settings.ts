@@ -129,7 +129,7 @@ router.post("/announcements", authenticate, authorize("admin"), async (req, res)
 
 router.delete("/announcements/:id", authenticate, authorize("admin"), async (req, res): Promise<void> => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) {
       res.status(400).json({ error: "Invalid ID" });
       return;

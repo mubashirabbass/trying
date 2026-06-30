@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { useListCourses, getListCoursesQueryKey } from "@workspace/api-client-react";
 import {
   Loader2, Plus, Calendar, Link2, Target, CheckCircle, Trash2,
-  Video, Clock, Users, BookOpen, ExternalLink, Copy, RefreshCw
+  Video, Clock, Users, BookOpen, ExternalLink, Copy, RefreshCw, History, XCircle, BarChart3
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,11 @@ export default function TeacherLiveClasses() {
   const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"active" | "history">("active");
+
+  // History state (renamed to classHistory to avoid shadowing window.history)
+  const [classHistory, setClassHistory] = useState<{ total: number; conducted: number; cancelled: number; upcoming: number; log: any[] } | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const [title, setTitle] = useState("");
   const [meetingLink, setMeetingLink] = useState("");
@@ -60,7 +65,23 @@ export default function TeacherLiveClasses() {
     finally { setLoading(false); }
   };
 
+  const fetchHistory = async () => {
+    try {
+      setHistoryLoading(true);
+      const r = await fetch("/api/live-classes/history", { headers });
+      if (r.ok) setClassHistory(await r.json());
+    } catch {
+      toast({ title: "Failed to fetch history", variant: "destructive" });
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   useEffect(() => { fetchLiveClasses(); }, []);
+
+  useEffect(() => {
+    if (activeTab === "history") fetchHistory();
+  }, [activeTab]);
 
   useEffect(() => {
     if (!user?.id || !token) return;
@@ -80,6 +101,15 @@ export default function TeacherLiveClasses() {
     e.preventDefault();
     if (!title || !meetingLink || !scheduledAt) {
       toast({ title: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+
+    if (new Date(scheduledAt) <= new Date()) {
+      toast({
+        title: "Invalid Schedule Time",
+        description: "The class time cannot be in the past. Please select a future date and time.",
+        variant: "destructive",
+      });
       return;
     }
     try {
@@ -104,7 +134,11 @@ export default function TeacherLiveClasses() {
   const handleStatusToggle = async (id: number, current: boolean) => {
     try {
       const r = await fetch(`/api/live-classes/${id}`, { method: "PATCH", headers, body: JSON.stringify({ isCompleted: !current }) });
-      if (r.ok) { toast({ title: `Class marked as ${!current ? "Completed" : "Active"}` }); fetchLiveClasses(); }
+      if (r.ok) {
+        toast({ title: `Class marked as ${!current ? "Completed" : "Active"}` });
+        fetchLiveClasses();
+        if (activeTab === "history") fetchHistory();
+      }
     } catch { toast({ title: "Failed to update", variant: "destructive" }); }
   };
 
@@ -123,10 +157,11 @@ export default function TeacherLiveClasses() {
       setDeleting(true);
       const r = await fetch(`/api/live-classes/${classToDelete.id}`, { method: "DELETE", headers });
       if (r.ok) {
-        toast({ title: "Live class deleted" });
+        toast({ title: "Live class cancelled", description: "Successfully updated and preserved in history." });
         setDeleteConfirmOpen(false);
         setClassToDelete(null);
         fetchLiveClasses();
+        if (activeTab === "history") fetchHistory();
       } else {
         const err = await r.json();
         toast({ title: err.error || "Failed to delete", variant: "destructive" });
@@ -140,16 +175,41 @@ export default function TeacherLiveClasses() {
 
   const copyLink = (link: string) => { navigator.clipboard.writeText(link); toast({ title: "Link copied!" }); };
 
-  // Only show classes created by this teacher (or all for admin)
+  // Only show classes created by this teacher
   const myClasses = classes.filter(c => c.createdBy === user?.id || !c.createdBy);
-  const visibleClasses = paginateItems(myClasses, page, PAGE_SIZE);
-  const totalPages = getTotalPages(myClasses.length, PAGE_SIZE);
-  const activeClasses = myClasses.filter(c => !c.isCompleted).length;
-  const expiredClasses = myClasses.filter(c => c.isCompleted).length;
+  const activeMyClasses = myClasses.filter(c => !c.isCompleted);
+  const visibleClasses = paginateItems(activeMyClasses, page, PAGE_SIZE);
+  const totalPages = getTotalPages(activeMyClasses.length, PAGE_SIZE);
+  const activeClassesCount = myClasses.filter(c => !c.isCompleted).length;
+  const expiredClassesCount = myClasses.filter(c => c.isCompleted).length;
 
   useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
+    if (page > totalPages) setPage(totalPages || 1);
   }, [page, totalPages]);
+
+  const getHistoryBadge = (c: any) => {
+    if (c.isCancelled) return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 gap-1"><XCircle className="h-3 w-3" />Cancelled</Badge>;
+    if (c.isCompleted) return <Badge className="bg-gray-100 text-gray-650 hover:bg-gray-100 gap-1"><CheckCircle className="h-3 w-3" />Conducted</Badge>;
+    const isUpcoming = new Date(c.scheduledAt) > new Date();
+    if (isUpcoming) return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 animate-pulse gap-1">● Upcoming</Badge>;
+    return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">Overdue</Badge>;
+  };
+
+  const getTargetBadge = (c: any) => {
+    if (c.targetType === "all") return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 gap-1 w-max"><Users className="h-3 w-3" />All Students</Badge>;
+    if (c.targetType === "course") return (
+      <div className="flex flex-col gap-0.5">
+        <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100 gap-1 w-max"><BookOpen className="h-3 w-3" />Course</Badge>
+        <span className="text-xs text-gray-500 truncate max-w-[140px]">{c.courseTitle || `#${c.courseId}`}</span>
+      </div>
+    );
+    return (
+      <div className="flex flex-col gap-0.5">
+        <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 gap-1 w-max"><Target className="h-3 w-3" />Individual</Badge>
+        <span className="text-xs text-gray-500 truncate max-w-[140px]">{c.studentName || `#${c.studentId}`}</span>
+      </div>
+    );
+  };
 
   return (
     <DashboardLayout>
@@ -181,129 +241,247 @@ export default function TeacherLiveClasses() {
         </Card>
         <Card className="border-l-4 border-l-emerald-500">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Active & Upcoming</CardTitle>
+            <CardTitle className="text-sm font-medium">Active &amp; Upcoming</CardTitle>
             <Clock className="h-4 w-4 text-emerald-500" />
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold text-emerald-600">{activeClasses}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold text-emerald-600">{activeClassesCount}</div></CardContent>
         </Card>
         <Card className="border-l-4 border-l-slate-300">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium">Expired / Conducted</CardTitle>
+            <CardTitle className="text-sm font-medium">Conducted Sessions</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent><div className="text-2xl font-bold text-slate-500">{expiredClasses}</div></CardContent>
+          <CardContent><div className="text-2xl font-bold text-slate-500">{expiredClassesCount}</div></CardContent>
         </Card>
       </div>
 
-      {/* Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>My Scheduled Sessions</CardTitle>
-          <CardDescription>Classes you have created. Expired sessions are auto-marked as completed.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-          ) : myClasses.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed rounded-xl">
-              <Video className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold">No sessions scheduled yet</h3>
-              <p className="text-gray-500 text-sm mt-1">Click "Schedule Live Session" to get started.</p>
-              <Button onClick={() => setIsCreateOpen(true)} variant="outline" className="mt-4 gap-2">
-                <Plus className="h-4 w-4" /> Schedule First Class
-              </Button>
-            </div>
-          ) : (
-            <div className="rounded-md border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Class Info</TableHead>
-                    <TableHead>Target</TableHead>
-                    <TableHead>Scheduled</TableHead>
-                    <TableHead>Link</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visibleClasses.map((c) => {
-                    const scheduledDate = new Date(c.scheduledAt);
-                    const isPast = scheduledDate < new Date();
-                    const isExpired = c.isCompleted || isPast;
-                    return (
-                      <TableRow key={c.id} className={`hover:bg-accent/30 transition-colors ${isExpired ? "opacity-60" : ""}`}>
-                        <TableCell>
-                          <div className="font-semibold text-gray-900">{c.title}</div>
-                          {c.description && <p className="text-xs text-gray-500 line-clamp-1 max-w-[220px] mt-0.5">{c.description}</p>}
-                        </TableCell>
-                        <TableCell>
-                          {c.targetType === "all" && <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 gap-1 w-max"><Users className="h-3 w-3" /> All Students</Badge>}
-                          {c.targetType === "course" && (
-                            <div className="flex flex-col gap-0.5">
-                              <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100 gap-1 w-max"><BookOpen className="h-3 w-3" /> Course</Badge>
-                              <span className="text-xs text-gray-500 truncate max-w-[140px]">{c.courseTitle || `#${c.courseId}`}</span>
-                            </div>
-                          )}
-                          {c.targetType === "student" && (
-                            <div className="flex flex-col gap-0.5">
-                              <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 gap-1 w-max"><Target className="h-3 w-3" /> Individual</Badge>
-                              <span className="text-xs text-gray-500 truncate max-w-[140px]">{c.studentName || `#${c.studentId}`}</span>
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm font-medium">{scheduledDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</div>
-                          <div className="text-xs text-gray-500">{scheduledDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</div>
-                          {isPast && !c.isCompleted && <span className="text-[10px] text-rose-500 font-bold">Expired</span>}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5">
-                            <Button onClick={() => copyLink(c.meetingLink)} variant="outline" size="sm" className="h-8 px-2 text-xs gap-1 border-dashed hover:border-solid">
-                              <Copy className="h-3 w-3" /> Copy
-                            </Button>
-                            <a href={ensureAbsoluteUrl(c.meetingLink)} target="_blank" rel="noopener noreferrer">
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/5">
-                                <ExternalLink className="h-4 w-4" />
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 mb-6 gap-1">
+        <button
+          onClick={() => setActiveTab("active")}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-bold border-b-2 transition-all ${
+            activeTab === "active" ? "border-primary text-primary" : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <Video className="h-4 w-4" /> Active Sessions
+        </button>
+        <button
+          onClick={() => setActiveTab("history")}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-bold border-b-2 transition-all ${
+            activeTab === "history" ? "border-primary text-primary" : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          <History className="h-4 w-4" /> History log
+        </button>
+      </div>
+
+      {/* ACTIVE SESSIONS TAB */}
+      {activeTab === "active" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>My Scheduled Sessions</CardTitle>
+            <CardDescription>Classes you have created. Expired sessions are auto-marked as completed.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+            ) : activeMyClasses.length === 0 ? (
+              <div className="text-center py-12 border-2 border-dashed rounded-xl">
+                <Video className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold">No sessions scheduled yet</h3>
+                <p className="text-gray-500 text-sm mt-1">Click "Schedule Live Session" to get started.</p>
+                <Button onClick={() => setIsCreateOpen(true)} variant="outline" className="mt-4 gap-2">
+                  <Plus className="h-4 w-4" /> Schedule First Class
+                </Button>
+              </div>
+            ) : (
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Class Info</TableHead>
+                      <TableHead>Target</TableHead>
+                      <TableHead>Scheduled</TableHead>
+                      <TableHead>Link</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {visibleClasses.map((c) => {
+                      const scheduledDate = new Date(c.scheduledAt);
+                      const isPast = scheduledDate < new Date();
+                      const isExpired = c.isCompleted || isPast;
+                      return (
+                        <TableRow key={c.id} className={`hover:bg-accent/30 transition-colors ${isExpired ? "opacity-60" : ""}`}>
+                          <TableCell>
+                            <div className="font-semibold text-gray-900">{c.title}</div>
+                            {c.description && <p className="text-xs text-gray-500 line-clamp-1 max-w-[220px] mt-0.5">{c.description}</p>}
+                          </TableCell>
+                          <TableCell>{getTargetBadge(c)}</TableCell>
+                          <TableCell>
+                            <div className="text-sm font-medium">{scheduledDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</div>
+                            <div className="text-xs text-gray-500">{scheduledDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</div>
+                            {isPast && !c.isCompleted && <span className="text-[10px] text-rose-500 font-bold">Expired</span>}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <Button onClick={() => copyLink(c.meetingLink)} variant="outline" size="sm" className="h-8 px-2 text-xs gap-1 border-dashed hover:border-solid">
+                                <Copy className="h-3 w-3" /> Copy
                               </Button>
-                            </a>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {c.isCompleted || isPast ? (
-                            <Badge className="bg-slate-100 text-slate-500 hover:bg-slate-100">Expired</Badge>
-                          ) : (
-                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 animate-pulse gap-1">● Upcoming</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1.5">
-                            {!c.isCompleted && !isPast && (
-                              <Button onClick={() => handleStatusToggle(c.id, c.isCompleted)} size="sm" className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white">
-                                <CheckCircle className="h-3.5 w-3.5" /> Mark Done
-                              </Button>
+                              <a href={ensureAbsoluteUrl(c.meetingLink)} target="_blank" rel="noopener noreferrer">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/5">
+                                  <ExternalLink className="h-4 w-4" />
+                                </Button>
+                              </a>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {c.isCompleted || isPast ? (
+                              <Badge className="bg-slate-100 text-slate-500 hover:bg-slate-100">Expired</Badge>
+                            ) : (
+                              <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 animate-pulse gap-1">● Upcoming</Badge>
                             )}
-                            <Button onClick={() => handleDeleteClick(c)} variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:bg-red-50 hover:text-red-700">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-          <PaginationControls
-            page={page}
-            pageSize={PAGE_SIZE}
-            totalItems={myClasses.length}
-            onPageChange={setPage}
-            label="sessions"
-          />
-        </CardContent>
-      </Card>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1.5">
+                              {!c.isCompleted && !isPast && (
+                                <Button onClick={() => handleStatusToggle(c.id, c.isCompleted)} size="sm" className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white">
+                                  <CheckCircle className="h-3.5 w-3.5" /> Mark Done
+                                </Button>
+                              )}
+                              <Button
+                                onClick={() => handleDeleteClick(c)}
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-red-650 hover:bg-red-50 hover:text-red-700"
+                                title="Cancel class"
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            <PaginationControls
+              page={page}
+              pageSize={PAGE_SIZE}
+              totalItems={activeMyClasses.length}
+              onPageChange={setPage}
+              label="sessions"
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* HISTORY LOG TAB */}
+      {activeTab === "history" && (
+        <div className="space-y-6">
+          {historyLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+          ) : classHistory ? (
+            <>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card className="border-l-4 border-l-blue-500">
+                  <CardContent className="p-5">
+                    <p className="text-xs font-bold text-gray-405 uppercase tracking-widest mb-1">Total Classes</p>
+                    <p className="text-3xl font-black text-blue-600">{classHistory.total}</p>
+                    <p className="text-xs text-gray-400 mt-1 font-medium">Created by me</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-l-4 border-l-emerald-500">
+                  <CardContent className="p-5">
+                    <p className="text-xs font-bold text-gray-405 uppercase tracking-widest mb-1">Conducted</p>
+                    <p className="text-3xl font-black text-emerald-600">{classHistory.conducted}</p>
+                    <p className="text-xs text-gray-400 mt-1 font-medium font-semibold">Held successfully</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-l-4 border-l-red-500">
+                  <CardContent className="p-5">
+                    <p className="text-xs font-bold text-gray-405 uppercase tracking-widest mb-1">Cancelled</p>
+                    <p className="text-3xl font-black text-red-650">{classHistory.cancelled}</p>
+                    <p className="text-xs text-gray-400 mt-1 font-medium">Soft deleted</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-l-4 border-l-amber-400">
+                  <CardContent className="p-5">
+                    <p className="text-xs font-bold text-gray-405 uppercase tracking-widest mb-1">Upcoming</p>
+                    <p className="text-3xl font-black text-amber-500">{classHistory.upcoming}</p>
+                    <p className="text-xs text-gray-400 mt-1 font-medium">Future sessions</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2"><History className="h-5 w-5 text-primary" /> My Class History Log</CardTitle>
+                    <CardDescription>Log of all classes created by you (conducted, cancelled, overdue)</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={fetchHistory} disabled={historyLoading} className="gap-1.5">
+                    <RefreshCw className={`h-3.5 w-3.5 ${historyLoading ? "animate-spin" : ""}`} /> Refresh
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {classHistory.log.length === 0 ? (
+                    <div className="text-center py-10 text-gray-400">
+                      <BarChart3 className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                      <p className="font-medium">No records found</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>#</TableHead>
+                            <TableHead>Class Title</TableHead>
+                            <TableHead>Target</TableHead>
+                            <TableHead>Scheduled On</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Cancelled On</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {classHistory.log.map((c, idx) => (
+                            <TableRow key={c.id} className={`hover:bg-accent/20 transition-colors ${c.isCancelled ? "opacity-60" : ""}`}>
+                              <TableCell className="text-xs text-gray-400 font-bold">{idx + 1}</TableCell>
+                              <TableCell>
+                                <div className="font-semibold text-sm text-gray-900 max-w-[200px] line-clamp-1">{c.title}</div>
+                                {c.description && <p className="text-xs text-gray-400 line-clamp-1 max-w-[200px]">{c.description}</p>}
+                              </TableCell>
+                              <TableCell>{getTargetBadge(c)}</TableCell>
+                              <TableCell>
+                                <div className="text-sm font-medium">{new Date(c.scheduledAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</div>
+                                <div className="text-xs text-gray-400">{new Date(c.scheduledAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</div>
+                              </TableCell>
+                              <TableCell>{getHistoryBadge(c)}</TableCell>
+                              <TableCell>
+                                {c.cancelledAt ? (
+                                  <span className="text-xs text-red-500 font-medium">
+                                    {new Date(c.cancelledAt).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}{" "}
+                                    {new Date(c.cancelledAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-gray-300">—</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          ) : null}
+        </div>
+      )}
 
       {/* Schedule Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -330,8 +508,14 @@ export default function TeacherLiveClasses() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <Label>Date & Time <span className="text-red-500">*</span></Label>
-                <Input type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} required />
+                <Label>Date &amp; Time <span className="text-red-500">*</span></Label>
+                <Input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
+                  onChange={e => setScheduledAt(e.target.value)}
+                  required
+                />
               </div>
               <div className="space-y-1">
                 <Label>Target Audience <span className="text-red-500">*</span></Label>
@@ -375,22 +559,24 @@ export default function TeacherLiveClasses() {
               <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)} disabled={submitting}>Cancel</Button>
               <Button type="submit" disabled={submitting} className="gap-1">
                 {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                Schedule & Notify Students
+                Schedule &amp; Notify Students
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Cancel Confirmation Dialog */}
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold flex items-center gap-2 text-red-600">
-              <Trash2 className="h-5 w-5 text-red-600" /> Delete Live Session
+            <DialogTitle className="text-lg font-bold flex items-center gap-2 text-red-650">
+              <XCircle className="h-5 w-5 text-red-650" /> Cancel Live Session
             </DialogTitle>
             <DialogDescription className="mt-2 text-sm text-gray-500">
-              Are you sure you want to delete <span className="font-semibold text-gray-900">"{classToDelete?.title}"</span>? This action is permanent and cannot be undone. All students assigned to this session will lose access.
+              Are you sure you want to cancel <span className="font-semibold text-gray-900">"{classToDelete?.title}"</span>?
+              <br />
+              <span className="text-blue-600 font-medium">The session will be preserved in your History log</span> — it won't be permanently deleted.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-6 flex justify-end gap-2 border-t pt-4">
@@ -400,7 +586,7 @@ export default function TeacherLiveClasses() {
               onClick={() => setDeleteConfirmOpen(false)}
               disabled={deleting}
             >
-              Cancel
+              Keep Session
             </Button>
             <Button
               type="button"
@@ -410,12 +596,9 @@ export default function TeacherLiveClasses() {
               className="gap-2 bg-red-600 hover:bg-red-700 text-white"
             >
               {deleting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
+                <><Loader2 className="h-4 w-4 animate-spin" /> Cancelling...</>
               ) : (
-                "Yes, Delete Session"
+                "Yes, Cancel Session"
               )}
             </Button>
           </DialogFooter>

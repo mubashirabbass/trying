@@ -973,17 +973,58 @@ export default function TeacherCourseBuilder() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="detail-duration" className="font-bold text-slate-700">Syllabus Duration <span className="text-red-500">*</span></Label>
-                    <Input
-                      id="detail-duration"
-                      placeholder="e.g. 12 Weeks (48 Hours)"
-                      value={courseDuration}
-                      onChange={(e) => setCourseDuration(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
+                  {(() => {
+                    const parseDuration = (val: string) => {
+                      if (!val) return { number: "3", unit: "Months" };
+                      const match = val.match(/(\d+)\s*(month|year|Month|Year|mon|yr|Mon|Yr)s?/i);
+                      if (match) {
+                        const num = match[1];
+                        const u = match[2].toLowerCase();
+                        const unit = u.startsWith("yr") || u.startsWith("year") ? "Years" : "Months";
+                        return { number: num, unit };
+                      }
+                      const numMatch = val.match(/(\d+)/);
+                      if (numMatch) {
+                        return { number: numMatch[1], unit: "Months" };
+                      }
+                      return { number: "3", unit: "Months" };
+                    };
+                    const { number: durationNum, unit: durationUnit } = parseDuration(courseDuration);
+                    
+                    return (
+                      <div className="space-y-2 flex-1">
+                        <Label htmlFor="detail-duration" className="font-bold text-slate-700">Syllabus Duration <span className="text-red-500">*</span></Label>
+                        <div className="flex gap-2">
+                          <Select 
+                            value={durationNum} 
+                            onValueChange={v => setCourseDuration(`${v} ${durationUnit}`)}
+                          >
+                            <SelectTrigger id="detail-duration" className="h-10 rounded-md border-slate-200 text-sm font-medium flex-1 bg-white">
+                              <SelectValue placeholder="No." />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-md border border-slate-200 shadow-lg bg-white">
+                              {Array.from({ length: 24 }, (_, i) => i + 1).map(num => (
+                                <SelectItem key={num} value={num.toString()} className="text-sm font-medium">{num}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select 
+                            value={durationUnit} 
+                            onValueChange={v => setCourseDuration(`${durationNum} ${v}`)}
+                          >
+                            <SelectTrigger className="h-10 rounded-md border-slate-200 text-sm font-medium w-24 bg-white">
+                              <SelectValue placeholder="Unit" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-md border border-slate-200 shadow-lg bg-white">
+                              <SelectItem value="Months" className="text-sm font-medium">Months</SelectItem>
+                              <SelectItem value="Years" className="text-sm font-medium">Years</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    );
+                  })()}
+              </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">

@@ -1,18 +1,17 @@
 import { Button } from "@/components/ui/button";
 import { Printer, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 
 interface FeeReceiptProps {
   payment: {
     id: number;
     userName: string;
+    userFatherName?: string;
     userId?: number;
     rollNumber?: string;
     courseName: string;
     amount: number;
     totalFee?: number;
-    remainingFee?: number;  // Remaining balance AFTER this payment
+    remainingFee?: number;
     method: string;
     installmentNumber?: number;
     installmentMonths?: number;
@@ -32,25 +31,82 @@ interface FeeReceiptProps {
 }
 
 export function FeeReceipt({ payment, institute, onClose }: FeeReceiptProps) {
-  const [printContainer, setPrintContainer] = useState<HTMLElement | null>(null);
-
-  // DEBUG: Log what payment data we received
-  console.log('FeeReceipt received payment:', payment);
-
-  useEffect(() => {
-    // Create print container at body level
-    const container = document.createElement('div');
-    container.className = 'fee-receipt-print-container';
-    document.body.appendChild(container);
-    setPrintContainer(container);
-
-    return () => {
-      document.body.removeChild(container);
-    };
-  }, []);
-
   const handlePrint = () => {
-    window.print();
+    const printContent = document.getElementById('receipt-content');
+    if (!printContent) return;
+    
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Fee Receipt - ${payment.userName}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&display=swap');
+            
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            
+            body { 
+              background: white; 
+              font-family: 'Times New Roman', Times, serif; 
+              padding: 20px;
+            }
+            
+            .slip-wrapper {
+              width: 640px;
+              background: #fff;
+              border: 3px solid #1a2fa0;
+              border-radius: 4px;
+              position: relative;
+              margin: 0 auto;
+            }
+            .corner { position: absolute; width: 44px; height: 44px; }
+            .tl { top:7px; left:7px; border-top:2px solid #1a2fa0; border-left:2px solid #1a2fa0; }
+            .tr { top:7px; right:7px; border-top:2px solid #1a2fa0; border-right:2px solid #1a2fa0; }
+            .bl { bottom:7px; left:7px; border-bottom:2px solid #1a2fa0; border-left:2px solid #1a2fa0; }
+            .br { bottom:7px; right:7px; border-bottom:2px solid #1a2fa0; border-right:2px solid #1a2fa0; }
+            .inner { margin:12px; border:1.5px solid #1a2fa0; padding:16px 28px 18px; }
+            .row-table { width:100%; border-collapse:collapse; margin-bottom:12px; }
+            .row-table td { padding:0; vertical-align:bottom; }
+            .field-table { width:100%; border-collapse:collapse; }
+            .field-table td { padding:0; vertical-align:bottom; }
+            .field-table td.lbl { white-space:nowrap; font-size:13px; font-weight:700; color:#1a2fa0; padding-right:12px; width:1%; }
+            .field-table td.uline { border-bottom:1.5px solid #1a2fa0; padding-bottom:2px; padding-left:12px; font-size:13px; color:#1a2fa0; font-weight:600; text-align: left; }
+            .pad-l { padding-left:16px; }
+            .pad-m { padding:0 8px; }
+            .urdu { 
+              border-top:1px solid #b0b8e0; 
+              padding-top:10px; 
+              text-align:center; 
+              direction:rtl;
+              font-size:13px; 
+              color:#1a2fa0; 
+              font-family:'Noto Nastaliq Urdu',serif; 
+              line-height:2; 
+              margin-top:4px; 
+            }
+            
+            @media print {
+              @page { size: A4 landscape; margin: 0.5cm; }
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent.outerHTML}
+        </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+    printWindow.focus();
+    
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 250);
   };
 
   const receiptDate = payment.verifiedAt || payment.createdAt;
@@ -62,16 +118,14 @@ export function FeeReceipt({ payment, institute, onClose }: FeeReceiptProps) {
 
   // Guard against API returning numeric columns as strings
   const amountPaid     = Number(payment.amount)     || 0;
-  const totalCourseFee = Number(payment.totalFee) > 0 ? Number(payment.totalFee) : amountPaid;
-  const remainingBalance = payment.remainingFee !== undefined && payment.remainingFee !== null
-    ? Number(payment.remainingFee)
-    : Math.max(0, totalCourseFee - amountPaid);
+  const totalCourseFee = Number(payment.totalFee) > 0 ? Number(payment.totalFee) : 0;
+  const installmentLabel = payment.installmentNumber
+    ? `Month #${payment.installmentNumber}${payment.installmentMonths ? ` of ${payment.installmentMonths}` : ""}`
+    : "Monthly Fee";
 
-  const admissionFee = 0;
-  const totalAmount  = amountPaid + admissionFee;
 
   const ReceiptContent = () => (
-    <div className="slip-wrapper">
+    <div id="receipt-content" className="slip-wrapper">
       <div className="corner tl"></div>
       <div className="corner tr"></div>
       <div className="corner bl"></div>
@@ -85,34 +139,29 @@ export function FeeReceipt({ payment, institute, onClose }: FeeReceiptProps) {
         </div>
 
         <table className="row-table"><tbody><tr>
-          <td style={{ width: '50%' }}><table className="field-table"><tbody><tr><td className="lbl">Sr. No:</td><td className="uline" style={{ paddingLeft: '8px' }}>{payment.id}</td></tr></tbody></table></td>
+          <td style={{ width: '50%' }}><table className="field-table"><tbody><tr><td className="lbl">Receipt No:</td><td className="uline" style={{ paddingLeft: '8px', fontWeight: 700, color: '#1a2fa0' }}>{payment.id}</td></tr></tbody></table></td>
           <td style={{ width: '50%' }} className="pad-l"><table className="field-table"><tbody><tr><td className="lbl">Date:</td><td className="uline" style={{ paddingLeft: '8px' }}>{formattedDate}</td></tr></tbody></table></td>
         </tr></tbody></table>
 
         <table className="row-table"><tbody><tr>
           <td style={{ width: '50%' }}><table className="field-table"><tbody><tr><td className="lbl">Name:</td><td className="uline" style={{ paddingLeft: '8px' }}>{payment.userName}</td></tr></tbody></table></td>
-          <td style={{ width: '50%' }} className="pad-l"><table className="field-table"><tbody><tr><td className="lbl">Father's Name:</td><td className="uline" style={{ paddingLeft: '8px' }}>—</td></tr></tbody></table></td>
+          <td style={{ width: '50%' }} className="pad-l"><table className="field-table"><tbody><tr><td className="lbl">Father's Name:</td><td className="uline" style={{ paddingLeft: '8px' }}>{payment.userFatherName || '—'}</td></tr></tbody></table></td>
         </tr></tbody></table>
 
         <table className="row-table"><tbody><tr>
           <td style={{ width: '33%' }}><table className="field-table"><tbody><tr><td className="lbl">Class:</td><td className="uline" style={{ paddingLeft: '8px' }}>{payment.courseName}</td></tr></tbody></table></td>
           <td style={{ width: '34%' }} className="pad-m"><table className="field-table"><tbody><tr><td className="lbl">Section:</td><td className="uline" style={{ paddingLeft: '8px' }}>—</td></tr></tbody></table></td>
-          <td style={{ width: '33%' }}><table className="field-table"><tbody><tr><td className="lbl">Roll No:</td><td className="uline" style={{ paddingLeft: '8px' }}>{payment.rollNumber || "—"}</td></tr></tbody></table></td>
+          <td style={{ width: '33%' }}><table className="field-table"><tbody><tr><td className="lbl">Roll No:</td><td className="uline" style={{ paddingLeft: '8px' }}>{payment.rollNumber === "Processing..." ? "Processing..." : (payment.rollNumber || "—")}</td></tr></tbody></table></td>
         </tr></tbody></table>
 
         <table className="row-table"><tbody><tr>
-          <td style={{ width: '50%' }}><table className="field-table"><tbody><tr><td className="lbl">Total Course Fee:</td><td className="uline" style={{ paddingLeft: '8px' }}>Rs. {totalCourseFee.toLocaleString()}</td></tr></tbody></table></td>
-          <td style={{ width: '50%' }} className="pad-l"><table className="field-table"><tbody><tr><td className="lbl">Amount Paid:</td><td className="uline" style={{ fontWeight: 700, paddingLeft: '8px' }}>Rs. {amountPaid.toLocaleString()}</td></tr></tbody></table></td>
+          <td style={{ width: '50%' }}><table className="field-table"><tbody><tr><td className="lbl">Total Course Fee:</td><td className="uline" style={{ paddingLeft: '8px' }}>Rs. {totalCourseFee > 0 ? totalCourseFee.toLocaleString() : '—'}</td></tr></tbody></table></td>
+          <td style={{ width: '50%' }} className="pad-l"><table className="field-table"><tbody><tr><td className="lbl">Amount Paid (This Month):</td><td className="uline" style={{ fontWeight: 700, paddingLeft: '8px' }}>Rs. {amountPaid.toLocaleString()}</td></tr></tbody></table></td>
         </tr></tbody></table>
 
         <table className="row-table"><tbody><tr>
-          <td style={{ width: '50%' }}><table className="field-table"><tbody><tr><td className="lbl">Admission Fee:</td><td className="uline" style={{ paddingLeft: '8px' }}>Rs. {admissionFee.toLocaleString()}</td></tr></tbody></table></td>
-          <td style={{ width: '50%' }} className="pad-l"><table className="field-table"><tbody><tr><td className="lbl">Remaining Balance:</td><td className="uline" style={{ fontWeight: 700, color: remainingBalance > 0 ? '#d97706' : '#16a34a', paddingLeft: '8px' }}>Rs. {remainingBalance.toLocaleString()}</td></tr></tbody></table></td>
-        </tr></tbody></table>
-
-        <table className="row-table"><tbody><tr>
-          <td style={{ width: '50%' }}><table className="field-table"><tbody><tr><td className="lbl">Payment Type:</td><td className="uline" style={{ paddingLeft: '8px' }}>{payment.installmentNumber ? `Installment #${payment.installmentNumber}/${payment.installmentMonths}` : remainingBalance > 0 ? "Partial Payment" : "Full Payment"}</td></tr></tbody></table></td>
-          <td style={{ width: '50%' }} className="pad-l"><table className="field-table"><tbody><tr><td className="lbl">Total Paid Today:</td><td className="uline" style={{ fontWeight: 700, paddingLeft: '8px' }}>Rs. {totalAmount.toLocaleString()}</td></tr></tbody></table></td>
+          <td style={{ width: '50%' }}><table className="field-table"><tbody><tr><td className="lbl">Installment:</td><td className="uline" style={{ paddingLeft: '8px', fontWeight: 700, color: '#1a2fa0' }}>{installmentLabel}</td></tr></tbody></table></td>
+          <td style={{ width: '50%' }} className="pad-l"><table className="field-table"><tbody><tr><td className="lbl">Payment Method:</td><td className="uline" style={{ paddingLeft: '8px' }}>{(payment.method || '').toUpperCase()}</td></tr></tbody></table></td>
         </tr></tbody></table>
 
         <table className="row-table" style={{ marginBottom: '14px' }}><tbody><tr>
@@ -128,8 +177,6 @@ export function FeeReceipt({ payment, institute, onClose }: FeeReceiptProps) {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&display=swap');
-        
         .slip-wrapper {
           width: 640px;
           background: #fff;
@@ -163,38 +210,10 @@ export function FeeReceipt({ payment, institute, onClose }: FeeReceiptProps) {
           line-height:2; 
           margin-top:4px; 
         }
-        
         @media screen {
           .slip-wrapper { box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-          .fee-receipt-print-container { display: none; }
-        }
-        
-        @media print {
-          @page { size: A4 landscape; margin: 0.5cm; }
-          
-          body { background: white !important; margin: 0 !important; padding: 0 !important; }
-          
-          body > *:not(.fee-receipt-print-container) {
-            display: none !important;
-          }
-          
-          .fee-receipt-print-container {
-            display: block !important;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-          
-          .slip-wrapper { box-shadow: none !important; page-break-inside: avoid !important; }
-          
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
       `}</style>
-
-      {/* Print Version - Rendered at body level via Portal */}
-      {printContainer && createPortal(
-        <ReceiptContent />,
-        printContainer
-      )}
 
       {/* Screen Version */}
       <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">

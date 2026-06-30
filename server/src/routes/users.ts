@@ -203,7 +203,7 @@ router.get(
 
       console.log("Fetching enrollments for student:", id);
       // Get enrollments - use raw approach to avoid complex joins
-      let enrollments = [];
+      let enrollments: any[] = [];
       try {
         const userEnrollments = await db
           .select({
@@ -265,7 +265,7 @@ router.get(
 
       console.log("Fetching payments for student:", id);
       // Get payments - handle gracefully
-      let payments = [];
+      let payments: any[] = [];
       try {
         payments = await db
           .select({

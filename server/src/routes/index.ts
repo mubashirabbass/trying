@@ -259,9 +259,11 @@ router.post("/entry-records/create-test-data", async (req, res) => {
       message: `Successfully created ${insertedRecords.length} test entry records`,
       records: insertedRecords,
     });
-  } catch (error) {
+    return;
+  } catch (error: any) {
     console.error("Test data creation error:", error);
-    res.status(500).json({ error: "Failed to create test data", details: error.message });
+    res.status(500).json({ error: "Failed to create test data", details: error?.message || String(error) });
+    return;
   }
 });
 

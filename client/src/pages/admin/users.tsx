@@ -100,10 +100,10 @@ export default function AdminStudents() {
   const [avatarPreview, setAdminAvatarPreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Queries with error handling
-  const { data: usersRaw = [], isLoading: usersLoading, error: usersError } = useListUsers({ role: "student" }, { query: { queryKey: getListUsersQueryKey({ role: "student" }) } });
-  const { data: enrollmentsRaw = [], error: enrollmentsError } = useListEnrollments({}, { query: { queryKey: getListEnrollmentsQueryKey({}) } });
-  const { data: paymentsRaw = [], error: paymentsError } = useListPayments({}, { query: { queryKey: getListPaymentsQueryKey({}) } });
+  // Queries with error handling — staleTime:0 ensures changes show immediately after invalidation
+  const { data: usersRaw = [], isLoading: usersLoading, error: usersError } = useListUsers({ role: "student" }, { query: { queryKey: getListUsersQueryKey({ role: "student" }), staleTime: 0 } });
+  const { data: enrollmentsRaw = [], error: enrollmentsError } = useListEnrollments({}, { query: { queryKey: getListEnrollmentsQueryKey({}), staleTime: 0 } });
+  const { data: paymentsRaw = [], error: paymentsError } = useListPayments({}, { query: { queryKey: getListPaymentsQueryKey({}), staleTime: 0 } });
   const { data: coursesRaw = [], error: coursesError } = useListCourses({}, { query: { queryKey: getListCoursesQueryKey({}) } });
   const { data: branchesResponse = [], error: branchesError } = useListBranches({ query: { queryKey: getListBranchesQueryKey() } });
 
@@ -138,7 +138,12 @@ export default function AdminStudents() {
   const deleteUserMutation = useDeleteUser();
   const createEnrollment = useCreateEnrollment();
 
+  // Use refetchQueries so enrolled-students list updates IMMEDIATELY after any action
   const invalidate = () => {
+    qc.refetchQueries({ queryKey: getListUsersQueryKey({ role: "student" }), exact: true });
+    qc.refetchQueries({ queryKey: getListEnrollmentsQueryKey({}), exact: true });
+    qc.refetchQueries({ queryKey: getListPaymentsQueryKey({}), exact: true });
+    // Also broadly invalidate in case query keys differ slightly elsewhere
     qc.invalidateQueries({ queryKey: getListUsersQueryKey({}) });
     qc.invalidateQueries({ queryKey: getListEnrollmentsQueryKey({}) });
     qc.invalidateQueries({ queryKey: getListPaymentsQueryKey({}) });
@@ -226,6 +231,15 @@ export default function AdminStudents() {
 
   const approveEnrollment = async (enrollmentId: number, courseName: string, studentName: string) => {
     setActioning(enrollmentId);
+    
+    // Optimistic update - make enrollment active immediately
+    qc.setQueryData(getListEnrollmentsQueryKey({}), (oldData: any) => {
+      if (!Array.isArray(oldData)) return oldData;
+      return oldData.map((enrollment: any) => 
+        enrollment.id === enrollmentId ? { ...enrollment, status: "active" } : enrollment
+      );
+    });
+    
     try {
       const token = localStorage.getItem("token") || sessionStorage.getItem("token");
       const res = await fetch(`/api/enrollments/${enrollmentId}`, {
@@ -236,7 +250,11 @@ export default function AdminStudents() {
       if (!res.ok) throw new Error("Failed to approve");
       toast({ title: `✅ Enrollment approved! ${studentName} is now enrolled in ${courseName}.` });
       invalidate();
-    } catch { toast({ title: "Failed to approve enrollment", variant: "destructive" }); }
+    } catch { 
+      // Revert optimistic update on error
+      qc.invalidateQueries({ queryKey: getListEnrollmentsQueryKey({}) });
+      toast({ title: "Failed to approve enrollment", variant: "destructive" }); 
+    }
     finally { setActioning(null); }
   };
 
@@ -258,11 +276,44 @@ export default function AdminStudents() {
 
   const enrollManually = async () => {
     if (!manualUserId || !manualCourseId) return;
+    
+    const userId = Number(manualUserId);
+    const courseId = Number(manualCourseId);
+    
+    // Add optimistic updates for immediate UI feedback
+    if (manualPaymentStatus === "paid") {
+      // INSTANT enrollment update for paid enrollments
+      qc.setQueryData(getListEnrollmentsQueryKey({}), (oldData: any) => {
+        if (!Array.isArray(oldData)) return oldData;
+        const existing = oldData.find((e: any) => e.userId === userId && e.courseId === courseId);
+        if (existing) {
+          return oldData.map((e: any) => 
+            e.userId === userId && e.courseId === courseId ? { ...e, status: "active" } : e
+          );
+        }
+        return [...oldData, { 
+          id: Date.now(), 
+          userId, 
+          courseId, 
+          status: "active", 
+          createdAt: new Date().toISOString() 
+        }];
+      });
+
+      // INSTANT user activation
+      qc.setQueryData(getListUsersQueryKey({ role: "student" }), (oldData: any) => {
+        if (!Array.isArray(oldData)) return oldData;
+        return oldData.map((user: any) => 
+          user.id === userId ? { ...user, isActive: true } : user
+        );
+      });
+    }
+    
     try {
       await createEnrollment.mutateAsync({ 
         data: { 
-          userId: Number(manualUserId), 
-          courseId: Number(manualCourseId),
+          userId: userId, 
+          courseId: courseId,
           paymentStatus: manualPaymentStatus
         } 
       });
@@ -278,7 +329,18 @@ export default function AdminStudents() {
       setManualStudentSearch("");
       setManualPaymentStatus("pending");
       invalidate();
-    } catch { toast({ title: "Enrollment failed", variant: "destructive" }); }
+      
+      // Force refresh of enrolled students data
+      qc.refetchQueries({ queryKey: getListUsersQueryKey({ role: "student" }) });
+      qc.refetchQueries({ queryKey: getListEnrollmentsQueryKey({}) });
+    } catch { 
+      // Revert optimistic updates on error
+      if (manualPaymentStatus === "paid") {
+        qc.invalidateQueries({ queryKey: getListEnrollmentsQueryKey({}) });
+        qc.invalidateQueries({ queryKey: getListUsersQueryKey({}) });
+      }
+      toast({ title: "Enrollment failed", variant: "destructive" }); 
+    }
   };
 
   // Collect Installment Payment
@@ -604,83 +666,133 @@ export default function AdminStudents() {
   };
 
   // --- Computed Pipeline Counts ---
-  const countReg = users.filter(u => u.role === "student" && !u.isActive).length;
-  const countEnrollReq = users.filter(u => {
+  const countReg = useMemo(() => users.filter(u => u.role === "student" && !u.isActive).length, [users]);
+  
+  const countEnrollReq = useMemo(() => users.filter(u => {
     if (u.role !== "student" || !u.isActive) return false;
     return enrollments.some((e: any) => e.userId === u.id && e.status === "pending") &&
       !payments.some((p: any) => p.userId === u.id && p.status === "pending");
-  }).length;
-  const countFee = payments.filter((p: any) => p.status === "pending").length;
-  const countEnrolled = users.filter(u => {
+  }).length, [users, enrollments, payments]);
+
+  const countFee = useMemo(() => payments.filter((p: any) => p.status === "pending").length, [payments]);
+
+  const countEnrolled = useMemo(() => users.filter(u => {
     if (u.role !== "student") return false;
     const active = enrollments.filter((e: any) => e.userId === u.id && e.status === "active");
     return active.some((e: any) => payments.some((p: any) => p.userId === u.id && p.courseId === e.courseId && p.status === "verified"));
-  }).length;
+  }).length, [users, enrollments, payments]);
 
-  const pipelineCounts = {
+  const pipelineCounts = useMemo(() => ({
     dashboard: users.filter(u => u.role === "student").length,
     reg: countReg,
     enroll_req: countEnrollReq,
     fee: countFee,
     manual: 0,
     enrolled: countEnrolled
-  };
+  }), [users, countReg, countEnrollReq, countFee, countEnrolled]);
 
   // Filter for Directory/Dashboard Tab
   const q = search.toLowerCase();
-  const sSearch = (u: any) => !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
 
-  const filteredUsers = users.filter((u: any) => {
-    if (roleFilter !== "all" && u.role !== roleFilter) return false;
-    if (!sSearch(u)) return false;
+  const filteredUsers = useMemo(() => {
+    const sSearch = (u: any) => !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
+    return users.filter((u: any) => {
+      if (roleFilter !== "all" && u.role !== roleFilter) return false;
+      if (!sSearch(u)) return false;
 
-    // Apply student sub-filters
-    if (u.role === "student") {
-      // Course filter check
-      if (courseFilter !== "all") {
-        const studEnrollments = enrollments.filter((e: any) => e.userId === u.id);
-        const hasCourse = studEnrollments.some((e: any) => String(e.courseId) === courseFilter);
-        if (!hasCourse) return false;
+      // Apply student sub-filters
+      if (u.role === "student") {
+        // Course filter check
+        if (courseFilter !== "all") {
+          const studEnrollments = enrollments.filter((e: any) => e.userId === u.id);
+          const hasCourse = studEnrollments.some((e: any) => String(e.courseId) === courseFilter);
+          if (!hasCourse) return false;
+        }
+
+        // Student Tab Pipeline Sub-filter check
+        if (studentTab === "registered") {
+          if (u.isActive) return false;
+        } else if (studentTab === "fee_unpaid") {
+          const studEnrollments = enrollments.filter((e: any) => e.userId === u.id);
+          if (studEnrollments.length === 0) return false;
+          const hasUnpaid = studEnrollments.some((e: any) => !payments.some((p: any) => p.userId === u.id && p.courseId === e.courseId && p.status === "verified"));
+          if (!hasUnpaid) return false;
+        } else if (studentTab === "enrolled") {
+          const active = enrollments.filter((e: any) => e.userId === u.id && e.status === "active");
+          const hasActive = active.some((e: any) => payments.some((p: any) => p.userId === u.id && p.courseId === e.courseId && p.status === "verified"));
+          if (!hasActive) return false;
+        }
       }
 
-      // Student Tab Pipeline Sub-filter check
-      if (studentTab === "registered") {
-        if (u.isActive) return false;
-      } else if (studentTab === "fee_unpaid") {
-        const studEnrollments = enrollments.filter((e: any) => e.userId === u.id);
-        if (studEnrollments.length === 0) return false;
-        const hasUnpaid = studEnrollments.some((e: any) => !payments.some((p: any) => p.userId === u.id && p.courseId === e.courseId && p.status === "verified"));
-        if (!hasUnpaid) return false;
-      } else if (studentTab === "enrolled") {
-        const active = enrollments.filter((e: any) => e.userId === u.id && e.status === "active");
-        const hasActive = active.some((e: any) => payments.some((p: any) => p.userId === u.id && p.courseId === e.courseId && p.status === "verified"));
-        if (!hasActive) return false;
-      }
-    }
+      return true;
+    });
+  }, [users, roleFilter, q, courseFilter, enrollments, payments, studentTab]);
 
-    return true;
-  });
+  const paginatedUsers = useMemo(() => {
+    return filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [filteredUsers, currentPage, itemsPerPage]);
 
-  const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredUsers.length / itemsPerPage);
+  }, [filteredUsers.length, itemsPerPage]);
 
   // Filter for Pipeline Lists
-  const regList = users.filter(u => u.role === "student" && !u.isActive && sSearch(u));
+  const regList = useMemo(() => {
+    const sSearch = (u: any) => !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
+    return users.filter(u => u.role === "student" && !u.isActive && sSearch(u));
+  }, [users, q]);
 
-  const enrollReqList = users.filter(u => {
-    if (u.role !== "student" || !u.isActive || !sSearch(u)) return false;
-    return enrollments.some((e: any) => e.userId === u.id && e.status === "pending") &&
-      !payments.some((p: any) => p.userId === u.id && p.status === "pending");
-  });
+  const enrollReqList = useMemo(() => {
+    const sSearch = (u: any) => !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
+    return users.filter(u => {
+      if (u.role !== "student" || !u.isActive || !sSearch(u)) return false;
+      return enrollments.some((e: any) => e.userId === u.id && e.status === "pending") &&
+        !payments.some((p: any) => p.userId === u.id && p.status === "pending");
+    });
+  }, [users, enrollments, payments, q]);
 
-  const feeList = payments.filter((p: any) => p.status === "pending" &&
-    users.some((u: any) => u.id === p.userId && (!q || u.name?.toLowerCase().includes(q) || (p.courseName || "").toLowerCase().includes(q))));
+  const feeList = useMemo(() => {
+    return payments.filter((p: any) => p.status === "pending" &&
+      users.some((u: any) => u.id === p.userId && (!q || u.name?.toLowerCase().includes(q) || (p.courseName || "").toLowerCase().includes(q))));
+  }, [payments, users, q]);
 
-  const enrolledList = users.filter(u => {
-    if (u.role !== "student" || !sSearch(u)) return false;
-    const active = enrollments.filter((e: any) => e.userId === u.id && e.status === "active");
-    return active.some((e: any) => payments.some((p: any) => p.userId === u.id && p.courseId === e.courseId && p.status === "verified"));
-  });
+  const enrolledList = useMemo(() => {
+    const sSearch = (u: any) => !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
+    return users.filter(u => {
+      if (u.role !== "student" || !sSearch(u)) return false;
+      const active = enrollments.filter((e: any) => e.userId === u.id && e.status === "active");
+      return active.some((e: any) => payments.some((p: any) => p.userId === u.id && p.courseId === e.courseId && p.status === "verified"));
+    });
+  }, [users, enrollments, payments, q]);
+
+  // Paginated lists for spreadsheet pipeline
+  const paginatedRegList = useMemo(() => {
+    return regList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [regList, currentPage, itemsPerPage]);
+
+  const paginatedEnrollReqList = useMemo(() => {
+    return enrollReqList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [enrollReqList, currentPage, itemsPerPage]);
+
+  const paginatedFeeList = useMemo(() => {
+    return feeList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [feeList, currentPage, itemsPerPage]);
+
+  const paginatedEnrolledList = useMemo(() => {
+    return enrolledList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [enrolledList, currentPage, itemsPerPage]);
+
+  const activePipelineListLength = useMemo(() => {
+    if (tab === "reg") return regList.length;
+    if (tab === "enroll_req") return enrollReqList.length;
+    if (tab === "fee") return feeList.length;
+    if (tab === "enrolled") return enrolledList.length;
+    return 0;
+  }, [tab, regList.length, enrollReqList.length, feeList.length, enrolledList.length]);
+
+  const pipelineTotalPages = useMemo(() => {
+    return Math.ceil(activePipelineListLength / itemsPerPage);
+  }, [activePipelineListLength, itemsPerPage]);
 
   const EmptyState = ({ msg }: { msg: string }) => (
     <div className="py-20 text-center flex flex-col items-center justify-center gap-3 opacity-40">
@@ -688,6 +800,7 @@ export default function AdminStudents() {
       <p className="font-bold text-slate-600">{msg}</p>
     </div>
   );
+
 
   return (
     <DashboardLayout>
@@ -739,7 +852,7 @@ export default function AdminStudents() {
       {/* Chrome Style Tab Bar */}
       <div className="flex border-b border-slate-200 mb-6 overflow-x-auto select-none">
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
+          <button key={t.id} onClick={() => { setTab(t.id); setCurrentPage(1); setSearch(""); }}
             className={`flex items-center gap-2 px-5 py-3.5 text-xs font-black tracking-wider uppercase border-b-2 transition-all ${tab === t.id ? "border-emerald-600 text-emerald-700 font-black" : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"}`}>
             <t.icon className="h-4 w-4" />
             {t.label}
@@ -1264,39 +1377,71 @@ export default function AdminStudents() {
                                   );
                                   
                                   const totalPaid = verifiedPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-                                  const courseFee = course?.fee || 0;
-                                  const remainingBalance = courseFee - totalPaid;
-                                  const isFullyPaid = remainingBalance <= 0;
+
+                                  // Use totalFee from payment record first (most reliable), fallback to course.fee
+                                  const courseFee = verifiedPayments[0]?.totalFee || course?.fee || 0;
+
+                                  // Detect payment plan
+                                  const isMonthlyPlan = verifiedPayments.some((p: any) => p.paymentPlan === "monthly");
                                   
-                                  // Check if it's an installment plan
-                                  const hasInstallmentPayment = verifiedPayments.some((p: any) => p.paymentPlan === "monthly");
-                                  const installmentMonths = verifiedPayments[0]?.installmentMonths || 6;
+                                  // Parse total installment months from course duration string ("6 Months" → 6)
+                                  const durationStr = course?.duration || "";
+                                  const durationMatch = durationStr.match(/(\d+)/);
+                                  const totalInstallmentMonths = 
+                                    verifiedPayments[0]?.installmentMonths ||
+                                    (durationMatch ? parseInt(durationMatch[1], 10) : 0);
+
                                   const installmentsPaid = verifiedPayments.length;
+
+                                  const remainingBalance = courseFee > 0 ? courseFee - totalPaid : 0;
+                                  
+                                  // For monthly plans: only "fully paid" when ALL installments are paid
+                                  // For non-monthly: fully paid when remaining balance is 0
+                                  const isFullyPaid = isMonthlyPlan
+                                    ? (totalInstallmentMonths > 0 && installmentsPaid >= totalInstallmentMonths)
+                                    : (courseFee > 0 && remainingBalance <= 0);
                                   
                                   return (
                                     <div key={e.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100">
                                       <div className="flex-1">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
                                           <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[10px] font-bold px-1.5 py-0.5">
                                             {e.courseName || `Course #${e.courseId}`}
                                           </Badge>
                                           {isFullyPaid ? (
                                             <Badge className="bg-green-100 text-green-700 border border-green-200 rounded text-[9px] font-black px-1.5 py-0.5">
-                                              ✓ PAID
+                                              ✓ Fully Paid
                                             </Badge>
-                                          ) : hasInstallmentPayment ? (
-                                            <Badge className="bg-amber-100 text-amber-700 border border-amber-200 rounded text-[9px] font-black px-1.5 py-0.5">
-                                              {installmentsPaid}/{installmentMonths}
+                                          ) : isMonthlyPlan ? (
+                                            <Badge className={`rounded text-[9px] font-black px-1.5 py-0.5 ${
+                                              installmentsPaid === 0
+                                                ? "bg-red-100 text-red-700 border border-red-200"
+                                                : "bg-amber-100 text-amber-700 border border-amber-200"
+                                            }`}>
+                                              {installmentsPaid}/{totalInstallmentMonths > 0 ? totalInstallmentMonths : "?"} Installments
                                             </Badge>
-                                          ) : null}
+                                          ) : (
+                                            <Badge className="bg-blue-100 text-blue-700 border border-blue-200 rounded text-[9px] font-black px-1.5 py-0.5">
+                                              Partial
+                                            </Badge>
+                                          )}
                                         </div>
                                         <div className="text-[10px] text-slate-500 mt-1">
                                           {isFullyPaid ? (
                                             <span className="font-bold text-green-600">Fully Paid: Rs. {courseFee.toLocaleString()}</span>
+                                          ) : isMonthlyPlan ? (
+                                            <div className="flex flex-col gap-0.5">
+                                              <span>Paid: <span className="font-bold text-emerald-600">Rs. {totalPaid.toLocaleString()}</span>{courseFee > 0 ? ` / Rs. ${courseFee.toLocaleString()}` : ""}</span>
+                                              {courseFee > 0 && remainingBalance > 0 && (
+                                                <span>Remaining: <span className="font-bold text-amber-600">Rs. {remainingBalance.toLocaleString()}</span></span>
+                                              )}
+                                            </div>
                                           ) : (
                                             <div className="flex flex-col gap-0.5">
-                                              <span>Paid: <span className="font-bold text-emerald-600">Rs. {totalPaid.toLocaleString()}</span> / Rs. {courseFee.toLocaleString()}</span>
-                                              <span>Remaining: <span className="font-bold text-amber-600">Rs. {remainingBalance.toLocaleString()}</span></span>
+                                              <span>Paid: <span className="font-bold text-emerald-600">Rs. {totalPaid.toLocaleString()}</span>{courseFee > 0 ? ` / Rs. ${courseFee.toLocaleString()}` : ""}</span>
+                                              {courseFee > 0 && remainingBalance > 0 && (
+                                                <span>Remaining: <span className="font-bold text-amber-600">Rs. {remainingBalance.toLocaleString()}</span></span>
+                                              )}
                                             </div>
                                           )}
                                         </div>

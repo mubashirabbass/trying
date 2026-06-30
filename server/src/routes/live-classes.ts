@@ -1,10 +1,60 @@
 import { Router } from "express";
 import { db, liveClassesTable, usersTable, enrollmentsTable, coursesTable, lessonsTable } from "@workspace/db";
-import { eq, and, desc, sql, or, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, or, inArray, ne, gt } from "drizzle-orm";
 import { AuthRequest } from "../middleware/auth";
 import { createNotification } from "../lib/notifications";
 
 const router = Router();
+
+// ── GET /live-classes/history — stats + full log for admin/teacher ──────────
+router.get("/live-classes/history", async (req: AuthRequest, res): Promise<void> => {
+  try {
+    const { role, id: userId } = req.user;
+    if (role !== "admin" && role !== "teacher") {
+      res.status(403).json({ error: "Unauthorized" });
+      return;
+    }
+
+    // Fetch ALL records (no isCancelled filter) for history
+    let query = db
+      .select({
+        id: liveClassesTable.id,
+        title: liveClassesTable.title,
+        meetingLink: liveClassesTable.meetingLink,
+        targetType: liveClassesTable.targetType,
+        courseId: liveClassesTable.courseId,
+        studentId: liveClassesTable.studentId,
+        scheduledAt: liveClassesTable.scheduledAt,
+        description: liveClassesTable.description,
+        isCompleted: liveClassesTable.isCompleted,
+        isCancelled: liveClassesTable.isCancelled,
+        cancelledAt: liveClassesTable.cancelledAt,
+        createdAt: liveClassesTable.createdAt,
+        createdBy: liveClassesTable.createdBy,
+        createdByRole: liveClassesTable.createdByRole,
+        courseTitle: coursesTable.title,
+        studentName: usersTable.name,
+      })
+      .from(liveClassesTable)
+      .leftJoin(coursesTable, eq(liveClassesTable.courseId, coursesTable.id))
+      .leftJoin(usersTable, eq(liveClassesTable.studentId, usersTable.id));
+
+    if (role === "teacher") {
+      query = query.where(eq(liveClassesTable.createdBy, userId)) as any;
+    }
+
+    const allClasses = await query.orderBy(desc(liveClassesTable.scheduledAt));
+
+    const total = allClasses.length;
+    const conducted = allClasses.filter(c => c.isCompleted && !c.isCancelled).length;
+    const cancelled = allClasses.filter(c => c.isCancelled).length;
+    const upcoming = allClasses.filter(c => !c.isCompleted && !c.isCancelled).length;
+
+    res.json({ total, conducted, cancelled, upcoming, log: allClasses });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // GET /live-classes
 router.get("/live-classes", async (req: AuthRequest, res): Promise<void> => {
@@ -12,6 +62,7 @@ router.get("/live-classes", async (req: AuthRequest, res): Promise<void> => {
     const { role, id: userId } = req.user;
 
     if (role === "admin" || role === "teacher") {
+      // Exclude cancelled (soft-deleted) records from active view
       const classes = await db
         .select({
           id: liveClassesTable.id,
@@ -23,6 +74,8 @@ router.get("/live-classes", async (req: AuthRequest, res): Promise<void> => {
           scheduledAt: liveClassesTable.scheduledAt,
           description: liveClassesTable.description,
           isCompleted: liveClassesTable.isCompleted,
+          isCancelled: liveClassesTable.isCancelled,
+          cancelledAt: liveClassesTable.cancelledAt,
           createdAt: liveClassesTable.createdAt,
           createdBy: liveClassesTable.createdBy,
           createdByRole: liveClassesTable.createdByRole,
@@ -32,11 +85,13 @@ router.get("/live-classes", async (req: AuthRequest, res): Promise<void> => {
         .from(liveClassesTable)
         .leftJoin(coursesTable, eq(liveClassesTable.courseId, coursesTable.id))
         .leftJoin(usersTable, eq(liveClassesTable.studentId, usersTable.id))
+        .where(eq(liveClassesTable.isCancelled, false))
         .orderBy(desc(liveClassesTable.scheduledAt));
 
-      // Auto-expire: mark past classes as completed
+      // Auto-expire: mark past classes as completed only if they started more than 3 hours ago
       const now = new Date();
-      const toExpire = classes.filter(c => !c.isCompleted && new Date(c.scheduledAt) < now);
+      const threshold = 3 * 60 * 60 * 1000; // 3 hours
+      const toExpire = classes.filter(c => !c.isCompleted && (now.getTime() - new Date(c.scheduledAt).getTime()) > threshold);
       if (toExpire.length > 0) {
         const toExpireIds = toExpire.map(c => c.id);
         db.update(liveClassesTable)
@@ -52,7 +107,7 @@ router.get("/live-classes", async (req: AuthRequest, res): Promise<void> => {
       return;
     }
 
-    // Student: only see classes targeted at them
+    // Student: only see classes targeted at them (exclude cancelled)
     const studentEnrollments = await db
       .select({ courseId: enrollmentsTable.courseId })
       .from(enrollmentsTable)
@@ -60,13 +115,16 @@ router.get("/live-classes", async (req: AuthRequest, res): Promise<void> => {
 
     const enrolledCourseIds = studentEnrollments.map(e => e.courseId);
 
+    const baseCondition = eq(liveClassesTable.isCancelled, false);
+    const cutOff = new Date(Date.now() - 3 * 60 * 60 * 1000); // 3 hours ago
+
     const whereClause = enrolledCourseIds.length > 0
-      ? and(eq(liveClassesTable.isCompleted, false), or(
+      ? and(baseCondition, eq(liveClassesTable.isCompleted, false), gt(liveClassesTable.scheduledAt, cutOff), or(
           eq(liveClassesTable.targetType, "all"),
           and(eq(liveClassesTable.targetType, "course"), inArray(liveClassesTable.courseId, enrolledCourseIds)),
           and(eq(liveClassesTable.targetType, "student"), eq(liveClassesTable.studentId, userId))
         ))
-      : and(eq(liveClassesTable.isCompleted, false), or(
+      : and(baseCondition, eq(liveClassesTable.isCompleted, false), gt(liveClassesTable.scheduledAt, cutOff), or(
           eq(liveClassesTable.targetType, "all"),
           and(eq(liveClassesTable.targetType, "student"), eq(liveClassesTable.studentId, userId))
         ));
@@ -111,7 +169,19 @@ router.post("/live-classes", async (req: AuthRequest, res): Promise<void> => {
       return;
     }
 
-    // Build insert values — createdBy/createdByRole may not exist in DB yet, handle gracefully
+    // Validate scheduledAt is not in the past
+    if (scheduledAt) {
+      const scheduledDate = new Date(scheduledAt);
+      if (isNaN(scheduledDate.getTime())) {
+        res.status(400).json({ error: "Invalid date/time format" });
+        return;
+      }
+      if (scheduledDate <= new Date()) {
+        res.status(400).json({ error: "Scheduled time cannot be in the past. Please select a future date and time." });
+        return;
+      }
+    }
+
     const insertValues: any = {
       title,
       meetingLink,
@@ -121,51 +191,118 @@ router.post("/live-classes", async (req: AuthRequest, res): Promise<void> => {
       scheduledAt: scheduledAt ? new Date(scheduledAt) : new Date(),
       description: description || null,
       isCompleted: false,
+      isCancelled: false,
+      createdBy: userId,
+      createdByRole: role,
     };
 
-    // Try to add new columns — if they don't exist in DB yet, fall back without them
-    try {
-      insertValues.createdBy = userId;
-      insertValues.createdByRole = role;
-    } catch {}
-
     const [liveClass] = await db.insert(liveClassesTable).values(insertValues).returning();
-    const dateFormatted = scheduledAt ? new Date(scheduledAt).toLocaleString() : new Date().toLocaleString();
-
-    // Notifications & lesson records
-    if (targetType === "all") {
-      const students = await db.select().from(usersTable).where(eq(usersTable.role, "student"));
-      for (const student of students) {
-        await createNotification({ userId: student.id, type: "info", title: "New Live Class Scheduled! 🎥", message: `Join "${title}" on ${dateFormatted}. Link: ${meetingLink}`, link: "/dashboard/live-classes" });
-      }
-      const allCourses = await db.select().from(coursesTable);
-      for (const c of allCourses) {
-        const [{ maxOrder }] = await db.select({ maxOrder: sql<number>`COALESCE(MAX(${lessonsTable.orderIndex}), 0)` }).from(lessonsTable).where(eq(lessonsTable.courseId, c.id));
-        await db.insert(lessonsTable).values({ courseId: c.id, title: `🎥 [Live Class Record] ${title}`, description: `Conducted on ${dateFormatted}.\nLink: ${meetingLink}\n${description || ""}`, orderIndex: (maxOrder ?? 0) + 1 });
-      }
-    } else if (targetType === "course" && courseId) {
-      const enrolled = await db.select({ userId: enrollmentsTable.userId }).from(enrollmentsTable).where(eq(enrollmentsTable.courseId, Number(courseId)));
-      for (const e of enrolled) {
-        await createNotification({ userId: e.userId, type: "info", title: "Course Live Class Scheduled! 🎥", message: `Join "${title}" on ${dateFormatted}. Link: ${meetingLink}`, link: "/dashboard/live-classes" });
-      }
-      const [{ maxOrder }] = await db.select({ maxOrder: sql<number>`COALESCE(MAX(${lessonsTable.orderIndex}), 0)` }).from(lessonsTable).where(eq(lessonsTable.courseId, Number(courseId)));
-      await db.insert(lessonsTable).values({ courseId: Number(courseId), title: `🎥 [Live Class Record] ${title}`, description: `Conducted on ${dateFormatted}.\nLink: ${meetingLink}\n${description || ""}`, orderIndex: (maxOrder ?? 0) + 1 });
-    } else if (targetType === "student" && studentId) {
-      await createNotification({ userId: Number(studentId), type: "info", title: "Individual Live Session! 🎥", message: `Your session "${title}" is on ${dateFormatted}. Link: ${meetingLink}`, link: "/dashboard/live-classes" });
-      const studentEnrollments = await db.select({ courseId: enrollmentsTable.courseId }).from(enrollmentsTable).where(eq(enrollmentsTable.userId, Number(studentId)));
-      for (const e of studentEnrollments) {
-        const [{ maxOrder }] = await db.select({ maxOrder: sql<number>`COALESCE(MAX(${lessonsTable.orderIndex}), 0)` }).from(lessonsTable).where(eq(lessonsTable.courseId, e.courseId));
-        await db.insert(lessonsTable).values({ courseId: e.courseId, title: `🎥 [Live Class Record] ${title} (Individual)`, description: `Conducted on ${dateFormatted}.\nLink: ${meetingLink}\n${description || ""}`, orderIndex: (maxOrder ?? 0) + 1 });
-      }
-    }
-
     res.status(201).json(liveClass);
+
+    // Run notifications & lesson records asynchronously in the background so HTTP response is instant
+    const dateFormatted = scheduledAt ? new Date(scheduledAt).toLocaleString() : new Date().toLocaleString();
+    (async () => {
+      try {
+        const { bulkCreateNotifications } = await import("../lib/notifications");
+
+        if (targetType === "all") {
+          // 1. Fetch target students
+          const students = await db.select().from(usersTable).where(eq(usersTable.role, "student"));
+          
+          // 2. Bulk insert notifications in a single query
+          const notifications = students.map(student => ({
+            userId: student.id,
+            type: "info" as const,
+            title: "New Live Class Scheduled! 🎥",
+            message: `Join "${title}" on ${dateFormatted}. Link: ${meetingLink}`,
+            link: "/dashboard/live-classes"
+          }));
+          await bulkCreateNotifications(notifications);
+
+          // 3. Parallelize lessons insertion across all courses
+          const allCourses = await db.select().from(coursesTable);
+          await Promise.all(
+            allCourses.map(async (c) => {
+              const [{ maxOrder }] = await db
+                .select({ maxOrder: sql<number>`COALESCE(MAX(${lessonsTable.orderIndex}), 0)` })
+                .from(lessonsTable)
+                .where(eq(lessonsTable.courseId, c.id));
+              
+              await db.insert(lessonsTable).values({
+                courseId: c.id,
+                title: `🎥 [Live Class Record] ${title}`,
+                description: `Conducted on ${dateFormatted}.\nLink: ${meetingLink}\n${description || ""}`,
+                orderIndex: (maxOrder ?? 0) + 1
+              });
+            })
+          );
+
+        } else if (targetType === "course" && courseId) {
+          // 1. Fetch enrolled students
+          const enrolled = await db.select({ userId: enrollmentsTable.userId }).from(enrollmentsTable).where(eq(enrollmentsTable.courseId, Number(courseId)));
+          
+          // 2. Bulk insert notifications
+          const notifications = enrolled.map(e => ({
+            userId: e.userId,
+            type: "info" as const,
+            title: "Course Live Class Scheduled! 🎥",
+            message: `Join "${title}" on ${dateFormatted}. Link: ${meetingLink}`,
+            link: "/dashboard/live-classes"
+          }));
+          await bulkCreateNotifications(notifications);
+
+          // 3. Insert course lesson record
+          const [{ maxOrder }] = await db
+            .select({ maxOrder: sql<number>`COALESCE(MAX(${lessonsTable.orderIndex}), 0)` })
+            .from(lessonsTable)
+            .where(eq(lessonsTable.courseId, Number(courseId)));
+          
+          await db.insert(lessonsTable).values({
+            courseId: Number(courseId),
+            title: `🎥 [Live Class Record] ${title}`,
+            description: `Conducted on ${dateFormatted}.\nLink: ${meetingLink}\n${description || ""}`,
+            orderIndex: (maxOrder ?? 0) + 1
+          });
+
+        } else if (targetType === "student" && studentId) {
+          // 1. Single notification
+          const { createNotification } = await import("../lib/notifications");
+          await createNotification({
+            userId: Number(studentId),
+            type: "info",
+            title: "Individual Live Session! 🎥",
+            message: `Your session "${title}" is on ${dateFormatted}. Link: ${meetingLink}`,
+            link: "/dashboard/live-classes"
+          });
+
+          // 2. Fetch student courses & add lesson record to each
+          const studentEnrollments = await db.select({ courseId: enrollmentsTable.courseId }).from(enrollmentsTable).where(eq(enrollmentsTable.userId, Number(studentId)));
+          await Promise.all(
+            studentEnrollments.map(async (e) => {
+              const [{ maxOrder }] = await db
+                .select({ maxOrder: sql<number>`COALESCE(MAX(${lessonsTable.orderIndex}), 0)` })
+                .from(lessonsTable)
+                .where(eq(lessonsTable.courseId, e.courseId));
+              
+              await db.insert(lessonsTable).values({
+                courseId: e.courseId,
+                title: `🎥 [Live Class Record] ${title} (Individual)`,
+                description: `Conducted on ${dateFormatted}.\nLink: ${meetingLink}\n${description || ""}`,
+                orderIndex: (maxOrder ?? 0) + 1
+              });
+            })
+          );
+        }
+      } catch (bgError) {
+        console.error("[BG LIVE CLASS BACKGROUND WORK ERROR]", bgError);
+      }
+    })();
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// PATCH /live-classes/:id
+// PATCH /live-classes/:id — mark as completed / re-open
 router.patch("/live-classes/:id", async (req: AuthRequest, res): Promise<void> => {
   try {
     const { role, id: userId } = req.user;
@@ -175,7 +312,6 @@ router.patch("/live-classes/:id", async (req: AuthRequest, res): Promise<void> =
     if (role === "teacher") {
       const [existing] = await db.select().from(liveClassesTable).where(eq(liveClassesTable.id, id));
       if (!existing) { res.status(404).json({ error: "Not found" }); return; }
-      // Allow if createdBy matches OR if createdBy is null (old records)
       if (existing.createdBy !== null && existing.createdBy !== userId) {
         res.status(403).json({ error: "You can only update your own classes" }); return;
       }
@@ -191,23 +327,28 @@ router.patch("/live-classes/:id", async (req: AuthRequest, res): Promise<void> =
   }
 });
 
-// DELETE /live-classes/:id
+// DELETE /live-classes/:id — soft-delete (mark as cancelled, preserve in history)
 router.delete("/live-classes/:id", async (req: AuthRequest, res): Promise<void> => {
   try {
     const { role, id: userId } = req.user;
     const id = Number(req.params.id);
 
+    const [existing] = await db.select().from(liveClassesTable).where(eq(liveClassesTable.id, id));
+    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+
     if (role === "teacher") {
-      const [existing] = await db.select().from(liveClassesTable).where(eq(liveClassesTable.id, id));
-      if (!existing) { res.status(404).json({ error: "Not found" }); return; }
       if (existing.createdBy !== null && existing.createdBy !== userId) {
-        res.status(403).json({ error: "You can only delete your own classes" }); return;
+        res.status(403).json({ error: "You can only cancel your own classes" }); return;
       }
     } else if (role !== "admin") {
       res.status(403).json({ error: "Unauthorized" }); return;
     }
 
-    await db.delete(liveClassesTable).where(eq(liveClassesTable.id, id));
+    // Soft-delete: mark as cancelled so it appears in history
+    await db.update(liveClassesTable)
+      .set({ isCancelled: true, cancelledAt: new Date() })
+      .where(eq(liveClassesTable.id, id));
+
     res.sendStatus(204);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

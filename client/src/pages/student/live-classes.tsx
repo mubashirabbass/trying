@@ -15,6 +15,70 @@ const ensureAbsoluteUrl = (url: string) => {
   return `https://${url}`;
 };
 
+// ── COUNTDOWN COMPONENT FOR SCHEDULED CLASSES ─────────────────────────────────
+function ClassCountdown({ scheduledAt, isCompleted }: { scheduledAt: string; isCompleted: boolean }) {
+  const [timeLeft, setTimeLeft] = useState<string>("Calculating...");
+
+  useEffect(() => {
+    const scheduledDate = new Date(scheduledAt).getTime();
+    const duration = 3 * 60 * 60 * 1000; // 3 hour class duration window
+    const endDate = scheduledDate + duration;
+
+    const updateTimer = () => {
+      const now = Date.now();
+
+      if (isCompleted || now >= endDate) {
+        setTimeLeft("Ended");
+        return;
+      }
+
+      if (now < scheduledDate) {
+        // Starts in countdown
+        const diff = scheduledDate - now;
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        const parts: string[] = [];
+        if (days > 0) parts.push(`${days}d`);
+        if (hours > 0 || days > 0) parts.push(`${hours}h`);
+        parts.push(`${minutes}m`);
+        parts.push(`${seconds}s`);
+
+        setTimeLeft(`Starts in: ${parts.join(" ")}`);
+      } else {
+        // Ends in countdown
+        const diff = endDate - now;
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        setTimeLeft(`Ends in: ${hours}h ${minutes}m ${seconds}s`);
+      }
+    };
+
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+    return () => clearInterval(timer);
+  }, [scheduledAt, isCompleted]);
+
+  const now = Date.now();
+  const scheduledTime = new Date(scheduledAt).getTime();
+  const isLive = now >= scheduledTime && now < (scheduledTime + 3 * 60 * 60 * 1000) && !isCompleted;
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-md shadow-sm border transition-colors ${
+      isLive 
+        ? "bg-rose-50 text-rose-700 border-rose-200 animate-pulse" 
+        : "bg-slate-50 text-slate-700 border-slate-200"
+    }`}>
+      <Clock className={`h-3.5 w-3.5 shrink-0 ${isLive ? "text-rose-500" : "text-slate-400"}`} />
+      {timeLeft}
+    </span>
+  );
+}
+
 export default function StudentLiveClasses() {
   const { toast } = useToast();
   const { token } = useAuth();
@@ -111,6 +175,7 @@ export default function StudentLiveClasses() {
                         {c.courseTitle}
                       </Badge>
                     )}
+                    <ClassCountdown scheduledAt={c.scheduledAt} isCompleted={c.isCompleted} />
                   </div>
                   <h3 className="text-lg font-bold text-gray-900 truncate">{c.title}</h3>
                   <p className="text-sm text-gray-500 mt-1 line-clamp-2 max-w-2xl">

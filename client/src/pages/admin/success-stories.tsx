@@ -42,11 +42,25 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function AdminSuccessStories() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+
+  // Delete confirmation state
+  const [storyToDelete, setStoryToDelete] = useState<any>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<any>(null);
   const [form, setForm] = useState({
     studentName: "",
     title: "",
@@ -776,11 +790,7 @@ export default function AdminSuccessStories() {
                           variant="ghost"
                           size="icon"
                           className="text-white/60 hover:text-white hover:bg-white/10 h-8 w-8"
-                          onClick={() => {
-                            if (confirm("Are you sure you want to delete this success story?")) {
-                              deleteMutation.mutate({ id: story.id });
-                            }
-                          }}
+                          onClick={() => setStoryToDelete(story)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -984,11 +994,7 @@ export default function AdminSuccessStories() {
                             variant="ghost" 
                             size="icon" 
                             className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50"
-                            onClick={() => {
-                              if (confirm("Are you sure? This will not delete the stories in this category.")) {
-                                deleteCategoryMutation.mutate({ id: cat.id });
-                              }
-                            }}
+                            onClick={() => setCategoryToDelete(cat)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -1010,6 +1016,57 @@ export default function AdminSuccessStories() {
           </div>
         </TabsContent>
       </Tabs>
+      {/* Delete Story Confirmation */}
+      <AlertDialog open={!!storyToDelete} onOpenChange={(v) => { if (!v) setStoryToDelete(null); }}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" /> Delete Success Story?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete <span className="font-semibold text-slate-800">&ldquo;{storyToDelete?.title || storyToDelete?.studentName}&rdquo;</span>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setStoryToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                if (storyToDelete) deleteMutation.mutate({ id: storyToDelete.id });
+                setStoryToDelete(null);
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Yes, Delete Story
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Category Confirmation */}
+      <AlertDialog open={!!categoryToDelete} onOpenChange={(v) => { if (!v) setCategoryToDelete(null); }}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" /> Delete Category?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the category <span className="font-semibold text-slate-800">&ldquo;{categoryToDelete?.name}&rdquo;</span>? Stories in this category will <span className="font-semibold">not</span> be deleted — they will just become uncategorized.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCategoryToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                if (categoryToDelete) deleteCategoryMutation.mutate({ id: categoryToDelete.id });
+                setCategoryToDelete(null);
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Yes, Delete Category
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

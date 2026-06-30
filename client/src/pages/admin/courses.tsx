@@ -14,7 +14,7 @@ import {
   Loader2, Plus, MoreHorizontal, CheckCircle, XCircle, Eye, 
   ExternalLink, Video, Search, Filter, BookOpen, Clock, AlertCircle, 
   Users, Award, ShieldCheck, Edit, Trash2, Check, Sparkles, Laptop, 
-  Palette, Briefcase, Brain, FileSpreadsheet, GraduationCap, DollarSign, ListTodo, Download, FileText
+  Palette, Briefcase, Brain, FileSpreadsheet, GraduationCap, DollarSign, ListTodo, Download, FileText, Star
 } from "lucide-react";
 import { FileUploadButton } from "@/components/FileUploadButton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -396,6 +396,25 @@ export default function AdminCourses() {
     }
   };
 
+  const handleToggleFeatured = async (id: number, currentFeatured: boolean) => {
+    try {
+      await updateCourse.mutateAsync({
+        id,
+        data: { isFeatured: !currentFeatured } as any
+      });
+      toast({
+        title: !currentFeatured ? "⭐ Course Featured!" : "Course Unfeatured",
+        description: !currentFeatured
+          ? "This course will now appear in the 'Top Courses' section on the homepage."
+          : "This course has been removed from the homepage Top Courses section.",
+        variant: "success",
+      });
+      queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({ limit: 1000 } as any) });
+    } catch (error) {
+      toast({ title: "Update Failed", description: "Failed to update featured status", variant: "destructive" });
+    }
+  };
+
   const handleUpdateStatus = async (id: number, status: string) => {
     try {
       await updateCourse.mutateAsync({
@@ -703,7 +722,8 @@ export default function AdminCourses() {
 
                           <div className="min-w-0">
                             <Link href={`/admin/courses/${course.id}/review`}>
-                              <span className="font-bold text-sm text-slate-850 dark:text-slate-150 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors line-clamp-1">
+                              <span className="font-bold text-sm text-slate-850 dark:text-slate-150 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors line-clamp-1 flex items-center gap-1.5">
+                                {course.isFeatured && <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 shrink-0" />}
                                 {course.title}
                               </span>
                             </Link>
@@ -839,6 +859,22 @@ export default function AdminCourses() {
                             <div className="h-px bg-slate-100 my-1" />
 
                             <DropdownMenuItem 
+                              className={`cursor-pointer font-bold text-xs rounded-lg ${
+                                course.isFeatured 
+                                  ? "text-amber-600 hover:bg-amber-50/60" 
+                                  : "text-slate-600 hover:bg-amber-50/40"
+                              }`}
+                              onClick={() => handleToggleFeatured(course.id, !!course.isFeatured)}
+                            >
+                              <Star className={`h-4 w-4 mr-2 ${
+                                course.isFeatured ? "text-amber-500 fill-amber-500" : "text-slate-400"
+                              }`} />
+                              {course.isFeatured ? "Remove from Homepage" : "⭐ Feature on Homepage"}
+                            </DropdownMenuItem>
+
+                            <div className="h-px bg-slate-100 my-1" />
+
+                            <DropdownMenuItem 
                               className="text-red-650 cursor-pointer font-bold text-xs rounded-lg hover:bg-red-50"
                               onClick={() => setCourseToDelete(course.id)}
                             >
@@ -907,18 +943,58 @@ export default function AdminCourses() {
                 </Select>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="duration" className="text-xs font-black uppercase text-slate-500 tracking-wider">Duration <span className="text-red-500">*</span></Label>
-                <Input
-                  id="duration"
-                  placeholder="e.g. 3 Months"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  className="h-11 rounded-xl border-slate-200 focus-visible:ring-indigo-500 text-sm font-semibold"
-                  required
-                />
+                  {(() => {
+                    const parseDuration = (val: string) => {
+                      if (!val) return { number: "3", unit: "Months" };
+                      const match = val.match(/(\d+)\s*(month|year|Month|Year|mon|yr|Mon|Yr)s?/i);
+                      if (match) {
+                        const num = match[1];
+                        const u = match[2].toLowerCase();
+                        const unit = u.startsWith("yr") || u.startsWith("year") ? "Years" : "Months";
+                        return { number: num, unit };
+                      }
+                      const numMatch = val.match(/(\d+)/);
+                      if (numMatch) {
+                        return { number: numMatch[1], unit: "Months" };
+                      }
+                      return { number: "3", unit: "Months" };
+                    };
+                    const { number: durationNum, unit: durationUnit } = parseDuration(duration);
+                    
+                    return (
+                      <div className="space-y-1.5 flex-1">
+                        <Label htmlFor="duration" className="text-xs font-black uppercase text-slate-500 tracking-wider">Duration <span className="text-red-500">*</span></Label>
+                        <div className="flex gap-2">
+                          <Select 
+                            value={durationNum} 
+                            onValueChange={v => setDuration(`${v} ${durationUnit}`)}
+                          >
+                            <SelectTrigger id="duration" className="h-11 rounded-xl border-slate-200 text-sm font-semibold flex-1">
+                              <SelectValue placeholder="No." />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border border-slate-200 shadow-lg">
+                              {Array.from({ length: 24 }, (_, i) => i + 1).map(num => (
+                                <SelectItem key={num} value={num.toString()} className="text-sm font-medium">{num}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select 
+                            value={durationUnit} 
+                            onValueChange={v => setDuration(`${durationNum} ${v}`)}
+                          >
+                            <SelectTrigger className="h-11 rounded-xl border-slate-200 text-sm font-semibold w-24">
+                              <SelectValue placeholder="Unit" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl border border-slate-200 shadow-lg">
+                              <SelectItem value="Months" className="text-sm font-medium">Months</SelectItem>
+                              <SelectItem value="Years" className="text-sm font-medium">Years</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    );
+                  })()}
               </div>
-            </div>
 
             {/* Tuition Rate & Teacher selector */}
             <div className="grid grid-cols-2 gap-4">

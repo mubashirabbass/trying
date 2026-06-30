@@ -14,6 +14,8 @@ export const liveClassesTable = pgTable("live_classes", {
   scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull().defaultNow(),
   description: text("description"),
   isCompleted: boolean("is_completed").notNull().default(false),
+  isCancelled: boolean("is_cancelled").notNull().default(false),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
   createdByRole: text("created_by_role"), // "admin" | "teacher"

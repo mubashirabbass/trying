@@ -212,15 +212,57 @@ export default function AdminCourseEdit() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="duration" className="font-bold">Duration (e.g. 3 Months)</Label>
-                  <Input 
-                    id="duration" 
-                    value={formData.duration} 
-                    onChange={e => setFormData(prev => ({ ...prev, duration: e.target.value }))}
-                    className="rounded-xl bg-slate-50 border-gray-100 h-12"
-                  />
-                </div>
+                  {(() => {
+                    const parseDuration = (val: string) => {
+                      if (!val) return { number: "3", unit: "Months" };
+                      const match = val.match(/(\d+)\s*(month|year|Month|Year|mon|yr|Mon|Yr)s?/i);
+                      if (match) {
+                        const num = match[1];
+                        const u = match[2].toLowerCase();
+                        const unit = u.startsWith("yr") || u.startsWith("year") ? "Years" : "Months";
+                        return { number: num, unit };
+                      }
+                      const numMatch = val.match(/(\d+)/);
+                      if (numMatch) {
+                        return { number: numMatch[1], unit: "Months" };
+                      }
+                      return { number: "3", unit: "Months" };
+                    };
+                    const { number: durationNum, unit: durationUnit } = parseDuration(formData.duration);
+                    
+                    return (
+                      <div className="space-y-2">
+                        <Label htmlFor="duration" className="font-bold">Duration</Label>
+                        <div className="flex gap-2">
+                          <Select 
+                            value={durationNum} 
+                            onValueChange={v => setFormData(prev => ({ ...prev, duration: `${v} ${durationUnit}` }))}
+                          >
+                            <SelectTrigger id="duration" className="rounded-xl bg-slate-50 border-gray-100 h-12 flex-1">
+                              <SelectValue placeholder="Select Number" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 24 }, (_, i) => i + 1).map(num => (
+                                <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Select 
+                            value={durationUnit} 
+                            onValueChange={v => setFormData(prev => ({ ...prev, duration: `${durationNum} ${v}` }))}
+                          >
+                            <SelectTrigger className="rounded-xl bg-slate-50 border-gray-100 h-12 w-32">
+                              <SelectValue placeholder="Select Unit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Months">Months</SelectItem>
+                              <SelectItem value="Years">Years</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    );
+                  })()}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

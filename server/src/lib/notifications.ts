@@ -33,6 +33,32 @@ export async function createNotification({
   }
 }
 
+export async function bulkCreateNotifications(notifications: Array<{
+  userId: number;
+  type?: NotificationType;
+  title: string;
+  message: string;
+  link?: string;
+}>) {
+  if (notifications.length === 0) return [];
+  try {
+    const values = notifications.map(n => ({
+      userId: n.userId,
+      type: n.type || "info",
+      title: n.title,
+      message: n.message,
+      link: n.link
+    }));
+    const notifs = await db.insert(notificationsTable).values(values).returning();
+    logger.info(`Bulk notifications created. Count=${notifs.length}`);
+    return notifs;
+  } catch (error) {
+    logger.error(`Failed to create bulk notifications:`, error);
+    return [];
+  }
+}
+
+
 export const notificationTriggers = {
   assignmentGraded: (userId: number, assignmentTitle: string, score: number, total: number) => {
     return createNotification({
