@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/AuthContext";
+import { useSettings } from "@/lib/SettingsContext";
 import { Menu, X, BookOpen, Phone, Mail, Facebook, Instagram, Youtube, Linkedin, MessageSquare, MessageCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -8,6 +9,15 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [location] = useLocation();
   const { user, logout } = useAuth();
+  const { get } = useSettings();
+
+  const siteName = get("site_name", "Global College");
+  const sitePhone = get("site_phone", "+92 300 1234567");
+  const siteWhatsapp = get("site_whatsapp", "923001234567");
+  const siteEmail = get("site_email", "info@globalcollege.edu.pk");
+  const siteFacebook = get("site_facebook", "#");
+  const siteInstagram = get("site_instagram", "#");
+  const siteYoutube = get("site_youtube", "#");
 
   // Typing Effect State for Logo Text on Home Page
   const [typedTitle, setTypedTitle] = useState("");
@@ -15,7 +25,7 @@ export function Navbar() {
 
   useEffect(() => {
     if (location !== "/") {
-      setTypedTitle("Global College");
+      setTypedTitle(siteName);
       setTypedSubtitle("Learning Management System");
       return;
     }
@@ -23,17 +33,14 @@ export function Navbar() {
     setTypedTitle("");
     setTypedSubtitle("");
 
-    const titleText = "Global College";
-    const subtitleText = "Learning Management System";
-    
     let titleIdx = 0;
     let subtitleIdx = 0;
     let titleTimer: NodeJS.Timeout;
     let subtitleTimer: NodeJS.Timeout;
 
     const typeTitle = () => {
-      if (titleIdx < titleText.length) {
-        setTypedTitle(titleText.slice(0, titleIdx + 1));
+      if (titleIdx < siteName.length) {
+        setTypedTitle(siteName.slice(0, titleIdx + 1));
         titleIdx++;
         titleTimer = setTimeout(typeTitle, 100);
       } else {
@@ -42,6 +49,7 @@ export function Navbar() {
     };
 
     const typeSubtitle = () => {
+      const subtitleText = "Learning Management System";
       if (subtitleIdx < subtitleText.length) {
         setTypedSubtitle(subtitleText.slice(0, subtitleIdx + 1));
         subtitleIdx++;
@@ -55,7 +63,8 @@ export function Navbar() {
       clearTimeout(titleTimer);
       clearTimeout(subtitleTimer);
     };
-  }, [location]);
+  }, [location, siteName]);
+
 
   const navLinks = [
     { name: "Home", path: "/" },
@@ -74,26 +83,26 @@ export function Navbar() {
       <div className="bg-[#0f2c6f] text-white text-[11px] py-1.5 hidden lg:block border-b border-white/10">
         <div className="max-w-screen-xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <a href="tel:+923001234567" className="flex items-center gap-1.5 hover:text-blue-200 transition-colors">
-              <Phone className="h-3 w-3" /> Call: +92 300 1234567
+            <a href={`tel:${sitePhone.replace(/\s/g, "")}`} className="flex items-center gap-1.5 hover:text-blue-200 transition-colors">
+              <Phone className="h-3 w-3" /> Call: {sitePhone}
             </a>
-            <a href="sms:+923001234567" className="flex items-center gap-1.5 hover:text-blue-200 transition-colors">
-              <MessageSquare className="h-3 w-3" /> SMS: +92 300 1234567
+            <a href={`sms:${sitePhone.replace(/\s/g, "")}`} className="flex items-center gap-1.5 hover:text-blue-200 transition-colors">
+              <MessageSquare className="h-3 w-3" /> SMS: {sitePhone}
             </a>
-            <a href="https://wa.me/923001234567" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-blue-200 transition-colors">
-              <MessageCircle className="h-3 w-3" /> WhatsApp: +92 300 1234567
+            <a href={`https://wa.me/${siteWhatsapp}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-blue-200 transition-colors">
+              <MessageCircle className="h-3 w-3" /> WhatsApp: {sitePhone}
             </a>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3">
-              <a href="#" className="hover:text-blue-200 transition-colors"><Facebook className="h-3 w-3" /></a>
-              <a href="#" className="hover:text-blue-200 transition-colors"><Instagram className="h-3 w-3" /></a>
-              <a href="#" className="hover:text-blue-200 transition-colors"><Youtube className="h-3 w-3" /></a>
+              <a href={siteFacebook} target="_blank" rel="noreferrer" className="hover:text-blue-200 transition-colors"><Facebook className="h-3 w-3" /></a>
+              <a href={siteInstagram} target="_blank" rel="noreferrer" className="hover:text-blue-200 transition-colors"><Instagram className="h-3 w-3" /></a>
+              <a href={siteYoutube} target="_blank" rel="noreferrer" className="hover:text-blue-200 transition-colors"><Youtube className="h-3 w-3" /></a>
               <a href="#" className="hover:text-blue-200 transition-colors"><Linkedin className="h-3 w-3" /></a>
             </div>
             <div className="h-3 w-px bg-white/20" />
-            <a href="mailto:info@globalcollege.edu.pk" className="flex items-center gap-1.5 hover:text-blue-200 transition-colors">
-              <Mail className="h-3 w-3" /> info@globalcollege.edu.pk
+            <a href={`mailto:${siteEmail}`} className="flex items-center gap-1.5 hover:text-blue-200 transition-colors">
+              <Mail className="h-3 w-3" /> {siteEmail}
             </a>
           </div>
         </div>
@@ -112,13 +121,13 @@ export function Navbar() {
               <div className="hidden sm:block w-[180px] shrink-0">
                 <span className={`font-extrabold text-[16px] leading-none block ${location === "/" ? "animate-text-flow" : "text-gray-900"}`}>
                   {typedTitle}
-                  {location === "/" && typedTitle.length < "Global College".length && (
+                  {location === "/" && typedTitle.length < siteName.length && (
                     <span className="animate-pulse ml-0.5 font-normal text-gray-400">|</span>
                   )}
                 </span>
                 <span className="text-[9px] font-medium text-gray-400 leading-none block mt-0.5">
                   {typedSubtitle}
-                  {location === "/" && typedTitle.length === "Global College".length && typedSubtitle.length < "Learning Management System".length && (
+                  {location === "/" && typedTitle.length === siteName.length && typedSubtitle.length < "Learning Management System".length && (
                     <span className="animate-pulse ml-0.5 text-gray-400">|</span>
                   )}
                 </span>
@@ -218,8 +227,8 @@ export function Navbar() {
               ))}
 
               <div className="pt-3 mt-1 border-t border-gray-100 text-xs text-gray-500 px-3">
-                <a href="tel:+923001234567" className="flex items-center gap-2">
-                  <Phone className="h-3.5 w-3.5 text-primary" /> +92 300 1234567
+                <a href={`tel:${sitePhone.replace(/\s/g, "")}`} className="flex items-center gap-2">
+                  <Phone className="h-3.5 w-3.5 text-primary" /> {sitePhone}
                 </a>
               </div>
 

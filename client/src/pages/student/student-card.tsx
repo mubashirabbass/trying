@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from "react";
 import { Link } from "wouter";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useAuth } from "@/lib/AuthContext";
+import { useSettings } from "@/lib/SettingsContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -282,29 +283,11 @@ export default function StudentCard() {
   const [downloading, setDownloading] = useState(false);
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [loadingEnrollments, setLoadingEnrollments] = useState(true);
-  const [noticeSettings, setNoticeSettings] = useState({
-    enabled: true,
-    text: "Important Note: Attendance criteria for Spring, 2026 is 75%.",
-  });
-
-  // Fetch notice settings
-  useEffect(() => {
-    const fetchNoticeSettings = async () => {
-      try {
-        const response = await fetch(`${BASE}/api/settings`);
-        if (response.ok) {
-          const settings = await response.json();
-          const enabled = settings.find((s: any) => s.key === "student_notice_enabled")?.value === "true";
-          const text = settings.find((s: any) => s.key === "student_notice_text")?.value || "Important Note: Attendance criteria for Spring, 2026 is 75%.";
-          setNoticeSettings({ enabled, text });
-        }
-      } catch (error) {
-        console.error("Failed to fetch notice settings:", error);
-      }
-    };
-
-    fetchNoticeSettings();
-  }, []);
+  const { get } = useSettings();
+  const noticeSettings = {
+    enabled: get("student_notice_enabled", "true") === "true",
+    text: get("student_notice_text", "Important Note: Attendance criteria for Spring, 2026 is 75%."),
+  };
 
   // Fetch enrollments
   useEffect(() => {

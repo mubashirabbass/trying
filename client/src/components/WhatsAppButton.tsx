@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from "react";
 import { ChevronDown, ChevronLeft, X } from "lucide-react";
+import { useSettings } from "@/lib/SettingsContext";
 
 const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 const DEFAULT_WA            = "923019890076";
@@ -56,30 +57,19 @@ const LiveChatIcon = () => (
 );
 
 export function WhatsAppButton() {
-  const [waNumber, setWaNumber]   = useState(DEFAULT_WA);
-  const [fbUrl, setFbUrl]         = useState("https://m.me/globalcollege");
-  const [igUrl, setIgUrl]         = useState("https://instagram.com/globalcollege");
-  const [tawkProp, setTawkProp]   = useState(DEFAULT_TAWK_PROPERTY);
-  const [tawkWid, setTawkWid]     = useState(DEFAULT_TAWK_WIDGET);
+  const { get } = useSettings();
+
+  const rawWa       = get("site_whatsapp", DEFAULT_WA);
+  const waNumber    = rawWa.replace(/[\s\-+]/g, "") || DEFAULT_WA;
+  const fbUrl       = get("site_facebook",  "https://m.me/globalcollege");
+  const igUrl       = get("site_instagram", "https://instagram.com/globalcollege");
+  const tawkProp    = get("tawk_property_id", DEFAULT_TAWK_PROPERTY);
+  const tawkWid     = get("tawk_widget_id",   DEFAULT_TAWK_WIDGET);
 
   const [open, setOpen]           = useState(false);
   const [view, setView]           = useState<"menu" | "livechat">("menu");
   const [visible, setVisible]     = useState(false);
 
-  /* ── Fetch settings ── */
-  useEffect(() => {
-    fetch(`${BASE}/api/settings`)
-      .then(r => r.ok ? r.json() : [])
-      .then((s: { key: string; value: string }[]) => {
-        const g = (k: string) => s.find(x => x.key === k)?.value || "";
-        const wa = g("site_whatsapp"); if (wa) setWaNumber(wa.replace(/[\s\-+]/g, ""));
-        const fb = g("site_facebook"); if (fb) setFbUrl(fb);
-        const ig = g("site_instagram"); if (ig) setIgUrl(ig);
-        const tp = g("tawk_property_id") || DEFAULT_TAWK_PROPERTY; setTawkProp(tp);
-        const tw = g("tawk_widget_id")   || DEFAULT_TAWK_WIDGET;   setTawkWid(tw);
-      })
-      .catch(() => {});
-  }, []);
 
   /* ── Show button after mount ── */
   useEffect(() => {

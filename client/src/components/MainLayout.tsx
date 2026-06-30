@@ -2,9 +2,20 @@ import { ReactNode } from "react";
 import { Navbar } from "./Navbar";
 import { Link } from "wouter";
 import { WhatsAppButton } from "./WhatsAppButton";
-import { Facebook, Instagram, Twitter, Youtube, MapPin, Phone, Mail } from "lucide-react";
+import { useSettings } from "@/lib/SettingsContext";
+import { Facebook, Instagram, Youtube, MapPin, Phone, Mail } from "lucide-react";
 
 export function MainLayout({ children }: { children: ReactNode }) {
+  const { get } = useSettings();
+
+  const siteName    = get("site_name",    "Global College");
+  const sitePhone   = get("site_phone",   "+92 300 1234567");
+  const siteEmail   = get("site_email",   "info@globalcollege.edu.pk");
+  const siteAddress = get("site_address", "123 Education Street, Lahore");
+  const siteFacebook  = get("site_facebook",  "#");
+  const siteInstagram = get("site_instagram", "#");
+  const siteYoutube   = get("site_youtube",   "#");
+
   return (
     <div className="min-h-[100dvh] flex flex-col bg-gray-50">
       <Navbar />
@@ -21,16 +32,15 @@ export function MainLayout({ children }: { children: ReactNode }) {
                 <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
                   <span className="text-white text-sm font-bold">GC</span>
                 </div>
-                Global College
+                {siteName}
               </h3>
               <p className="text-sm text-gray-400">
                 Empowering students with world-class education in IT, Graphics, and AI.
               </p>
               <div className="flex space-x-4">
-                <a href="#" className="text-gray-400 hover:text-white transition-colors"><Facebook className="h-5 w-5" /></a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors"><Instagram className="h-5 w-5" /></a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors"><Twitter className="h-5 w-5" /></a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors"><Youtube className="h-5 w-5" /></a>
+                <a href={siteFacebook} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors"><Facebook className="h-5 w-5" /></a>
+                <a href={siteInstagram} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors"><Instagram className="h-5 w-5" /></a>
+                <a href={siteYoutube} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors"><Youtube className="h-5 w-5" /></a>
               </div>
             </div>
             
@@ -61,22 +71,22 @@ export function MainLayout({ children }: { children: ReactNode }) {
               <ul className="space-y-4 text-sm">
                 <li className="flex items-start gap-3">
                   <MapPin className="h-5 w-5 text-primary shrink-0" />
-                  <span>123 Education Street, Tech Block, Lahore, Pakistan</span>
+                  <span>{siteAddress}</span>
                 </li>
                 <li className="flex items-center gap-3">
                   <Phone className="h-5 w-5 text-primary shrink-0" />
-                  <span>+92 300 1234567</span>
+                  <a href={`tel:${sitePhone.replace(/\s/g, "")}`} className="hover:text-white transition-colors">{sitePhone}</a>
                 </li>
                 <li className="flex items-center gap-3">
                   <Mail className="h-5 w-5 text-primary shrink-0" />
-                  <span>info@globalcollege.edu.pk</span>
+                  <a href={`mailto:${siteEmail}`} className="hover:text-white transition-colors">{siteEmail}</a>
                 </li>
               </ul>
             </div>
           </div>
           
           <div className="border-t border-gray-800 mt-12 pt-8 text-sm text-center text-gray-400">
-            <p>&copy; {new Date().getFullYear()} Global College LMS. All rights reserved. | Developed by <a href="#" className="hover:text-white transition-colors font-semibold">MB soft and tech</a></p>
+            <p>&copy; {new Date().getFullYear()} {siteName} LMS. All rights reserved. | Developed by <a href="#" className="hover:text-white transition-colors font-semibold">MB soft and tech</a></p>
           </div>
         </div>
       </footer>

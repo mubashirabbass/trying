@@ -75,6 +75,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { CriticalAnnouncementPopup } from "@/components/CriticalAnnouncementPopup";
+import { useSettings } from "@/lib/SettingsContext";
 
 const CATEGORY_COLORS: Record<string, string> = {
   IT: "from-blue-600 to-blue-400",
@@ -154,6 +155,15 @@ const fetchPublic = async (path: string) => {
 
 export default function Home() {
   console.log("Home component rendering");
+  const { get } = useSettings();
+
+  const siteName          = get("site_name",            "Global College");
+  const heroTitle         = get("hero_title",           "Learn from the Best Industry Experts");
+  const heroSubtitle      = get("hero_subtitle",        "Start your journey today with our world-class courses designed to help you excel in the digital age.");
+  const heroCTAText       = get("hero_cta_text",        "Browse Courses");
+  const aboutTitle        = get("about_section_title",  "Empowering Next Generation of Professionals");
+  const aboutContent      = get("about_section_content", "Global College is dedicated to providing high-quality technical and professional education to students across Pakistan.");
+
   const { data: courses } = useListCourses(
     { featured: true },
     { query: { queryKey: getListCoursesQueryKey({ featured: true }) } }
@@ -483,18 +493,26 @@ export default function Home() {
         <div className="relative z-20 w-full px-4 md:px-10 lg:px-16 text-center text-white">
           <div className="mb-8">
             <span className="bg-[#e6fcf5] text-[#0ca678] border border-[#b2f2bb] rounded-md px-6 py-2.5 text-sm md:text-base font-bold shadow-lg uppercase tracking-wider">
-              Global College — Redefining Digital Excellence in Pakistan
+              {siteName} — Redefining Digital Excellence in Pakistan
             </span>
           </div>
           
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-black leading-tight mb-12 drop-shadow-2xl">
-            Empowering the Next Generation of <span className="text-[#ffec99]">Digital Leaders Globally</span>
+            {heroTitle.includes("Digital") || heroTitle.includes("Next") ? (
+              <>{heroTitle.split(/(?=Digital|Next)/)[0]}<span className="text-[#ffec99]">{heroTitle.split(/(?=Digital|Next)/)[1] ?? ""}</span></>
+            ) : (
+              heroTitle
+            )}
           </h1>
+          
+          <p className="text-slate-200 text-lg md:text-xl max-w-3xl mx-auto mb-12 font-medium leading-relaxed drop-shadow-md">
+            {heroSubtitle}
+          </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
             <Link href="/courses">
               <Button className="bg-[#20c997] hover:bg-[#12b886] text-white font-bold text-lg px-10 h-16 rounded-xl shadow-xl transition-all hover:scale-105 flex items-center gap-2 border-0">
-                Start Your Training <ChevronRight className="h-5 w-5" />
+                {heroCTAText} <ChevronRight className="h-5 w-5" />
               </Button>
             </Link>
             <Link href="/success-stories">

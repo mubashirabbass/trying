@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/MainLayout";
+import { useSettings } from "@/lib/SettingsContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +14,12 @@ export default function Contact() {
   const { toast } = useToast();
   const [branches, setBranches] = useState<any[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(true);
+  const { get } = useSettings();
+
+  const sitePhone = get("site_phone", "+92 300 1234567");
+  const siteWhatsapp = get("site_whatsapp", "923001234567");
+  const siteEmail = get("site_email", "info@globalcollege.edu.pk");
+  const siteAddress = get("site_address", "18 Hazari, Jhang District, Punjab, Pakistan");
 
   useEffect(() => {
     fetch(`${BASE_URL}/api/branches`)
@@ -58,7 +65,7 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Main Campus</h3>
-                  <p className="text-gray-600 mt-1">18 Hazari, Jhang District,<br />Punjab, Pakistan</p>
+                  <p className="text-gray-600 mt-1">{siteAddress}</p>
                 </div>
               </div>
               
@@ -68,7 +75,11 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Phone & WhatsApp</h3>
-                  <p className="text-gray-600 mt-1">+92 301 989 0076<br />+92 300 1234567</p>
+                  <p className="text-gray-600 mt-1">
+                    <a href={`tel:${sitePhone.replace(/\s/g, "")}`} className="hover:underline">{sitePhone}</a>
+                    <br />
+                    <a href={`https://wa.me/${siteWhatsapp}`} className="hover:underline" target="_blank" rel="noreferrer">WhatsApp: {sitePhone}</a>
+                  </p>
                 </div>
               </div>
               
@@ -78,7 +89,9 @@ export default function Contact() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Email</h3>
-                  <p className="text-gray-600 mt-1">info@globalcollege.edu.pk<br />support@globalcollege.edu.pk</p>
+                  <p className="text-gray-600 mt-1">
+                    <a href={`mailto:${siteEmail}`} className="hover:underline">{siteEmail}</a>
+                  </p>
                 </div>
               </div>
               

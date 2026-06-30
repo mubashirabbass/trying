@@ -1,44 +1,30 @@
 import { useState, useEffect } from "react";
 import { X, AlertTriangle } from "lucide-react";
+import { useSettings } from "@/lib/SettingsContext";
 
-const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 const SESSION_KEY = "critical_popup_dismissed_v2";
 
 export function CriticalAnnouncementPopup() {
+  const { get, loading } = useSettings();
   const [visible, setVisible] = useState(false);
   const [animateIn, setAnimateIn] = useState(false);
-  const [title, setTitle] = useState("Important Announcement");
-  const [message, setMessage] = useState("");
+
+  const enabled = get("critical_popup_enabled", "false");
+  const title   = get("critical_popup_title",   "Important Announcement");
+  const message = get("critical_popup_message", "");
 
   useEffect(() => {
     // Don't show again if already dismissed this session
     if (sessionStorage.getItem(SESSION_KEY) === "true") return;
+    // Wait until settings have loaded
+    if (loading) return;
 
-    const load = async () => {
-      try {
-        const r = await fetch(`${BASE}/api/settings`);
-        if (!r.ok) return;
-        const data: Array<{ key: string; value: string }> = await r.json();
-
-        const settingsMap = new Map(data.map((s) => [s.key, s.value]));
-        const enabled = settingsMap.get("critical_popup_enabled");
-        const popupTitle = settingsMap.get("critical_popup_title") || "Important Announcement";
-        const popupMessage = settingsMap.get("critical_popup_message") || "";
-
-        if (enabled === "true" && popupMessage.trim()) {
-          setTitle(popupTitle);
-          setMessage(popupMessage);
-          setVisible(true);
-          // Trigger slide-in animation after a small delay
-          setTimeout(() => setAnimateIn(true), 50);
-        }
-      } catch {
-        // Fail silently — popup is optional
-      }
-    };
-
-    load();
-  }, []);
+    if (enabled === "true" && message.trim()) {
+      setVisible(true);
+      // Trigger slide-in animation after a small delay
+      setTimeout(() => setAnimateIn(true), 50);
+    }
+  }, [loading, enabled, message]);
 
   const handleClose = () => {
     setAnimateIn(false);

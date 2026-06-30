@@ -1,6 +1,7 @@
 import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/AuthContext";
+import { useSettings } from "@/lib/SettingsContext";
 import { useTheme } from "next-themes";
 import {
   LayoutDashboard,
@@ -216,6 +217,8 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, setTheme } = useTheme();
+  const { get } = useSettings();
+  const siteName = get("site_name", "Global College");
 
   const [unreadMessages, setUnreadMessages] = useState<number>(() => {
     const val = localStorage.getItem("unread_messages_count");
@@ -392,7 +395,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
               <BookOpen className="h-4 w-4 text-white" />
             </div>
             <div>
-              <p className="font-bold text-sm text-sidebar-foreground leading-tight">Global College</p>
+              <p className="font-bold text-sm text-sidebar-foreground leading-tight">{siteName}</p>
               <p className="text-xs text-sidebar-foreground/60 capitalize">{user.role} Panel</p>
             </div>
           </Link>
@@ -554,6 +557,19 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           >
             <Menu className="h-5 w-5" />
           </button>
+
+          {/* Student Portal notice banner - fully controlled by admin settings */}
+          {user.role === "student" && get("student_notice_enabled", "true") === "true" && (
+            <div className="mb-6 bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/30 text-amber-800 dark:text-amber-300 rounded-xl py-3 px-4 text-xs font-semibold overflow-hidden relative flex items-center gap-2">
+              <Megaphone className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 animate-bounce" />
+              <div className="flex-1 overflow-hidden">
+                <div className="whitespace-nowrap animate-marquee">
+                  {get("student_notice_text", "Important Note: Attendance criteria for Spring, 2026 is 75%.")}
+                </div>
+              </div>
+            </div>
+          )}
+
           {children}
         </div>
     </div>

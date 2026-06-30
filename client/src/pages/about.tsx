@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/MainLayout";
+import { useSettings } from "@/lib/SettingsContext";
 import { Link } from "wouter";
 import {
   Loader2, User, X, Mail, BookOpen, Briefcase, Award,
@@ -36,6 +37,11 @@ export default function About() {
   const [teachers, setTeachers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTeacher, setSelectedTeacher] = useState<any | null>(null);
+  const { get } = useSettings();
+
+  const siteName     = get("site_name", "Global College");
+  const aboutTitle   = get("about_section_title", "We Don't Just Teach. We Create Earners.");
+  const aboutContent = get("about_section_content", "Since 2018, Global College has been Pakistan's most trusted name in eBay, Etsy, and eCommerce education — turning beginners into six and seven-figure earners.");
 
   useEffect(() => {
     fetch(`${BASE_URL}/api/teachers/public`)
@@ -58,14 +64,17 @@ export default function About() {
         <div className="relative z-10 max-w-6xl mx-auto px-6 py-24 md:py-32 grid md:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
             <span className="inline-block bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-black uppercase tracking-widest px-4 py-2 rounded-full">
-              About Global College
+              About {siteName}
             </span>
             <h1 className="text-4xl md:text-6xl font-black leading-tight">
-              We Don't Just Teach.<br />
-              <span className="text-emerald-400">We Create Earners.</span>
+              {aboutTitle.includes(".") ? (
+                <>{aboutTitle.split(".")[0]}.<br /><span className="text-emerald-400">{aboutTitle.split(".")[1] || ""}</span></>
+              ) : (
+                aboutTitle
+              )}
             </h1>
             <p className="text-slate-300 text-lg leading-relaxed max-w-lg">
-              Since 2018, Global College has been Pakistan's most trusted name in eBay, Etsy, and eCommerce education — turning beginners into six and seven-figure earners.
+              {aboutContent}
             </p>
             <div className="flex flex-wrap gap-4 pt-2">
               <Link href="/courses">
