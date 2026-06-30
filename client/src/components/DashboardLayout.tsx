@@ -547,7 +547,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6 bg-background h-full">
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6 bg-background h-full custom-scrollbar">
           {/* Mobile menu trigger — floats over content on small screens */}
           <button
             className="lg:hidden fixed top-3 left-3 z-40 text-muted-foreground hover:text-foreground bg-card border border-border rounded-md p-1.5 shadow-sm"

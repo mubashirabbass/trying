@@ -52,8 +52,8 @@ app.use(cors({
 })); // Enable CORS
 
 // 2. Request Parsing & Sanitization
-app.use(express.json({ limit: "10kb" })); // Body parser, reading data from body into req.body
-app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+app.use(express.json({ limit: "10mb" })); // Body parser, reading data from body into req.body
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(xssClean()); // Data sanitization against XSS
 
 // 3. Request Logging

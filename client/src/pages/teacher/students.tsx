@@ -482,13 +482,23 @@ function StudentTable({
                     </Badge>
                   </td>
                   <td className="border-r border-slate-100 px-2 py-2">
-                    <div className="flex flex-wrap gap-1">
-                      <Badge className={`border px-1.5 py-0 text-[9px] font-black uppercase hover:bg-inherit ${student.isEmailVerified ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-slate-50 text-slate-500 border-slate-100"}`}>
-                        Email
-                      </Badge>
-                      <Badge className={`border px-1.5 py-0 text-[9px] font-black uppercase hover:bg-inherit ${student.isIdentityVerified ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-amber-50 text-amber-700 border-amber-100"}`}>
-                        ID
-                      </Badge>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {student.identityDocumentUrl ? (
+                        <a href={student.identityDocumentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg font-black text-[10px] transition-colors shadow-sm" title="View CNIC / Identity Document">
+                          <FileText className="h-3 w-3" /> CNIC
+                        </a>
+                      ) : (
+                        <Badge className={`border px-1.5 py-0.5 text-[9px] font-black uppercase hover:bg-inherit ${student.isIdentityVerified ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-100"}`}>
+                          ID
+                        </Badge>
+                      )}
+                      {student.educationDocumentUrl ? (
+                        <a href={student.educationDocumentUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg font-black text-[10px] transition-colors shadow-sm" title="View Education Document">
+                          <FileText className="h-3 w-3" /> Result
+                        </a>
+                      ) : (
+                        <Badge className="bg-slate-50 text-slate-400 border border-slate-100 px-1.5 py-0.5 text-[9px] font-black uppercase hover:bg-inherit">Edu</Badge>
+                      )}
                     </div>
                   </td>
                   <td className="px-2 py-2 font-mono text-[11px] font-bold text-slate-500">

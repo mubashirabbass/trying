@@ -27,6 +27,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -84,10 +94,65 @@ const CATEGORY_DETAILS: Record<string, { label: string; icon: React.ComponentTyp
   }
 };
 
+const MetricCardSkeleton = () => (
+  <Card className="border border-slate-150/80 bg-white dark:bg-slate-900 shadow-sm rounded-2xl overflow-hidden animate-pulse">
+    <CardContent className="p-5 flex items-center justify-between">
+      <div className="space-y-2 flex-1">
+        <div className="h-3 w-20 bg-slate-200 dark:bg-slate-800 rounded" />
+        <div className="h-8 w-12 bg-slate-200 dark:bg-slate-800 rounded" />
+      </div>
+      <div className="h-11 w-11 rounded-xl bg-slate-150 dark:bg-slate-850 shrink-0" />
+    </CardContent>
+  </Card>
+);
+
+const TableRowSkeleton = () => (
+  <TableRow className="border-b border-slate-100 dark:border-slate-800 animate-pulse">
+    <TableCell className="px-6 py-4">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-14 rounded-lg bg-slate-200 dark:bg-slate-800 shrink-0" />
+        <div className="space-y-2 flex-1">
+          <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-40" />
+          <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-20" />
+        </div>
+      </div>
+    </TableCell>
+    <TableCell className="px-6 py-4">
+      <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded w-24" />
+    </TableCell>
+    <TableCell className="px-6 py-4">
+      <div className="h-5 bg-slate-200 dark:bg-slate-800 rounded w-16" />
+    </TableCell>
+    <TableCell className="px-6 py-4">
+      <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-12" />
+    </TableCell>
+    <TableCell className="px-6 py-4">
+      <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-16" />
+    </TableCell>
+    <TableCell className="px-6 py-4">
+      <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-10" />
+    </TableCell>
+    <TableCell className="px-6 py-4 text-right">
+      <div className="h-8 w-8 bg-slate-200 dark:bg-slate-800 rounded-lg ml-auto" />
+    </TableCell>
+  </TableRow>
+);
+
 export default function AdminCourses() {
+  const [categoryToDelete, setCategoryToDelete] = useState<number | null>(null);
+  const [courseToDelete, setCourseToDelete] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { data: courses, isLoading } = useListCourses({}, { query: { queryKey: getListCoursesQueryKey({}) } });
+  const { data: courses, isLoading } = useListCourses(
+    { limit: 1000 } as any,
+    {
+      query: {
+        queryKey: getListCoursesQueryKey({ limit: 1000 } as any),
+        staleTime: 60000, // Cache for 60 seconds
+        refetchOnWindowFocus: false,
+      },
+    }
+  );
   const updateCourse = useUpdateCourse();
   const createCourse = useCreateCourse();
   const deleteCourseMutation = useDeleteCourse();
@@ -96,12 +161,20 @@ export default function AdminCourses() {
   // Fetch teachers for selection
   const { data: teachers } = useListUsers(
     { role: "teacher" },
-    { query: { queryKey: getListUsersQueryKey({ role: "teacher" }) } }
+    {
+      query: {
+        queryKey: getListUsersQueryKey({ role: "teacher" }),
+        staleTime: 120000, // Teachers list changes infrequently, cache for 2 minutes
+        refetchOnWindowFocus: false,
+      },
+    }
   );
 
   // Dynamic Course Categories Queries & Mutations
   const { data: dbCategories = [], refetch: refetchCategories } = useQuery<any[]>({
     queryKey: ["course-categories"],
+    staleTime: 120000, // Cache categories list for 2 minutes
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -127,7 +200,11 @@ export default function AdminCourses() {
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!categoryName || !categorySlug) {
-      toast({ title: "Name and Slug are required", variant: "destructive" });
+      toast({
+        title: "Validation Error",
+        description: "Name and Slug are required",
+        variant: "destructive",
+      });
       return;
     }
     try {
@@ -141,19 +218,26 @@ export default function AdminCourses() {
         body: JSON.stringify({ name: categoryName, slug: categorySlug, description: categoryDesc })
       });
       if (!res.ok) throw new Error("Failed to save category");
-      toast({ title: editingCategory ? "Category updated successfully!" : "Category created successfully!" });
+      toast({
+        title: editingCategory ? "Category Updated" : "Category Created",
+        description: editingCategory ? "Category updated successfully!" : "Category created successfully!",
+        variant: "success",
+      });
       setCategoryName("");
       setCategorySlug("");
       setCategoryDesc("");
       setEditingCategory(null);
       refetchCategories();
     } catch (err) {
-      toast({ title: "Error saving category", variant: "destructive" });
+      toast({
+        title: "Save Failed",
+        description: "Error saving category",
+        variant: "destructive",
+      });
     }
   };
 
   const handleDeleteCategory = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this category?")) return;
     try {
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -162,10 +246,18 @@ export default function AdminCourses() {
         headers
       });
       if (!res.ok) throw new Error("Failed to delete category");
-      toast({ title: "Category deleted successfully!" });
+      toast({
+        title: "Category Deleted",
+        description: "Category deleted successfully!",
+        variant: "destructive",
+      });
       refetchCategories();
     } catch (err) {
-      toast({ title: "Error deleting category", variant: "destructive" });
+      toast({
+        title: "Delete Failed",
+        description: "Error deleting category",
+        variant: "destructive",
+      });
     }
   };
 
@@ -256,8 +348,12 @@ export default function AdminCourses() {
           totalDurationHours: Number(totalDurationHours),
         } as any
       });
-      toast({ title: "Course created & published successfully!" });
-      queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({}) });
+      toast({
+        title: "Course Created",
+        description: "Course created & published successfully!",
+        variant: "success",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/courses'] });
       setIsCreateOpen(false);
       // Reset form
       setTitle("");
@@ -274,19 +370,29 @@ export default function AdminCourses() {
       setMinAttendancePercentage("75");
       setTotalDurationHours("40");
     } catch (error: any) {
-      toast({ title: error?.response?.data?.message || "Failed to create course", variant: "destructive" });
+      toast({
+        title: "Creation Failed",
+        description: error?.response?.data?.message || "Failed to create course",
+        variant: "destructive",
+      });
     }
   };
 
   const handleDeleteCourse = async (id: number) => {
-    if (window.confirm("Are you sure you want to delete this course? This action cannot be undone and will delete all associated lessons and assignments.")) {
-      try {
-        await deleteCourseMutation.mutateAsync({ id });
-        toast({ title: "Course Deleted", description: "The course has been successfully removed." });
-        queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({}) });
-      } catch (error) {
-        toast({ title: "Failed to delete course", variant: "destructive" });
-      }
+    try {
+      await deleteCourseMutation.mutateAsync({ id });
+      toast({
+        title: "Course Deleted",
+        description: "The course has been successfully removed.",
+        variant: "destructive",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/courses'] });
+    } catch (error) {
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete course",
+        variant: "destructive",
+      });
     }
   };
 
@@ -296,10 +402,18 @@ export default function AdminCourses() {
         id,
         data: { status } as any
       });
-      toast({ title: "Status Updated", description: `Course status successfully set to ${status.toUpperCase()}.` });
-      queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({}) });
+      toast({
+        title: "Status Updated",
+        description: `Course status successfully set to ${status.toUpperCase()}.`,
+        variant: "success",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/courses'] });
     } catch (error) {
-      toast({ title: "Failed to update status", variant: "destructive" });
+      toast({
+        title: "Update Failed",
+        description: "Failed to update status",
+        variant: "destructive",
+      });
     }
   };
 
@@ -339,17 +453,6 @@ export default function AdminCourses() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="flex flex-col justify-center items-center h-80 space-y-4">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <span className="text-sm text-slate-500 font-bold tracking-wide">Syncing Curriculum Ledger...</span>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   return (
     <DashboardLayout>
       {/* Header section with Action Button */}
@@ -384,64 +487,74 @@ export default function AdminCourses() {
 
       {/* Metrics overview bar */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
-        
-        {/* Total Courses Card */}
-        <Card className="border border-slate-150/80 bg-white dark:bg-slate-900 shadow-sm rounded-2xl overflow-hidden relative">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-xxs font-black text-slate-450 uppercase tracking-widest block">Total Curriculum</span>
-              <span className="text-3xl font-black text-slate-850 dark:text-white block">{totalCourses}</span>
-            </div>
-            <div className="h-11 w-11 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
-              <BookOpen className="h-5.5 w-5.5" />
-            </div>
-          </CardContent>
-        </Card>
+        {isLoading ? (
+          <>
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+          </>
+        ) : (
+          <>
+            {/* Total Courses Card */}
+            <Card className="border border-slate-150/80 bg-white dark:bg-slate-900 shadow-sm rounded-2xl overflow-hidden relative">
+              <CardContent className="p-5 flex items-center justify-between">
+                <div className="space-y-1">
+                  <span className="text-xxs font-black text-slate-450 uppercase tracking-widest block">Total Curriculum</span>
+                  <span className="text-3xl font-black text-slate-850 dark:text-white block">{totalCourses}</span>
+                </div>
+                <div className="h-11 w-11 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                  <BookOpen className="h-5.5 w-5.5" />
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Pending Review Card with blink glow */}
-        <Card className={`border rounded-2xl overflow-hidden relative shadow-sm transition-all ${
-          pendingReviews > 0 
-            ? "border-amber-250 bg-amber-50/20 dark:bg-amber-950/5 animate-[pulse_3s_infinite]" 
-            : "border-slate-150/80 bg-white dark:bg-slate-900"
-        }`}>
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-xxs font-black text-slate-450 uppercase tracking-widest block">Pending Reviews</span>
-              <span className="text-3xl font-black text-slate-850 dark:text-white block">{pendingReviews}</span>
-            </div>
-            <div className={`h-11 w-11 rounded-xl flex items-center justify-center ${
-              pendingReviews > 0 ? "bg-amber-500/20 text-amber-600" : "bg-slate-100 text-slate-500 dark:bg-slate-800"
+            {/* Pending Review Card with blink glow */}
+            <Card className={`border rounded-2xl overflow-hidden relative shadow-sm transition-all ${
+              pendingReviews > 0 
+                ? "border-amber-250 bg-amber-50/20 dark:bg-amber-950/5 animate-[pulse_3s_infinite]" 
+                : "border-slate-150/80 bg-white dark:bg-slate-900"
             }`}>
-              {pendingReviews > 0 ? <AlertCircle className="h-5.5 w-5.5" /> : <Clock className="h-5.5 w-5.5" />}
-            </div>
-          </CardContent>
-        </Card>
+              <CardContent className="p-5 flex items-center justify-between">
+                <div className="space-y-1">
+                  <span className="text-xxs font-black text-slate-450 uppercase tracking-widest block">Pending Reviews</span>
+                  <span className="text-3xl font-black text-slate-850 dark:text-white block">{pendingReviews}</span>
+                </div>
+                <div className={`h-11 w-11 rounded-xl flex items-center justify-center ${
+                  pendingReviews > 0 ? "bg-amber-500/20 text-amber-600" : "bg-slate-100 text-slate-500 dark:bg-slate-800"
+                }`}>
+                  {pendingReviews > 0 ? <AlertCircle className="h-5.5 w-5.5" /> : <Clock className="h-5.5 w-5.5" />}
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Live Courses Card */}
-        <Card className="border border-slate-150/80 bg-white dark:bg-slate-900 shadow-sm rounded-2xl overflow-hidden relative">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-xxs font-black text-slate-450 uppercase tracking-widest block">Live Programs</span>
-              <span className="text-3xl font-black text-slate-850 dark:text-white block">{liveTracks}</span>
-            </div>
-            <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
-              <CheckCircle className="h-5.5 w-5.5" />
-            </div>
-          </CardContent>
-        </Card>
+            {/* Live Courses Card */}
+            <Card className="border border-slate-150/80 bg-white dark:bg-slate-900 shadow-sm rounded-2xl overflow-hidden relative">
+              <CardContent className="p-5 flex items-center justify-between">
+                <div className="space-y-1">
+                  <span className="text-xxs font-black text-slate-450 uppercase tracking-widest block">Live Programs</span>
+                  <span className="text-3xl font-black text-slate-850 dark:text-white block">{liveTracks}</span>
+                </div>
+                <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                  <CheckCircle className="h-5.5 w-5.5" />
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Registrations count Card */}
-        <Card className="border border-slate-150/80 bg-white dark:bg-slate-900 shadow-sm rounded-2xl overflow-hidden relative">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-xxs font-black text-slate-450 uppercase tracking-widest block">Global Enrolments</span>
-              <span className="text-3xl font-black text-slate-850 dark:text-white block">{totalStudentsEnrolled.toLocaleString()}</span>
-            </div>
-            <div className="h-11 w-11 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
-              <Users className="h-5.5 w-5.5" />
-            </div>
-          </CardContent>
-        </Card>
+            {/* Registrations count Card */}
+            <Card className="border border-slate-150/80 bg-white dark:bg-slate-900 shadow-sm rounded-2xl overflow-hidden relative">
+              <CardContent className="p-5 flex items-center justify-between">
+                <div className="space-y-1">
+                  <span className="text-xxs font-black text-slate-450 uppercase tracking-widest block">Global Enrolments</span>
+                  <span className="text-3xl font-black text-slate-850 dark:text-white block">{totalStudentsEnrolled.toLocaleString()}</span>
+                </div>
+                <div className="h-11 w-11 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                  <Users className="h-5.5 w-5.5" />
+                </div>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       {/* Dynamic Curriculum Sections Tab Bar */}
@@ -525,8 +638,28 @@ export default function AdminCourses() {
       {/* Upgraded Administrative Table */}
       <Card className="border border-slate-150/85 dark:border-slate-800/80 shadow-sm rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
         <CardContent className="p-0">
-          
-          {filteredCourses?.length === 0 ? (
+          {isLoading ? (
+            <Table>
+              <TableHeader className="bg-slate-50/60 dark:bg-slate-950/40 border-b border-slate-100 dark:border-slate-800">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="font-bold text-slate-500 dark:text-slate-400 text-xs px-6 py-4">Title & Faculty</TableHead>
+                  <TableHead className="font-bold text-slate-500 dark:text-slate-400 text-xs px-6 py-4">Specialization</TableHead>
+                  <TableHead className="font-bold text-slate-500 dark:text-slate-400 text-xs px-6 py-4">Status</TableHead>
+                  <TableHead className="font-bold text-slate-500 dark:text-slate-400 text-xs px-6 py-4">Tuition Fee</TableHead>
+                  <TableHead className="font-bold text-slate-500 dark:text-slate-400 text-xs px-6 py-4">Lectures</TableHead>
+                  <TableHead className="font-bold text-slate-500 dark:text-slate-400 text-xs px-6 py-4">Enrolled Students</TableHead>
+                  <TableHead className="font-bold text-slate-500 dark:text-slate-400 text-xs px-6 py-4 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRowSkeleton />
+                <TableRowSkeleton />
+                <TableRowSkeleton />
+                <TableRowSkeleton />
+                <TableRowSkeleton />
+              </TableBody>
+            </Table>
+          ) : filteredCourses?.length === 0 ? (
             <div className="text-center py-20 px-4">
               <BookOpen className="h-12 w-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
               <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">No courses match criteria</h3>
@@ -706,8 +839,8 @@ export default function AdminCourses() {
                             <div className="h-px bg-slate-100 my-1" />
 
                             <DropdownMenuItem 
-                              className="text-red-600 cursor-pointer font-bold text-xs rounded-lg hover:bg-red-50"
-                              onClick={() => handleDeleteCourse(course.id)}
+                              className="text-red-650 cursor-pointer font-bold text-xs rounded-lg hover:bg-red-50"
+                              onClick={() => setCourseToDelete(course.id)}
                             >
                               <Trash2 className="h-4 w-4 mr-2 text-red-650" /> Delete Course
                             </DropdownMenuItem>
@@ -1038,7 +1171,7 @@ export default function AdminCourses() {
                 )}
                 <Button 
                   type="submit" 
-                  className="h-11 rounded-xl font-bold text-xs bg-indigo-650 hover:bg-indigo-750 text-white"
+                  className="h-11 rounded-xl font-bold text-xs bg-indigo-600 hover:bg-indigo-700 text-white"
                 >
                   {editingCategory ? "Update Category" : "Add Category"}
                 </Button>
@@ -1086,7 +1219,7 @@ export default function AdminCourses() {
                           size="icon"
                           type="button"
                           variant="ghost"
-                          onClick={() => handleDeleteCategory(cat.id)}
+                          onClick={() => setCategoryToDelete(cat.id)}
                           className="h-7 w-7 rounded-md text-slate-500 hover:text-rose-600 hover:bg-rose-50 animate-none shrink-0"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -1100,6 +1233,58 @@ export default function AdminCourses() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Course Deletion Confirmation Dialog */}
+      <AlertDialog open={courseToDelete !== null} onOpenChange={(open) => !open && setCourseToDelete(null)}>
+        <AlertDialogContent className="rounded-[24px] bg-white border border-slate-100 shadow-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-black text-slate-800">Delete Course</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500 font-semibold text-xs mt-2">
+              Are you sure you want to delete this course? This action cannot be undone and will delete all associated lessons and assignments.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4 gap-2">
+            <AlertDialogCancel className="rounded-xl font-bold h-11 border border-slate-200 hover:bg-slate-50 text-xs">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (courseToDelete) {
+                  handleDeleteCourse(courseToDelete);
+                  setCourseToDelete(null);
+                }
+              }}
+              className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold h-11 text-xs px-6"
+            >
+              Delete Course
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Category Deletion Confirmation Dialog */}
+      <AlertDialog open={categoryToDelete !== null} onOpenChange={(open) => !open && setCategoryToDelete(null)}>
+        <AlertDialogContent className="rounded-[24px] bg-white border border-slate-100 shadow-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-black text-slate-800">Delete Category</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500 font-semibold text-xs mt-2">
+              Are you sure you want to delete this category? This action cannot be undone and courses using this category may need to be reassigned.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4 gap-2">
+            <AlertDialogCancel className="rounded-xl font-bold h-11 border border-slate-200 hover:bg-slate-50 text-xs">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (categoryToDelete) {
+                  handleDeleteCategory(categoryToDelete);
+                  setCategoryToDelete(null);
+                }
+              }}
+              className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold h-11 text-xs px-6"
+            >
+              Delete Category
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

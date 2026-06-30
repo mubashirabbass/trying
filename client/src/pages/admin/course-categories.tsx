@@ -47,6 +47,8 @@ export default function AdminCourseCategories() {
   // Fetch categories
   const { data: categories = [], isLoading } = useQuery<CourseCategory[]>({
     queryKey: ["course-categories"],
+    staleTime: 120000, // Cache for 2 minutes
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const token = localStorage.getItem("token") || sessionStorage.getItem("token");
       const response = await fetch("/api/course-categories", {

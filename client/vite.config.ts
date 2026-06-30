@@ -33,6 +33,10 @@ export default defineConfig({
         target: `http://127.0.0.1:${process.env.API_PORT || 8080}`,
         changeOrigin: true,
       },
+      "/uploads": {
+        target: `http://127.0.0.1:${process.env.API_PORT || 8080}`,
+        changeOrigin: true,
+      },
     },
   },
   preview: {

@@ -23,13 +23,19 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName
 
 const toastVariants = cva(
-  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-md border p-6 pr-8 shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
+  "group pointer-events-auto relative flex w-full items-center justify-between space-x-4 overflow-hidden rounded-[20px] border p-4.5 pr-8 shadow-2xl transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[swipe=end]:animate-out data-[state=closed]:fade-out-80 data-[state=closed]:slide-out-to-right-full data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full",
   {
     variants: {
       variant: {
-        default: "border bg-background text-foreground",
+        default: "border bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100",
         destructive:
-          "destructive group border-destructive bg-destructive text-destructive-foreground",
+          "border-rose-500/20 bg-rose-50 text-rose-900 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/40",
+        success:
+          "border-emerald-500/20 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/40",
+        warning:
+          "border-amber-500/20 bg-amber-50 text-amber-900 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/40",
+        info:
+          "border-blue-500/20 bg-blue-50 text-blue-900 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/40",
       },
     },
     defaultVariants: {

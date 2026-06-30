@@ -559,9 +559,24 @@ export default function AdminStudentDetail() {
                   </a>
                 </div>
               )}
+              {student.identityDocumentUrl && (
+                <div className="pt-2 border-t border-gray-50">
+                  <a 
+                    href={student.identityDocumentUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors text-slate-700 hover:text-slate-900 group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <IdCard className="h-4 w-4 text-slate-400 group-hover:text-slate-600" />
+                      <span className="text-xs font-bold truncate max-w-[180px]">Identity Document</span>
+                    </div>
+                    <ExternalLink className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-600" />
+                  </a>
+                </div>
+              )}
             </CardContent>
           </Card>
-
 
         </div>
 
@@ -743,8 +758,53 @@ export default function AdminStudentDetail() {
                         </div>
                       )}
 
+                      {/* Identity Document */}
+                      {student?.identityDocumentUrl && (
+                        <div className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100">
+                          <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600">
+                              <IdCard className="h-6 w-6" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-gray-900">Identity Document</h4>
+                              <p className="text-xs text-gray-500 font-medium">
+                                {student.cnic || "CNIC / B-Form verification document"}
+                              </p>
+                              {student.isIdentityVerified ? (
+                                <Badge className="bg-emerald-500 hover:bg-emerald-500 border-none text-white text-[10px] px-2 py-0.5 mt-1 font-bold">
+                                  Verified
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-amber-500 hover:bg-amber-500 border-none text-white text-[10px] px-2 py-0.5 mt-1 font-bold animate-pulse">
+                                  Pending Verification
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <a 
+                              href={student.identityDocumentUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="h-10 w-10 rounded-xl bg-white hover:bg-purple-100 flex items-center justify-center text-purple-600 transition-colors"
+                              title="View Document"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </a>
+                            <a 
+                              href={student.identityDocumentUrl} 
+                              download
+                              className="h-10 w-10 rounded-xl bg-white hover:bg-purple-100 flex items-center justify-center text-purple-600 transition-colors"
+                              title="Download Document"
+                            >
+                              <Download className="h-4 w-4" />
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
                       {/* No Documents Message */}
-                      {!student?.educationDocumentUrl && (
+                      {!student?.educationDocumentUrl && !student?.identityDocumentUrl && (
                         <div className="text-center py-12">
                           <File className="h-16 w-16 mx-auto text-gray-200 mb-4" />
                           <h3 className="text-lg font-bold text-gray-900 mb-2">No Documents Uploaded</h3>
@@ -755,13 +815,13 @@ export default function AdminStudentDetail() {
                       )}
 
                       {/* Document Summary */}
-                      {student?.educationDocumentUrl && (
+                      {(student?.educationDocumentUrl || student?.identityDocumentUrl) && (
                         <div className="mt-6 p-4 rounded-2xl bg-gray-50 border border-gray-100">
                           <div className="flex items-center justify-between">
                             <div>
                               <h4 className="font-bold text-gray-900 text-sm">Document Summary</h4>
                               <p className="text-xs text-gray-500 mt-1">
-                                Total documents: 1
+                                Total documents: {[student?.educationDocumentUrl, student?.identityDocumentUrl].filter(Boolean).length}
                               </p>
                             </div>
                           </div>

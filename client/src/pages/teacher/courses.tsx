@@ -165,7 +165,7 @@ export default function TeacherCourses() {
         if (!response.ok) {
           throw new Error(data?.error || "Failed to create course");
         }
-        toast({ title: "Course created successfully as draft!" });
+        toast({ title: "Course created & submitted for review!" });
       }
       queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({ teacherId: user?.id ?? undefined }) });
       setIsDialogOpen(false);

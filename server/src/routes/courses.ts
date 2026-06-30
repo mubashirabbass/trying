@@ -65,8 +65,8 @@ router.get("/courses", async (req, res): Promise<void> => {
   const limit = Number(req.query.limit) || 24;
   const offset = Number(req.query.offset) || 0;
 
-  // Set cache headers for better performance
-  res.set('Cache-Control', 'public, max-age=60'); // Cache for 60 seconds
+  // Disable browser caching so updates to status (make live, draft, archived) are reflected immediately
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
 
   let isStaff = false;
   try {
@@ -176,6 +176,9 @@ router.post("/courses", authenticate, authorize("admin", "teacher"), async (req:
   if (bodyCopy.syllabus === null) {
     delete bodyCopy.syllabus;
   }
+  if (bodyCopy.outlinePdfUrl === null) {
+    delete bodyCopy.outlinePdfUrl;
+  }
 
   const parsed = CreateCourseBody.safeParse(bodyCopy);
   if (!parsed.success) {
@@ -187,7 +190,7 @@ router.post("/courses", authenticate, authorize("admin", "teacher"), async (req:
   let insertData: any = {
     ...parsed.data,
     slug,
-    status: req.user.role === "admin" ? "live" : "draft"
+    status: req.user.role === "admin" ? "live" : "pending"
   };
 
   if (req.body.minAttendancePercentage !== undefined) {
@@ -219,7 +222,7 @@ router.get("/courses/reviews", authenticate, authorize("admin", "teacher"), asyn
       conditions.push(eq(coursesTable.teacherId, teacherId));
     }
 
-    const reviews = await db
+    const reviewsPromise = db
       .select({
         reviewId: lessonCompletionsTable.id,
         rating: lessonCompletionsTable.feedbackRating,
@@ -239,36 +242,19 @@ router.get("/courses/reviews", authenticate, authorize("admin", "teacher"), asyn
       .orderBy(desc(lessonCompletionsTable.completedAt));
 
     // Fetch all teachers in the system
-    let allTeachersList: { id: number; name: string }[] = [];
-    if (isTeacher) {
-      allTeachersList = [{ id: teacherId, name: req.user.name }];
-    } else {
-      allTeachersList = await db
-        .select({ id: usersTable.id, name: usersTable.name })
-        .from(usersTable)
-        .where(eq(usersTable.role, "teacher"));
-    }
-
-    const teacherMap = new Map<number, string>();
-    for (const t of allTeachersList) {
-      teacherMap.set(t.id, t.name);
-    }
-
-    // Enrich with teacherName using O(1) memory lookup map
-    const enriched = reviews.map((review) => {
-      const teacherName = review.teacherId ? (teacherMap.get(review.teacherId) || "Unassigned") : "Unassigned";
-      return {
-        ...review,
-        teacherName,
-      };
-    });
+    const teachersPromise = isTeacher
+      ? Promise.resolve([{ id: teacherId, name: req.user.name }])
+      : db
+          .select({ id: usersTable.id, name: usersTable.name })
+          .from(usersTable)
+          .where(eq(usersTable.role, "teacher"));
 
     // Fetch all courses in the system (or assigned to this teacher)
     let coursesQuery = db.select({ id: coursesTable.id, title: coursesTable.title }).from(coursesTable);
     if (isTeacher) {
       coursesQuery = coursesQuery.where(eq(coursesTable.teacherId, teacherId)) as any;
     }
-    const allCoursesList = await coursesQuery;
+    const coursesPromise = coursesQuery;
 
     // Fetch all students enrolled in any course (or this teacher's courses)
     let studentsQuery;
@@ -286,8 +272,29 @@ router.get("/courses/reviews", authenticate, authorize("admin", "teacher"), asyn
         .innerJoin(enrollmentsTable, eq(usersTable.id, enrollmentsTable.userId))
         .where(eq(usersTable.role, "student"));
     }
+    const studentsPromise = studentsQuery;
 
-    const rawStudents = await studentsQuery;
+    // Execute all queries in parallel
+    const [reviews, allTeachersList, allCoursesList, rawStudents] = await Promise.all([
+      reviewsPromise,
+      teachersPromise,
+      coursesPromise,
+      studentsPromise,
+    ]);
+
+    const teacherMap = new Map<number, string>();
+    for (const t of allTeachersList) {
+      teacherMap.set(t.id, t.name);
+    }
+
+    // Enrich with teacherName using O(1) memory lookup map
+    const enriched = reviews.map((review) => {
+      const teacherName = review.teacherId ? (teacherMap.get(review.teacherId) || "Unassigned") : "Unassigned";
+      return {
+        ...review,
+        teacherName,
+      };
+    });
     const studentMap = new Map();
     for (const s of rawStudents) {
       studentMap.set(s.id, s.name);
@@ -407,6 +414,9 @@ router.put("/courses/:id", authenticate, authorize("admin", "teacher"), async (r
   }
   if (bodyCopy.syllabus === null) {
     delete bodyCopy.syllabus;
+  }
+  if (bodyCopy.outlinePdfUrl === null) {
+    delete bodyCopy.outlinePdfUrl;
   }
 
   const parsed = UpdateCourseBody.safeParse(bodyCopy);

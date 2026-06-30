@@ -39,8 +39,32 @@ export default function AdminCourseEdit() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: course, isLoading: courseLoading } = useGetCourse(courseId);
-  const { data: teachers = [], isLoading: teachersLoading } = useListUsers({ role: "teacher" });
+  const { data: course, isLoading: courseLoading } = useGetCourse(courseId, {
+    query: {
+      staleTime: 60000, // Cache for 60 seconds
+      refetchOnWindowFocus: false,
+    }
+  } as any);
+  const { data: teachers = [], isLoading: teachersLoading } = useListUsers(
+    { role: "teacher" },
+    {
+      query: {
+        staleTime: 120000, // Cache for 2 minutes
+        refetchOnWindowFocus: false,
+      }
+    } as any
+  );
+
+  const { data: dbCategories = [] } = useQuery<any[]>({
+    queryKey: ["course-categories"],
+    staleTime: 120000, // Cache for 2 minutes
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const res = await fetch("/api/course-categories");
+      if (!res.ok) throw new Error("Failed to fetch categories");
+      return res.json();
+    }
+  });
 
   const [formData, setFormData] = useState({
     title: "",
@@ -61,21 +85,22 @@ export default function AdminCourseEdit() {
 
   useEffect(() => {
     if (course) {
+      const c = course as any;
       setFormData({
-        title: course.title || "",
-        description: course.description || "",
-        category: course.category || "",
-        duration: course.duration || "",
-        fee: course.fee || 0,
-        teacherId: course.teacherId || 0,
-        status: course.status || "draft",
-        isFeatured: !!course.isFeatured,
-        isFree: !!course.isFree,
-        thumbnail: course.thumbnail || "",
-        syllabus: course.syllabus || "",
-        totalDurationHours: Number(course.totalDurationHours || 0),
-        outlinePdfUrl: course.outlinePdfUrl || "",
-        minAttendancePercentage: Number(course.minAttendancePercentage || 75)
+        title: c.title || "",
+        description: c.description || "",
+        category: c.category || "",
+        duration: c.duration || "",
+        fee: c.fee || 0,
+        teacherId: c.teacherId || 0,
+        status: c.status || "draft",
+        isFeatured: !!c.isFeatured,
+        isFree: !!c.isFree,
+        thumbnail: c.thumbnail || "",
+        syllabus: c.syllabus || "",
+        totalDurationHours: Number(c.totalDurationHours || 0),
+        outlinePdfUrl: c.outlinePdfUrl || "",
+        minAttendancePercentage: Number(c.minAttendancePercentage || 75)
       });
     }
   }, [course]);
@@ -110,15 +135,6 @@ export default function AdminCourseEdit() {
       </DashboardLayout>
     );
   }
-
-  const { data: dbCategories = [] } = useQuery<any[]>({
-    queryKey: ["course-categories"],
-    queryFn: async () => {
-      const res = await fetch("/api/course-categories");
-      if (!res.ok) throw new Error("Failed to fetch categories");
-      return res.json();
-    }
-  });
 
   return (
     <DashboardLayout>
@@ -176,7 +192,7 @@ export default function AdminCourseEdit() {
                   id="description" 
                   value={formData.description} 
                   onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  className="rounded-xl bg-slate-50 border-gray-100 focus:bg-white min-h-[150px] font-medium"
+                  className="rounded-xl bg-slate-50 border-gray-100 focus:bg-white min-h-[150px] font-medium custom-scrollbar"
                 />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -297,7 +313,7 @@ export default function AdminCourseEdit() {
                   id="syllabus" 
                   value={formData.syllabus} 
                   onChange={e => setFormData(prev => ({ ...prev, syllabus: e.target.value }))}
-                  className="rounded-xl bg-slate-50 border-gray-100 focus:bg-white min-h-[200px] font-medium"
+                  className="rounded-xl bg-slate-50 border-gray-100 focus:bg-white min-h-[200px] font-medium custom-scrollbar"
                   placeholder="Enter comprehensive course outline, topics, learning objectives, prerequisites, etc..."
                 />
                 <p className="text-xs text-gray-500">

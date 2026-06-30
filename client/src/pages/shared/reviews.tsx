@@ -10,6 +10,16 @@ import { useToast } from "@/hooks/use-toast";
 import { PaginationControls, paginateItems } from "@/components/PaginationControls";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   Star, Search, Loader2, BookOpen, User, MessageSquare, 
   TrendingUp, Calendar, RotateCcw, AlertCircle,
@@ -53,6 +63,7 @@ export default function LectureReviews() {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [viewingReview, setViewingReview] = useState<Review | null>(null);
+  const [reviewToDelete, setReviewToDelete] = useState<number | null>(null);
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState("");
@@ -67,7 +78,6 @@ export default function LectureReviews() {
   const [endDate, setEndDate] = useState("");
 
   const handleDeleteReview = async (reviewId: number) => {
-    if (!window.confirm("Are you sure you want to delete this lecture review?")) return;
     setDeletingId(reviewId);
     try {
       const response = await fetch(`/api/courses/reviews/${reviewId}`, {
@@ -658,7 +668,7 @@ export default function LectureReviews() {
                                 size="icon"
                                 disabled={deletingId === review.reviewId}
                                 className="h-8 w-8 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
-                                onClick={() => handleDeleteReview(review.reviewId)}
+                                onClick={() => setReviewToDelete(review.reviewId)}
                                 title="Delete Review"
                               >
                                 {deletingId === review.reviewId ? (
@@ -773,8 +783,8 @@ export default function LectureReviews() {
                 className="w-full gap-2 border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-bold rounded-xl"
                 disabled={deletingId === viewingReview.reviewId}
                 onClick={() => {
+                  setReviewToDelete(viewingReview.reviewId);
                   setViewingReview(null);
-                  handleDeleteReview(viewingReview.reviewId);
                 }}
               >
                 {deletingId === viewingReview.reviewId ? (
@@ -788,6 +798,35 @@ export default function LectureReviews() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={reviewToDelete !== null} onOpenChange={(open) => { if (!open) setReviewToDelete(null); }}>
+        <AlertDialogContent className="rounded-[24px] border border-slate-100 dark:border-slate-800 shadow-2xl p-6 bg-white dark:bg-slate-950">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-rose-600 dark:text-rose-500 font-black text-lg">
+              <AlertCircle className="h-5 w-5 text-rose-500 shrink-0" /> Confirm Review Deletion
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-500 dark:text-slate-400 font-bold text-xs leading-relaxed mt-2">
+              Are you sure you want to delete this student lecture review? This action is permanent and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 flex flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel className="rounded-xl font-black text-xs hover:bg-slate-100 dark:hover:bg-slate-900 border-slate-200 dark:border-slate-800 cursor-pointer">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (reviewToDelete !== null) {
+                  handleDeleteReview(reviewToDelete);
+                  setReviewToDelete(null);
+                }
+              }}
+              className="bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black text-xs cursor-pointer shadow-lg shadow-rose-600/10 active:scale-95 transition-all"
+            >
+              Delete Review
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 }

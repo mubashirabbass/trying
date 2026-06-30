@@ -1,5 +1,6 @@
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { useState, useEffect } from "react";
+import { FileUploadButton } from "@/components/FileUploadButton";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,10 +14,241 @@ import { useAuth } from "@/lib/AuthContext";
 import { 
   Newspaper, Loader2, Trash2, Pencil, 
   Save, CheckCircle2, XCircle, FileText, Star, User as UserIcon, Upload, Image as ImageIcon,
-  Search, Eye, EyeOff, Plus
+  Search, Eye, EyeOff, Plus, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, List, ListOrdered, Eraser
 } from "lucide-react";
 
 const BASE_URL = window.location.origin;
+
+interface RichTextEditorProps {
+  value: string;
+  onChange: (val: string) => void;
+  token?: string | null;
+}
+
+export function RichTextEditor({ value, onChange, token }: RichTextEditorProps) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Sync value to editor only when it differs (avoids cursor resets on typing)
+  useEffect(() => {
+    if (editorRef.current && editorRef.current.innerHTML !== (value || "")) {
+      editorRef.current.innerHTML = value || "";
+    }
+  }, [value]);
+
+  const execCmd = (command: string, value: string = "") => {
+    // Basic rich text styling commands
+    document.execCommand(command, false, value);
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const form = new FormData();
+    form.append("file", file);
+
+    setIsUploading(true);
+    try {
+      const res = await fetch("/api/upload/image", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      
+      // Focus back to editor to restore selection range
+      editorRef.current?.focus();
+      
+      // Insert centered visual image layout
+      const imgHtml = `<img src="${data.url}" class="mx-auto my-4 max-h-[380px] rounded-xl shadow-md block object-contain" alt="Blog Image" />`;
+      document.execCommand("insertHTML", false, imgHtml);
+      
+      if (editorRef.current) {
+        onChange(editorRef.current.innerHTML);
+      }
+    } catch (err) {
+      alert("Failed to upload image: " + (err as Error).message);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm dark:border-slate-800 dark:bg-slate-950">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-1 bg-slate-50 border-b border-slate-200 p-1.5 dark:bg-slate-900 dark:border-slate-800">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-md"
+          onClick={() => execCmd("bold")}
+          title="Bold"
+        >
+          <Bold className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-md"
+          onClick={() => execCmd("italic")}
+          title="Italic"
+        >
+          <Italic className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-md"
+          onClick={() => execCmd("underline")}
+          title="Underline"
+        >
+          <Underline className="h-4 w-4" />
+        </Button>
+
+        <div className="w-px h-5 bg-slate-250 mx-1 dark:bg-slate-800" />
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-md"
+          onClick={() => execCmd("formatBlock", "h2")}
+          title="Heading 2"
+        >
+          <Heading1 className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-md"
+          onClick={() => execCmd("formatBlock", "h3")}
+          title="Heading 3"
+        >
+          <Heading2 className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-md"
+          onClick={() => execCmd("formatBlock", "p")}
+          title="Paragraph"
+        >
+          <span className="font-bold text-xs font-sans">P</span>
+        </Button>
+
+        <div className="w-px h-5 bg-slate-250 mx-1 dark:bg-slate-800" />
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-md"
+          onClick={() => execCmd("insertUnorderedList")}
+          title="Bullet List"
+        >
+          <List className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-md"
+          onClick={() => execCmd("insertOrderedList")}
+          title="Numbered List"
+        >
+          <ListOrdered className="h-4 w-4" />
+        </Button>
+
+        <div className="w-px h-5 bg-slate-250 mx-1 dark:bg-slate-800" />
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-md"
+          onClick={() => execCmd("justifyLeft")}
+          title="Align Left"
+        >
+          <AlignLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-md"
+          onClick={() => execCmd("justifyCenter")}
+          title="Align Center"
+        >
+          <AlignCenter className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-md"
+          onClick={() => execCmd("justifyRight")}
+          title="Align Right"
+        >
+          <AlignRight className="h-4 w-4" />
+        </Button>
+
+        <div className="w-px h-5 bg-slate-250 mx-1 dark:bg-slate-800" />
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-md text-indigo-600 hover:text-indigo-750"
+          onClick={() => fileInputRef.current?.click()}
+          title="Insert Center/Line Image"
+          disabled={isUploading}
+        >
+          {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+        </Button>
+        
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-md"
+          onClick={() => execCmd("removeFormat")}
+          title="Clear Formatting"
+        >
+          <Eraser className="h-4 w-4" />
+        </Button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageUpload}
+        />
+      </div>
+
+      {/* Editor Content Area */}
+      <div
+        ref={editorRef}
+        contentEditable
+        onInput={(e) => onChange(e.currentTarget.innerHTML)}
+        className="p-4 min-h-[360px] max-h-[600px] overflow-y-auto focus:outline-none prose prose-slate max-w-none text-left font-serif text-slate-850 dark:text-slate-100"
+        style={{ fontFamily: "'Lora', Georgia, serif" }}
+      />
+    </div>
+  );
+}
 
 export default function AdminArticles() {
   const { toast } = useToast();
@@ -486,50 +718,24 @@ export default function AdminArticles() {
                     </div>
                     <div className="space-y-2">
                       <Label className="font-bold">Content</Label>
-                      <Textarea 
-                        required 
-                        value={articleForm.content} 
-                        onChange={e => setArticleForm({...articleForm, content: e.target.value})} 
-                        placeholder="Type the full body details here..." 
-                        className="rounded-xl min-h-[360px] resize-y" 
+                      <RichTextEditor
+                        value={articleForm.content}
+                        onChange={(val) => setArticleForm({ ...articleForm, content: val })}
+                        token={token}
                       />
                     </div>
                   </div>
 
                   <div className="space-y-4">
                     <div className="space-y-2">
-                    <Label className="font-bold">Cover Image</Label>
-                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/50">
-                      {articleForm.imageUrl ? (
-                        <div className="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800">
-                          <img src={articleForm.imageUrl} alt="Article cover preview" className="h-32 w-full object-cover" />
-                        </div>
-                      ) : (
-                        <div className="mb-3 flex h-24 items-center justify-center rounded-xl bg-white text-slate-300 ring-1 ring-slate-100 dark:bg-slate-950 dark:ring-slate-800">
-                          <ImageIcon className="h-8 w-8" />
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={articleForm.imageUrl}
-                          onChange={e => setArticleForm({...articleForm, imageUrl: e.target.value})}
-                          placeholder="Paste image URL or upload"
-                          className="rounded-xl bg-white text-xs"
-                        />
-                        <label className="inline-flex h-10 shrink-0 cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50">
-                          {isUploadingImage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                          {isUploadingImage ? "Uploading" : "Upload"}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            disabled={isUploadingImage}
-                            onChange={(e) => handleImageUpload(e.target.files?.[0] || null)}
-                          />
-                        </label>
-                      </div>
-                      <p className="mt-2 text-[10px] font-medium text-slate-400">JPEG, PNG, or WEBP cover image. It will be used on public article cards.</p>
-                    </div>
+                      <FileUploadButton
+                        type="image"
+                        label="Cover Image"
+                        currentUrl={articleForm.imageUrl || null}
+                        onUploaded={(url) => setArticleForm({ ...articleForm, imageUrl: url })}
+                        onClear={() => setArticleForm({ ...articleForm, imageUrl: "" })}
+                        showDownload={true}
+                      />
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-1">

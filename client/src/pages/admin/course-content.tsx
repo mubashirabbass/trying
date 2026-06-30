@@ -8,6 +8,9 @@ import {
   useUpdateLesson,
   useDeleteLesson,
   getListLessonsQueryKey,
+  useListAssignments,
+  useDeleteAssignment,
+  getListAssignmentsQueryKey
 } from "@workspace/api-client-react";
 import {
   Loader2,
@@ -21,6 +24,9 @@ import {
   Youtube,
   Save,
   X,
+  Calendar,
+  ExternalLink,
+  Target
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -55,18 +62,44 @@ export default function AdminCourseContent() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: course, isLoading: courseLoading } = useGetCourse(courseId);
-  const { data: lessons = [], isLoading: lessonsLoading } = useListLessons({ courseId });
+  const { data: course, isLoading: courseLoading } = useGetCourse(courseId, {
+    query: {
+      staleTime: 60000,
+      refetchOnWindowFocus: false,
+    }
+  } as any);
+  const { data: lessons = [], isLoading: lessonsLoading } = useListLessons(
+    { courseId },
+    {
+      query: {
+        staleTime: 60000,
+        refetchOnWindowFocus: false,
+      }
+    } as any
+  );
+  const { data: assignments = [], isLoading: assignmentsLoading } = useListAssignments(
+    { courseId },
+    {
+      query: {
+        staleTime: 60000,
+        refetchOnWindowFocus: false,
+      }
+    } as any
+  );
 
   const createLessonMutation = useCreateLesson();
   const updateLessonMutation = useUpdateLesson();
   const deleteLessonMutation = useDeleteLesson();
+  const deleteAssignmentMutation = useDeleteAssignment();
 
   // Dialog states
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<any>(null);
+
+  const [assignmentDeleteDialogOpen, setAssignmentDeleteDialogOpen] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -227,6 +260,23 @@ export default function AdminCourseContent() {
     }
   };
 
+  const handleDeleteAssignment = async () => {
+    if (!selectedAssignment) return;
+
+    try {
+      await deleteAssignmentMutation.mutateAsync({ id: selectedAssignment.id });
+      toast({ title: "Assignment deleted successfully!" });
+      queryClient.invalidateQueries({ queryKey: getListAssignmentsQueryKey({ courseId }) });
+      setAssignmentDeleteDialogOpen(false);
+      setSelectedAssignment(null);
+    } catch (error: any) {
+      toast({
+        title: error?.response?.data?.message || "Failed to delete assignment",
+        variant: "destructive",
+      });
+    }
+  };
+
   const openEditDialog = (lesson: any) => {
     setSelectedLesson(lesson);
     setFormData({
@@ -342,89 +392,181 @@ export default function AdminCourseContent() {
         </CardContent>
       </Card>
 
-      {/* Lectures List */}
-      <Card className="border-none shadow-sm ring-1 ring-gray-100 rounded-[24px]">
-        <CardHeader>
-          <CardTitle className="text-lg font-black flex items-center gap-2">
-            <Video className="h-5 w-5 text-primary" /> Video Lectures & Materials
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {lessons.length === 0 ? (
-            <div className="text-center py-12">
-              <Video className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 font-medium mb-4">
-                No lectures added yet. Start by adding your first lecture.
-              </p>
-              <Button
-                onClick={() => {
-                  resetForm();
-                  setIsAddDialogOpen(true);
-                }}
-                variant="outline"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add First Lecture
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {lessons.map((lesson: any, index: number) => (
-                <div
-                  key={lesson.id}
-                  className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-primary/30 transition-colors bg-white"
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <GripVertical className="h-5 w-5 text-gray-300" />
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center font-black text-primary">
-                      {index + 1}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-gray-900">{lesson.title}</h3>
-                      <div className="flex items-center gap-3 mt-1">
-                        {lesson.videoUrl && (
-                          <Badge variant="outline" className="text-xs">
-                            <Youtube className="h-3 w-3 mr-1" />
-                            Video
-                          </Badge>
-                        )}
-                        {lesson.pdfUrl && (
-                          <Badge variant="outline" className="text-xs">
-                            <FileText className="h-3 w-3 mr-1" />
-                            PDF Notes
-                          </Badge>
-                        )}
-                        {lesson.duration && (
-                          <span className="text-xs text-gray-500">
-                            {lesson.duration} min
-                          </span>
-                        )}
+      <Tabs defaultValue="lectures" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 max-w-[400px] mb-6 bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+          <TabsTrigger value="lectures" className="rounded-lg font-bold text-xs">
+            <Video className="h-4 w-4 mr-2" /> Video Lectures ({lessons.length})
+          </TabsTrigger>
+          <TabsTrigger value="assignments" className="rounded-lg font-bold text-xs">
+            <FileText className="h-4 w-4 mr-2" /> Course Assignments ({assignments.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="lectures">
+          {/* Lectures List */}
+          <Card className="border-none shadow-sm ring-1 ring-gray-100 rounded-[24px]">
+            <CardHeader>
+              <CardTitle className="text-lg font-black flex items-center gap-2">
+                <Video className="h-5 w-5 text-primary" /> Video Lectures & Materials
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {lessons.length === 0 ? (
+                <div className="text-center py-12">
+                  <Video className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 font-medium mb-4">
+                    No lectures added yet. Start by adding your first lecture.
+                  </p>
+                  <Button
+                    onClick={() => {
+                      resetForm();
+                      setIsAddDialogOpen(true);
+                    }}
+                    variant="outline"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add First Lecture
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {lessons.map((lesson: any, index: number) => (
+                    <div
+                      key={lesson.id}
+                      className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-primary/30 transition-colors bg-white"
+                    >
+                      <div className="flex items-center gap-3 flex-1">
+                        <GripVertical className="h-5 w-5 text-gray-300" />
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center font-black text-primary">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-gray-900">{lesson.title}</h3>
+                          <div className="flex items-center gap-3 mt-1">
+                            {lesson.videoUrl && (
+                              <Badge variant="outline" className="text-xs">
+                                <Youtube className="h-3 w-3 mr-1" />
+                                Video
+                              </Badge>
+                            )}
+                            {lesson.pdfUrl && (
+                              <Badge variant="outline" className="text-xs">
+                                <FileText className="h-3 w-3 mr-1" />
+                                PDF Notes
+                              </Badge>
+                            )}
+                            {lesson.duration && (
+                              <span className="text-xs text-gray-500">
+                                {lesson.duration} min
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(lesson)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openDeleteDialog(lesson)}
+                          className="text-red-655 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEditDialog(lesson)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openDeleteDialog(lesson)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="assignments">
+          {/* Assignments List */}
+          <Card className="border-none shadow-sm ring-1 ring-gray-100 rounded-[24px]">
+            <CardHeader>
+              <CardTitle className="text-lg font-black flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" /> Course Assignments
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {assignmentsLoading ? (
+                <div className="flex justify-center items-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : assignments.length === 0 ? (
+                <div className="text-center py-12">
+                  <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 font-medium">
+                    No assignments posted for this course yet.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {assignments.map((assignment: any) => (
+                    <div
+                      key={assignment.id}
+                      className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:border-primary/30 transition-colors bg-white"
+                    >
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center font-black text-primary">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-gray-900">{assignment.title}</h3>
+                          <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3.5 w-3.5" /> Due: {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : "No due date"}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Target className="h-3.5 w-3.5" /> Marks: {assignment.totalMarks ?? 100}
+                            </span>
+                          </div>
+                          {assignment.description && (
+                            <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+                              {assignment.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {assignment.fileUrl && (
+                          <a
+                            href={assignment.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center rounded-xl font-semibold text-xs border border-gray-100 hover:bg-slate-50 transition-all px-3.5 h-9"
+                          >
+                            <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> PDF Document
+                          </a>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setSelectedAssignment(assignment);
+                            setAssignmentDeleteDialogOpen(true);
+                          }}
+                          className="h-9 w-9 text-red-500 hover:text-red-650 hover:bg-red-50 rounded-xl"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Add Lecture Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -755,6 +897,30 @@ export default function AdminCourseContent() {
               className="bg-red-600 hover:bg-red-700"
             >
               {deleteLessonMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Assignment Delete Confirmation Dialog */}
+      <AlertDialog open={assignmentDeleteDialogOpen} onOpenChange={setAssignmentDeleteDialogOpen}>
+        <AlertDialogContent className="rounded-[24px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Assignment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete "{selectedAssignment?.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAssignment}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteAssignmentMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
               Delete

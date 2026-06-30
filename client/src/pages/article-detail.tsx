@@ -126,6 +126,15 @@ export default function ArticleDetail({ params }: { params: { slug: string } }) 
 
   const renderBlogContent = (content: string) => {
     if (!content) return null;
+    const isHtml = /<[a-z][\s\S]*>/i.test(content);
+    if (isHtml) {
+      return (
+        <div 
+          dangerouslySetInnerHTML={{ __html: content }} 
+          className="blog-html-content space-y-6 font-serif text-slate-800 text-base md:text-lg leading-relaxed prose prose-slate max-w-none text-left" 
+        />
+      );
+    }
     const lines = content.split("\n");
     return lines.map((line, idx) => {
       const trimmed = line.trim();

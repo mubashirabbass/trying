@@ -505,7 +505,7 @@ export default function TeacherCourseBuilder() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Courses
           </Button>
-          {(course as any)?.status === "draft" && (
+          {((course as any)?.status === "draft" || (course as any)?.status === "rejected") && (
             <Button variant="default" className="bg-indigo-600 hover:bg-indigo-700" onClick={handleSubmitForReview}>
               <Save className="h-4 w-4 mr-2" />
               Submit for Review

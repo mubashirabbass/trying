@@ -48,13 +48,26 @@ export default function AdminCourseReview() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionNote, setRejectionNote] = useState("");
 
-  const { data: course, isLoading: courseLoading } = useGetCourse(courseId);
-  const { data: sections = [], isLoading: sectionsLoading } = useListSections({ courseId });
+  const { data: course, isLoading: courseLoading } = useGetCourse(courseId, {
+    query: {
+      staleTime: 60000, // Cache for 60 seconds
+      refetchOnWindowFocus: false,
+    }
+  });
+  const { data: sections = [], isLoading: sectionsLoading } = useListSections(
+    { courseId },
+    {
+      query: {
+        staleTime: 60000, // Cache for 60 seconds
+        refetchOnWindowFocus: false,
+      }
+    }
+  );
   
   const approveMutation = useUpdateCourse({
     mutation: {
       onSuccess: async () => {
-        toast({ title: "Course Published Successfully", description: "This course is now live for all students." });
+        toast({ title: "Submission Approved", description: "This course is now in Draft status for the teacher." });
         // Force refresh the courses list
         await queryClient.invalidateQueries({ queryKey: getListCoursesQueryKey({}) });
         await queryClient.refetchQueries({ queryKey: getListCoursesQueryKey({}) });
@@ -115,9 +128,9 @@ export default function AdminCourseReview() {
           </Button>
           <Button 
             className="rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200"
-            onClick={() => approveMutation.mutate({ id: courseId, data: { status: 'live' } })}
+            onClick={() => approveMutation.mutate({ id: courseId, data: { status: 'draft' } })}
           >
-            <CheckCircle2 className="h-4 w-4 mr-2" /> Approve & Publish
+            <CheckCircle2 className="h-4 w-4 mr-2" /> Approve Submission
           </Button>
         </div>
       </div>
