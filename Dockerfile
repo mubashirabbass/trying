@@ -30,5 +30,5 @@ COPY --from=build /app/client/dist ./client/dist
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN corepack enable && pnpm install --prod --frozen-lockfile --filter @workspace/api-server --filter @workspace/db
 
-EXPOSE 8080
+EXPOSE 7860
 CMD ["node", "server/dist/index.mjs"]
