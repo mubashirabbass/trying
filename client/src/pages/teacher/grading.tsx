@@ -257,25 +257,25 @@ export default function TeacherGrading() {
   if (selectedCourse === "none") {
     return (
       <DashboardLayout>
-        <div className="min-h-[calc(100vh-180px)] py-6">
-          <div className="mx-auto max-w-5xl">
+        <div className="min-h-[calc(100vh-180px)] py-8 bg-[#f8fafc]">
+          <div className="mx-auto max-w-5xl px-4">
             <div className="mb-8">
-              <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-650 shadow-inner">
                 <GraduationCap className="h-6 w-6" />
               </div>
-              <h1 className="text-3xl font-black text-slate-950">Grading Hub</h1>
-              <p className="mt-2 max-w-2xl text-sm text-slate-500">
-                Select a course to open its gradebook, review submissions, record marks, and export class results.
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Grading Hub</h1>
+              <p className="mt-2 max-w-2xl text-sm font-semibold text-slate-500">
+                Select an academic course below to open its official gradebook, review student submissions, enter grades, and export results.
               </p>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {courses.length === 0 ? (
-                <Card className="border-2 border-dashed border-slate-200">
-                  <CardContent className="p-8 text-center">
-                    <BookOpen className="mx-auto mb-3 h-8 w-8 text-slate-300" />
-                    <p className="text-sm font-bold text-slate-700">No courses assigned</p>
-                    <p className="mt-1 text-xs text-slate-400">Courses will appear here after an admin assigns them to you.</p>
+                <Card className="border-2 border-dashed border-slate-200 rounded-2xl bg-white/50">
+                  <CardContent className="p-8 text-center space-y-2">
+                    <BookOpen className="mx-auto h-8 w-8 text-slate-350" />
+                    <p className="text-sm font-bold text-slate-700">No Assigned Courses</p>
+                    <p className="text-xs text-slate-400 font-medium">Courses will appear here once assigned to your profile by the administrator.</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -284,18 +284,18 @@ export default function TeacherGrading() {
                     key={course.id}
                     type="button"
                     onClick={() => setSelectedCourse(course.id.toString())}
-                    className="rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                    className="group rounded-2xl border border-slate-150 bg-white p-5 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-indigo-250 hover:shadow-md"
                   >
                     <div className="mb-4 flex items-start justify-between gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 text-slate-600 transition-colors group-hover:bg-indigo-50 group-hover:text-indigo-600">
                         <BookOpen className="h-5 w-5" />
                       </div>
-                      <Badge variant="outline" className="bg-white text-[10px] font-bold uppercase">
-                        Open gradebook
+                      <Badge className="bg-slate-50 text-slate-500 border border-slate-150 text-[9px] font-black uppercase tracking-wider group-hover:bg-indigo-50 group-hover:text-indigo-600 group-hover:border-indigo-100 rounded-lg py-0.5 px-2">
+                        Open Gradebook
                       </Badge>
                     </div>
-                    <h2 className="line-clamp-2 text-base font-black text-slate-950">{course.title}</h2>
-                    <p className="mt-2 line-clamp-2 text-xs text-slate-500">{course.category || "Course"}</p>
+                    <h2 className="line-clamp-2 text-base font-extrabold text-slate-900 group-hover:text-indigo-600 transition-colors">{course.title}</h2>
+                    <p className="mt-2 line-clamp-2 text-xs font-bold text-slate-400 uppercase tracking-widest">{course.category || "Standard Program"}</p>
                   </button>
                 ))
               )}
@@ -353,50 +353,52 @@ export default function TeacherGrading() {
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="rounded-lg border-slate-200 shadow-sm">
-          <CardContent className="p-4">
+        <Card className="border-none shadow-md ring-1 ring-slate-100 rounded-2xl bg-white overflow-hidden hover:shadow-lg transition-all duration-200">
+          <CardContent className="p-5">
             <div className="mb-3 flex items-center justify-between">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                 <ClipboardList className="h-5 w-5" />
               </div>
-              <span className="text-xs font-bold text-slate-400">{completionRate}% complete</span>
+              <Badge className="bg-indigo-50 text-indigo-700 hover:bg-indigo-50 border-0 text-[10px] font-bold rounded-lg px-2 py-0.5">
+                {completionRate}% Graded
+              </Badge>
             </div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Submissions</p>
-            <p className="text-3xl font-black text-slate-950">{filteredSubmissions.length}</p>
-            <Progress value={completionRate} className="mt-3 h-2" />
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Submissions</p>
+            <p className="text-3xl font-black text-slate-900 mt-1">{filteredSubmissions.length}</p>
+            <Progress value={completionRate} className="mt-3.5 h-1.5 bg-slate-100 [&>div]:bg-indigo-600" />
           </CardContent>
         </Card>
 
-        <Card className="rounded-lg border-amber-100 bg-amber-50/40 shadow-sm">
-          <CardContent className="p-4">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+        <Card className="border-none shadow-md ring-1 ring-slate-100 rounded-2xl bg-amber-50/50 overflow-hidden hover:shadow-lg transition-all duration-200">
+          <CardContent className="p-5">
+            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100 text-amber-700 animate-pulse">
               <Clock className="h-5 w-5" />
             </div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-amber-600">Pending Review</p>
-            <p className="text-3xl font-black text-amber-800">{pendingCount}</p>
-            <p className="mt-2 text-xs text-amber-700">Items still waiting for a teacher grade.</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600">Pending Review</p>
+            <p className="text-3xl font-black text-amber-900 mt-1">{pendingCount}</p>
+            <p className="mt-2 text-xs text-slate-500 font-semibold leading-relaxed">Waiting for teacher grading review.</p>
           </CardContent>
         </Card>
 
-        <Card className="rounded-lg border-emerald-100 bg-emerald-50/40 shadow-sm">
-          <CardContent className="p-4">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+        <Card className="border-none shadow-md ring-1 ring-slate-100 rounded-2xl bg-emerald-50/50 overflow-hidden hover:shadow-lg transition-all duration-200">
+          <CardContent className="p-5">
+            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
               <Percent className="h-5 w-5" />
             </div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">Class Average</p>
-            <p className="text-3xl font-black text-emerald-800">{averagePercent}%</p>
-            <p className="mt-2 text-xs text-emerald-700">Based on graded submissions only.</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Class Average</p>
+            <p className="text-3xl font-black text-emerald-900 mt-1">{averagePercent}%</p>
+            <p className="mt-2 text-xs text-slate-500 font-semibold leading-relaxed">Calculated from graded records.</p>
           </CardContent>
         </Card>
 
-        <Card className="rounded-lg border-rose-100 bg-rose-50/40 shadow-sm">
-          <CardContent className="p-4">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-rose-100 text-rose-700">
+        <Card className="border-none shadow-md ring-1 ring-slate-100 rounded-2xl bg-rose-50/50 overflow-hidden hover:shadow-lg transition-all duration-200">
+          <CardContent className="p-5">
+            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-rose-100 text-rose-700">
               <AlertCircle className="h-5 w-5" />
             </div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-rose-600">Needs Attention</p>
-            <p className="text-3xl font-black text-rose-800">{needsSupportCount + lateCount}</p>
-            <p className="mt-2 text-xs text-rose-700">{needsSupportCount} low score, {lateCount} late.</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600">Needs Attention</p>
+            <p className="text-3xl font-black text-rose-900 mt-1">{needsSupportCount + lateCount}</p>
+            <p className="mt-2 text-xs text-slate-500 font-semibold leading-relaxed">{needsSupportCount} low scores, {lateCount} late.</p>
           </CardContent>
         </Card>
       </div>
