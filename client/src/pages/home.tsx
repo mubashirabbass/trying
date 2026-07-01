@@ -465,7 +465,7 @@ export default function Home() {
       <CriticalAnnouncementPopup />
 
       {/* ── Hero Section ──────────────────────────────────────────────────── */}
-        <section className="relative min-h-[90vh] flex items-end justify-center overflow-hidden bg-slate-950 pb-8 md:pb-12">
+        <section className="relative min-h-[100svh] sm:min-h-[90vh] flex items-center justify-center overflow-hidden bg-slate-950 pb-8 pt-24 sm:pt-0 sm:pb-12">
           {/* High-quality poster fallback displayed immediately, fades out when video plays */}
           <div 
             className={`absolute inset-0 bg-cover bg-center z-0 transition-opacity duration-1000 ${
@@ -494,14 +494,14 @@ export default function Home() {
         <div className="absolute inset-0 bg-black/60 z-10" />
         
         {/* Content Container */}
-        <div className="relative z-20 w-full px-4 md:px-10 lg:px-16 text-center text-white">
-          <div className="mb-8">
-            <span className="bg-[#e6fcf5] text-[#0ca678] border border-[#b2f2bb] rounded-md px-6 py-2.5 text-sm md:text-base font-bold shadow-lg uppercase tracking-wider">
+        <div className="relative z-20 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
+          <div className="mb-4 sm:mb-8">
+            <span className="bg-[#e6fcf5] text-[#0ca678] border border-[#b2f2bb] rounded-md px-4 py-2 text-xs sm:text-sm md:text-base font-bold shadow-lg uppercase tracking-wider inline-block">
               {siteName} — Redefining Digital Excellence in Pakistan
             </span>
           </div>
           
-          <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black leading-tight mb-6 md:mb-12 drop-shadow-2xl">
+          <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-black leading-tight mb-4 sm:mb-6 md:mb-10 drop-shadow-2xl">
             {heroTitle.includes("Digital") || heroTitle.includes("Next") ? (
               <>{heroTitle.split(/(?=Digital|Next)/)[0]}<span className="text-[#ffec99]">{heroTitle.split(/(?=Digital|Next)/)[1] ?? ""}</span></>
             ) : (
@@ -509,31 +509,31 @@ export default function Home() {
             )}
           </h1>
           
-          <p className="text-slate-200 text-base md:text-xl max-w-3xl mx-auto mb-6 md:mb-12 font-medium leading-relaxed drop-shadow-md">
+          <p className="text-slate-200 text-sm sm:text-base md:text-lg lg:text-xl max-w-2xl mx-auto mb-6 sm:mb-8 md:mb-10 font-medium leading-relaxed drop-shadow-md px-2">
             {heroSubtitle}
           </p>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-            <Link href="/courses">
-              <Button className="bg-[#20c997] hover:bg-[#12b886] text-white font-bold text-lg px-10 h-16 rounded-xl shadow-xl transition-all hover:scale-105 flex items-center gap-2 border-0">
-                {heroCTAText} <ChevronRight className="h-5 w-5" />
+          <div className="flex flex-col xs:flex-row items-center justify-center gap-3 sm:gap-4">
+            <Link href="/courses" className="w-full xs:w-auto">
+              <Button className="w-full xs:w-auto bg-[#20c997] hover:bg-[#12b886] text-white font-bold text-sm sm:text-base md:text-lg px-6 sm:px-10 h-12 sm:h-14 md:h-16 rounded-xl shadow-xl transition-all hover:scale-105 flex items-center justify-center gap-2 border-0">
+                {heroCTAText} <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             </Link>
-            <Link href="/success-stories">
-              <Button variant="outline" className="border-2 border-white/40 bg-white/10 backdrop-blur-md text-white font-bold text-lg px-10 h-16 rounded-xl hover:bg-white/20 transition-all flex items-center gap-2">
-                <div className="h-7 w-7 rounded-full border-2 border-white flex items-center justify-center">
-                  <Play className="h-3 w-3 fill-white ml-0.5" />
+            <Link href="/success-stories" className="w-full xs:w-auto">
+              <Button variant="outline" className="w-full xs:w-auto border-2 border-white/40 bg-white/10 backdrop-blur-md text-white font-bold text-sm sm:text-base md:text-lg px-6 sm:px-10 h-12 sm:h-14 md:h-16 rounded-xl hover:bg-white/20 transition-all flex items-center justify-center gap-2">
+                <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-full border-2 border-white flex items-center justify-center shrink-0">
+                  <Play className="h-2.5 w-2.5 sm:h-3 sm:w-3 fill-white ml-0.5" />
                 </div>
-                View Success Stories
+                <span className="hidden sm:inline">View </span>Success Stories
               </Button>
             </Link>
           </div>
         </div>
 
-        {/* Scroll Indicator - Now relative to the entire section */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce cursor-pointer z-30">
-          <div className="h-10 w-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
-            <ChevronRight className="h-6 w-6 text-white rotate-90" />
+        {/* Scroll Indicator */}
+        <div className="absolute bottom-6 sm:bottom-10 left-1/2 -translate-x-1/2 animate-bounce cursor-pointer z-30">
+          <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+            <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6 text-white rotate-90" />
           </div>
         </div>
       </section>
@@ -558,19 +558,19 @@ export default function Home() {
       </div>
 
       {/* ── Statistics Section (Clean White Style) ───────────────────────── */}
-      <section className="pt-4 pb-8 bg-slate-50 relative overflow-hidden">
-        <div className="w-full px-4 md:px-10 lg:px-16 relative z-10">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-5xl font-black text-gray-900 mb-6">
+      <section className="py-10 sm:py-14 bg-slate-50 relative overflow-hidden">
+        <div className="w-full px-4 sm:px-6 md:px-10 lg:px-16 relative z-10">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 mb-3 sm:mb-6">
               Trusted by Thousands Worldwide
             </h2>
-            <p className="text-gray-500 text-lg max-w-2xl mx-auto leading-relaxed">
-              Global College is building Pakistan's largest ecosystem for 
+            <p className="text-gray-500 text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed px-2">
+              Global College is building Pakistan's largest ecosystem for
               international eCommerce success and digital entrepreneurship.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 md:gap-8">
             {[
               { 
                 value: "4500+", 
@@ -607,15 +607,15 @@ export default function Home() {
             ].map((stat, i) => (
               <div 
                 key={i}
-                className="group p-8 rounded-3xl border border-white bg-white shadow-sm hover:shadow-xl transition-all duration-500 hover:-translate-y-2 flex flex-col items-center text-center"
+                className="group p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl border border-white bg-white shadow-sm hover:shadow-xl transition-all duration-500 hover:-translate-y-2 flex flex-col items-center text-center"
               >
-                <div className={`h-16 w-16 rounded-2xl ${stat.bg} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-sm`}>
-                  <stat.icon className={`h-8 w-8 ${stat.color}`} />
+                <div className={`h-10 w-10 sm:h-12 sm:w-12 md:h-16 md:w-16 rounded-xl sm:rounded-2xl ${stat.bg} flex items-center justify-center mb-3 sm:mb-4 md:mb-6 group-hover:scale-110 transition-transform shadow-sm`}>
+                  <stat.icon className={`h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 ${stat.color}`} />
                 </div>
-                <h3 className={`text-4xl font-black ${stat.color} mb-2 tracking-tight`}>
+                <h3 className={`text-2xl sm:text-3xl md:text-4xl font-black ${stat.color} mb-1 sm:mb-2 tracking-tight`}>
                   {stat.value}
                 </h3>
-                <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">
+                <p className="text-gray-400 font-bold uppercase tracking-widest text-[9px] sm:text-[10px]">
                   {stat.label}
                 </p>
               </div>
@@ -625,13 +625,13 @@ export default function Home() {
       </section>
 
       {/* ── Popular Courses ───────────────────────────────────────────────── */}
-      <section className="pt-10 pb-12 bg-gray-50 relative overflow-hidden">
-        <div className="w-full px-4 md:px-10 lg:px-16">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-5xl font-black text-gray-900 mb-6">
+      <section className="py-10 sm:py-14 bg-gray-50 relative overflow-hidden">
+        <div className="w-full px-4 sm:px-6 md:px-10 lg:px-16">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 mb-3 sm:mb-6">
               Explore Our Top Courses
             </h2>
-            <p className="text-gray-500 text-lg max-w-2xl mx-auto leading-relaxed">
+            <p className="text-gray-500 text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed px-2">
               Professional training programs designed by industry experts to help you master high-income digital skills and launch your career globally.
             </p>
           </div>
@@ -662,15 +662,15 @@ export default function Home() {
 
             <div 
               ref={coursesScrollRef}
-              className="flex gap-8 overflow-x-auto scroll-smooth snap-x snap-mandatory hide-scrollbar pb-8 pt-4 px-12"
+              className="flex gap-4 sm:gap-6 md:gap-8 overflow-x-auto scroll-smooth snap-x snap-mandatory hide-scrollbar pb-6 pt-4 px-4 md:px-12"
             >
               {displayCourses.map((course: any) => {
                 const gradient =
                   CATEGORY_COLORS[course.category] || CATEGORY_COLORS.Default;
                 return (
-                  <div key={course.id} className="min-w-[280px] sm:min-w-[320px] md:min-w-[380px] snap-center">
+                  <div key={course.id} className="min-w-[260px] sm:min-w-[300px] md:min-w-[360px] snap-center">
                     <Card
-                      className="overflow-hidden h-[580px] flex flex-col rounded-3xl border border-gray-100 bg-white shadow-sm hover:shadow-2xl hover:shadow-blue-900/10 transition-all duration-500 hover:-translate-y-2 group/card"
+                      className="overflow-hidden h-[520px] sm:h-[560px] md:h-[580px] flex flex-col rounded-2xl sm:rounded-3xl border border-gray-100 bg-white shadow-sm hover:shadow-2xl hover:shadow-blue-900/10 transition-all duration-500 hover:-translate-y-2 group/card"
                     >
                       <div
                         className={`h-56 bg-gradient-to-br ${gradient} relative flex items-center justify-center overflow-hidden shrink-0`}
@@ -740,13 +740,13 @@ export default function Home() {
               })}
             </div>
           </div>
-          <div className="text-center mt-8">
+          <div className="text-center mt-6 sm:mt-8">
             <Link href="/courses">
               <Button
                 size="lg"
-                className="bg-primary hover:bg-primary/90 text-white font-black rounded-2xl h-16 px-12 text-lg shadow-2xl shadow-blue-500/20 transition-all hover:scale-105"
+                className="bg-primary hover:bg-primary/90 text-white font-black rounded-xl sm:rounded-2xl h-12 sm:h-14 md:h-16 px-8 sm:px-12 text-base sm:text-lg shadow-2xl shadow-blue-500/20 transition-all hover:scale-105"
               >
-                Explore All Courses <ChevronRight className="ml-2 h-6 w-6" />
+                Explore All Courses <ChevronRight className="ml-2 h-5 w-5 sm:h-6 sm:w-6" />
               </Button>
             </Link>
           </div>
@@ -754,44 +754,44 @@ export default function Home() {
       </section>
 
       {/* ── Why Choose Us (Career Ecosystem Redesign) ───────────────────── */}
-      <section className="py-16 bg-white relative overflow-hidden">
+      <section className="py-10 sm:py-14 md:py-16 bg-white relative overflow-hidden">
         {/* Background Accents */}
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-50 rounded-full blur-3xl -z-10" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-emerald-50 rounded-full blur-3xl -z-10" />
 
-        <div className="w-full px-4 md:px-10 lg:px-16">
-          <div className="text-center mb-20">
-            <Badge className="mb-4 bg-blue-50 text-blue-700 border-blue-100 px-4 py-1.5 text-sm font-bold rounded-full">
+        <div className="w-full px-4 sm:px-6 md:px-10 lg:px-16">
+          <div className="text-center mb-10 sm:mb-14 md:mb-20">
+            <Badge className="mb-3 sm:mb-4 bg-blue-50 text-blue-700 border-blue-100 px-3 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm font-bold rounded-full">
               The Global College Edge
             </Badge>
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 mb-3 sm:mb-6 tracking-tight px-2">
               Everything You Need to <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-600">Succeed</span>
             </h2>
-            <p className="text-gray-500 text-lg max-w-2xl mx-auto leading-relaxed">
+            <p className="text-gray-500 text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed px-2">
               We go beyond teaching — we build careers. Here's what makes us
               different from every other institute in Pakistan.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
             {FEATURES.map(({ icon: Icon, title, desc, color }) => (
               <div
                 key={title}
-                className="group p-10 rounded-[2.5rem] border border-gray-100 bg-white shadow-sm hover:shadow-2xl hover:shadow-blue-900/5 transition-all duration-500 relative overflow-hidden"
+                className="group p-6 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl md:rounded-[2.5rem] border border-gray-100 bg-white shadow-sm hover:shadow-2xl hover:shadow-blue-900/5 transition-all duration-500 relative overflow-hidden"
               >
                 {/* Hover Glow Effect */}
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-50/0 via-transparent to-emerald-50/0 group-hover:from-blue-50/50 group-hover:to-emerald-50/50 transition-colors duration-500 -z-10" />
                 
                 <div
-                  className={`h-16 w-16 rounded-2xl flex items-center justify-center mb-8 ${color} shadow-lg shadow-current/10 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500`}
+                  className={`h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16 rounded-xl sm:rounded-2xl flex items-center justify-center mb-4 sm:mb-6 md:mb-8 ${color} shadow-lg shadow-current/10 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500`}
                 >
-                  <Icon className="h-8 w-8" />
+                  <Icon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8" />
                 </div>
 
-                <h3 className="text-2xl font-black text-gray-900 mb-4 group-hover:text-blue-600 transition-colors">
+                <h3 className="text-lg sm:text-xl md:text-2xl font-black text-gray-900 mb-2 sm:mb-3 md:mb-4 group-hover:text-blue-600 transition-colors">
                   {title}
                 </h3>
-                <p className="text-gray-500 leading-relaxed font-medium">
+                <p className="text-gray-500 leading-relaxed font-medium text-sm sm:text-base">
                   {desc}
                 </p>
 
@@ -806,16 +806,16 @@ export default function Home() {
       </section>
 
       {/* ── Edu-Sphere Achievers (Success Stories Carousel) ───────────────── */}
-      <section className="py-16 bg-slate-50 relative overflow-hidden">
+      <section className="py-10 sm:py-14 md:py-16 bg-slate-50 relative overflow-hidden">
         <div className="absolute top-1/4 right-0 w-64 h-64 bg-blue-100/40 rounded-full blur-3xl -z-10" />
         <div className="absolute bottom-1/4 left-0 w-96 h-96 bg-emerald-100/40 rounded-full blur-3xl -z-10" />
 
-        <div className="w-full px-4 md:px-10 lg:px-16">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
+        <div className="w-full px-4 sm:px-6 md:px-10 lg:px-16">
+          <div className="text-center mb-8 sm:mb-12 md:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 mb-2 sm:mb-4">
               Global College Achievers
             </h2>
-            <p className="text-gray-500 text-lg font-medium">
+            <p className="text-gray-500 text-sm sm:text-base md:text-lg font-medium">
               Our 6 Figures & 7 Figures Club Students
             </p>
           </div>
@@ -858,7 +858,7 @@ export default function Home() {
               <div className="relative group/achievers">
                 {/* Featured Achiever Card */}
                 <div 
-                  className="bg-white/80 backdrop-blur-md rounded-[2.5rem] p-8 md:p-16 shadow-2xl shadow-blue-900/5 border border-white relative overflow-hidden min-h-[500px] flex items-center cursor-pointer transition-all duration-300 hover:shadow-3xl hover:border-emerald-100 hover:bg-white group"
+                  className="bg-white/80 backdrop-blur-md rounded-2xl sm:rounded-3xl md:rounded-[2.5rem] p-5 sm:p-8 md:p-12 lg:p-16 shadow-xl shadow-blue-900/5 border border-white relative overflow-hidden min-h-[auto] sm:min-h-[400px] md:min-h-[500px] flex items-center cursor-pointer transition-all duration-300 hover:shadow-3xl hover:border-emerald-100 hover:bg-white group"
                   onClick={() => {
                     setSelectedStory(displaySuccessStories[activeAchiever]);
                     setDetailOpen(true);
@@ -951,20 +951,20 @@ export default function Home() {
                   </Button>
                 </div>
 
-                {/* Thumbnail Gallery */}
-                <div className="w-full overflow-x-auto hide-scrollbar pb-4 pt-2">
-                  <div className="flex items-center justify-center gap-6 min-w-max px-4 mx-auto">
+                {/* Thumbnail Gallery - hidden on very small screens, shown from sm up */}
+                <div className="hidden sm:block w-full overflow-x-auto hide-scrollbar pb-4 pt-2">
+                  <div className="flex items-center justify-center gap-3 sm:gap-4 md:gap-6 min-w-max px-4 mx-auto">
                     {displaySuccessStories.map((achiever, i) => (
                       <div 
                         key={achiever.id}
                         onClick={() => setActiveAchiever(i)}
-                        className={`group cursor-pointer transition-all duration-500 w-52 p-6 rounded-2xl border-2 flex flex-col items-center text-center ${
+                        className={`group cursor-pointer transition-all duration-500 w-36 sm:w-44 md:w-52 p-3 sm:p-4 md:p-6 rounded-xl sm:rounded-2xl border-2 flex flex-col items-center text-center ${
                           i === activeAchiever 
                           ? 'border-emerald-500 bg-emerald-50/30 shadow-lg scale-105' 
                           : 'border-transparent bg-white shadow-sm hover:shadow-md grayscale opacity-60 hover:grayscale-0 hover:opacity-100 hover:scale-105'
                         }`}
                       >
-                        <div className={`h-20 w-20 rounded-full mb-4 overflow-hidden border-4 transition-colors flex items-center justify-center ${i === activeAchiever ? 'border-emerald-500' : 'border-gray-100'}`}>
+                        <div className={`h-14 w-14 sm:h-16 sm:w-16 md:h-20 md:w-20 rounded-full mb-2 sm:mb-3 md:mb-4 overflow-hidden border-4 transition-colors flex items-center justify-center ${i === activeAchiever ? 'border-emerald-500' : 'border-gray-100'}`}>
                           {achiever.image ? (
                             <img 
                               src={achiever.image} 
@@ -973,14 +973,14 @@ export default function Home() {
                             />
                           ) : (
                             <div className="w-full h-full bg-slate-200 flex items-center justify-center">
-                              <Users className="h-8 w-8 text-slate-400" />
+                              <Users className="h-6 w-6 sm:h-8 sm:w-8 text-slate-400" />
                             </div>
                           )}
                         </div>
-                        <h4 className="font-black text-gray-900 text-sm mb-1 line-clamp-1">
+                        <h4 className="font-black text-gray-900 text-xs sm:text-sm mb-0.5 sm:mb-1 line-clamp-1">
                           {achiever.studentName || achiever.name}
                         </h4>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-2 line-clamp-1">
+                        <p className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase mb-1 sm:mb-2 line-clamp-1">
                           {achiever.title || achiever.role}
                         </p>
                         <p className={`text-xs font-black transition-colors ${i === activeAchiever ? 'text-emerald-600' : 'text-gray-400'}`}>
@@ -1010,20 +1010,20 @@ export default function Home() {
       </section>
 
       {/* ── Recent Articles (Blog Section) ─────────────────────────────────── */}
-      <section className="py-16 bg-white">
-        <div className="w-full px-4 md:px-10 lg:px-16">
-          <div className="flex items-center justify-between mb-12">
-            <h2 className="text-3xl md:text-4xl font-black text-gray-900">
+      <section className="py-10 sm:py-14 md:py-16 bg-white">
+        <div className="w-full px-4 sm:px-6 md:px-10 lg:px-16">
+          <div className="flex items-center justify-between mb-6 sm:mb-10 md:mb-12">
+            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-gray-900">
               Recent Articles
             </h2>
             <Link href="/resources">
-              <Button variant="ghost" className="text-emerald-600 font-bold hover:bg-emerald-50 gap-2">
-                View All Articles <ChevronRight className="h-4 w-4" />
+              <Button variant="ghost" className="text-emerald-600 font-bold hover:bg-emerald-50 gap-1 sm:gap-2 text-sm sm:text-base">
+                <span className="hidden sm:inline">View All </span>Articles <ChevronRight className="h-4 w-4" />
               </Button>
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-10">
             {articles.length > 0 ? (() => {
               const display = articles.slice(0, 3);
               return display.map((article: any) => (
@@ -1141,13 +1141,13 @@ export default function Home() {
       </section>
 
       {/* ── FAQ Section ──────────────────────────────────────────────────── */}
-      <section className="py-16 bg-gray-50/50">
-        <div className="w-full px-4 md:px-10 lg:px-16">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+      <section className="py-10 sm:py-14 md:py-16 bg-gray-50/50">
+        <div className="w-full px-4 sm:px-6 md:px-10 lg:px-16">
+          <div className="text-center mb-8 sm:mb-12 md:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3 sm:mb-4">
               Frequently Asked <span className="text-emerald-600">Questions</span>
             </h2>
-            <p className="text-gray-500 text-lg max-w-2xl mx-auto">
+            <p className="text-gray-500 text-sm sm:text-base md:text-lg max-w-2xl mx-auto px-2">
               Get answers to the most common questions about eBay, Etsy, and eCommerce in Pakistan
             </p>
           </div>
@@ -1213,15 +1213,15 @@ export default function Home() {
       </section>
 
       {/* ── Map Section ──────────────────────────────────────────────────── */}
-      <section className="py-16 bg-white">
-        <div className="w-full px-4 md:px-10 lg:px-16">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+      <section className="py-10 sm:py-14 md:py-16 bg-white">
+        <div className="w-full px-4 sm:px-6 md:px-10 lg:px-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
             {/* Map Info */}
             <div className="max-w-xl">
-              <Badge className="mb-6 bg-blue-50 text-blue-700 border-blue-100 px-4 py-1.5 text-sm font-bold rounded-full">
+              <Badge className="mb-4 sm:mb-6 bg-blue-50 text-blue-700 border-blue-100 px-3 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm font-bold rounded-full">
                 Visit Our Main Campus
               </Badge>
-              <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-8 tracking-tight">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 mb-4 sm:mb-6 md:mb-8 tracking-tight">
                 {mainCampus?.name || "Global College of Computer Science, 18 Hazari"}
               </h2>
               <div className="space-y-8">
@@ -1293,11 +1293,11 @@ export default function Home() {
       </section>
 
       {/* ── Other Campuses Carousel ────────────────────────────────────────── */}
-      <section className="py-14 bg-slate-50 border-y border-gray-100 overflow-hidden">
-        <div className="w-full px-4 md:px-10 lg:px-16 mb-12">
+      <section className="py-10 sm:py-14 bg-slate-50 border-y border-gray-100 overflow-hidden">
+        <div className="w-full px-4 sm:px-6 md:px-10 lg:px-16 mb-6 sm:mb-10 md:mb-12">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h3 className="text-2xl md:text-3xl font-black text-gray-900 flex items-center gap-3">
+              <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 flex items-center gap-2 sm:gap-3">
                 <Globe className="h-8 w-8 text-primary" />
                 Explore Our Sub Campuses
               </h3>
@@ -1407,15 +1407,15 @@ export default function Home() {
       </section>
 
       {/* ── Get Work With Us — Franchise Section ──────────────────────────── */}
-      <section className="py-20 bg-gradient-to-br from-slate-900 via-[#0f2c6f] to-[#1a4d3a] relative overflow-hidden">
+      <section className="py-12 sm:py-16 md:py-20 bg-gradient-to-br from-slate-900 via-[#0f2c6f] to-[#1a4d3a] relative overflow-hidden">
         {/* Background decorations */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(26,77,58,0.4),transparent_60%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_50%,rgba(15,44,111,0.4),transparent_60%)]" />
         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent" />
         <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
 
-        <div className="w-full px-4 md:px-10 lg:px-16 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        <div className="w-full px-4 sm:px-6 md:px-10 lg:px-16 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
             {/* Left: Text Content */}
             <div>
               <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-5 py-2 mb-8">
@@ -1423,14 +1423,14 @@ export default function Home() {
                 <span className="text-emerald-300 text-sm font-bold uppercase tracking-widest">Franchise Opportunity</span>
               </div>
 
-              <h2 className="text-4xl md:text-5xl font-black text-white mb-6 leading-tight">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-white mb-4 sm:mb-6 leading-tight">
                 Get Work With Us —
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300 mt-1">
                   Own a Global College Franchise
                 </span>
               </h2>
 
-              <p className="text-slate-300 text-lg leading-relaxed mb-10 font-medium">
+              <p className="text-slate-300 text-sm sm:text-base md:text-lg leading-relaxed mb-6 sm:mb-8 md:mb-10 font-medium">
                 Join Pakistan's fastest-growing digital education network. Open your own Global College campus in your city and be part of an ecosystem that has already trained 4,500+ students.
               </p>
 
@@ -1460,7 +1460,7 @@ export default function Home() {
             </div>
 
             {/* Right: Stats Cards */}
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-5">
               {[
                 { value: "4,500+", label: "Students Trained", icon: Users, color: "from-emerald-500/20 to-emerald-600/10", border: "border-emerald-500/20", iconColor: "text-emerald-400" },
                 { value: "10+", label: "Active Campuses", icon: Building2, color: "from-blue-500/20 to-blue-600/10", border: "border-blue-500/20", iconColor: "text-blue-400" },
@@ -1615,44 +1615,43 @@ export default function Home() {
       </section>
 
       {/* ── CTA ──────────────────────────────────────────────────────────── */}
-      <section className="py-14 bg-gradient-to-r from-[#0f2c6f] to-[#1a47b8] text-white">
+      <section className="py-10 sm:py-12 md:py-14 bg-gradient-to-r from-[#0f2c6f] to-[#1a47b8] text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-extrabold mb-4">
+          <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold mb-3 sm:mb-4">
             Ready to Start Your Journey?
           </h2>
-          <p className="text-blue-100 text-lg mb-8">
+          <p className="text-blue-100 text-sm sm:text-base md:text-lg mb-6 sm:mb-8 px-2">
             Join Global College today and take the first step towards a
             successful career. New batches start every month!
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/register">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
+            <Link href="/register" className="w-full sm:w-auto">
               <Button
                 size="lg"
-                className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-10 animate-attention-seeker"
+                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 sm:px-10 animate-attention-seeker"
               >
                 Register Free
               </Button>
-
             </Link>
-            <a href="https://wa.me/923019890076" target="_blank" rel="noreferrer">
+            <a href="https://wa.me/923019890076" target="_blank" rel="noreferrer" className="w-full sm:w-auto">
               <Button
                 size="lg"
                 variant="outline"
-                className="border-white text-white hover:bg-white/10 font-semibold px-10"
+                className="w-full sm:w-auto border-white text-white hover:bg-white/10 font-semibold px-8 sm:px-10"
               >
                 💬 WhatsApp Us
               </Button>
             </a>
           </div>
 
-          <div className="mt-10 flex flex-wrap justify-center gap-8 text-sm text-blue-100">
-            <span className="flex items-center gap-2">
+          <div className="mt-6 sm:mt-10 flex flex-col sm:flex-row flex-wrap justify-center gap-3 sm:gap-6 md:gap-8 text-xs sm:text-sm text-blue-100">
+            <span className="flex items-center justify-center gap-2">
               <Mail className="h-4 w-4" /> info@globalcollege.edu.pk
             </span>
-            <span className="flex items-center gap-2">
+            <span className="flex items-center justify-center gap-2">
               <Phone className="h-4 w-4" /> +92 301 989 0076
             </span>
-            <span className="flex items-center gap-2">
+            <span className="flex items-center justify-center gap-2">
               <MapPin className="h-4 w-4" /> 18 Hazari, Jhang District, Punjab
             </span>
           </div>
