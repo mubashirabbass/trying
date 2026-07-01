@@ -319,7 +319,9 @@ export default function LessonPlayerPro() {
                 modestbranding: 1,
                 controls: 1,
                 autoplay: 0,
-                disablekb: 0
+                disablekb: 0,
+                enablejsapi: 1,
+                origin: window.location.origin
               },
               events: {
                 onReady: (event: any) => {

@@ -419,6 +419,7 @@ router.get("/lessons/:id/embed", async (req, res): Promise<void> => {
 
     res.json({ url: normalizeVideoUrl(videoUrl) });
   } catch (error) {
+    console.error("Error in /lessons/:id/embed route:", error);
     res.status(401).json({ error: "Invalid or expired token" });
   }
 });
