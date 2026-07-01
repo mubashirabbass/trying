@@ -94,7 +94,7 @@ function displayValue(value?: string | number | null) {
 }
 
 export default function TeacherProfile() {
-  const { user, token, login } = useAuth();
+  const { user, token, login, patchUser } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -209,7 +209,26 @@ export default function TeacherProfile() {
       }
       const uploaded = await response.json();
       updateField("avatar", uploaded.url);
-      toast({ title: "Profile photo uploaded" });
+
+      if (user?.id) {
+        const updateRes = await fetch(`${BASE}/api/users/${user.id}`, {
+          method: "PUT",
+          headers: authHeaders,
+          body: JSON.stringify({ avatar: uploaded.url }),
+        });
+
+        if (!updateRes.ok) {
+          const error = await updateRes.json().catch(() => null);
+          throw new Error(error?.message || "Failed to update profile photo in database");
+        }
+
+        const updatedUser = await updateRes.json();
+        setProfile((prev) => prev ? { ...prev, ...updatedUser } : updatedUser);
+        patchUser(updatedUser);
+        toast({ title: "Profile photo updated successfully! ✅" });
+      } else {
+        toast({ title: "Profile photo uploaded" });
+      }
     } catch (error: any) {
       toast({ title: error?.message || "Profile photo upload failed", variant: "destructive" });
     } finally {
@@ -390,12 +409,37 @@ export default function TeacherProfile() {
                   {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                   {avatarUrl ? "Replace Photo" : "Upload Photo"}
                 </Button>
-                {profileForm.avatar && (
+                {avatarUrl && (
                   <Button
                     type="button"
                     variant="outline"
-                    className="gap-2 rounded-xl text-red-600 hover:text-red-700"
-                    onClick={() => updateField("avatar", "")}
+                    className="gap-2 rounded-xl text-red-650 hover:text-red-700"
+                    disabled={uploadingPhoto}
+                    onClick={async () => {
+                      updateField("avatar", "");
+                      if (user?.id) {
+                        setUploadingPhoto(true);
+                        try {
+                          const updateRes = await fetch(`${BASE}/api/users/${user.id}`, {
+                            method: "PUT",
+                            headers: authHeaders,
+                            body: JSON.stringify({ avatar: "" }),
+                          });
+                          if (!updateRes.ok) {
+                            const error = await updateRes.json().catch(() => null);
+                            throw new Error(error?.message || "Failed to remove photo");
+                          }
+                          const updatedUser = await updateRes.json();
+                          setProfile((prev) => prev ? { ...prev, ...updatedUser } : updatedUser);
+                          patchUser(updatedUser);
+                          toast({ title: "Profile photo removed successfully! ✅" });
+                        } catch (error: any) {
+                          toast({ title: error?.message || "Failed to remove photo", variant: "destructive" });
+                        } finally {
+                          setUploadingPhoto(false);
+                        }
+                      }
+                    }}
                   >
                     <X className="h-4 w-4" />
                     Remove
@@ -664,15 +708,43 @@ export default function TeacherProfile() {
                               {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                               Choose Image
                             </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="gap-2 rounded-xl text-red-600 hover:text-red-700"
-                              onClick={() => updateField("avatar", "")}
-                            >
-                              <X className="h-4 w-4" />
-                              Clear Photo
-                            </Button>
+                            {avatarUrl && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className="gap-2 rounded-xl text-red-600 hover:text-red-700"
+                                disabled={uploadingPhoto}
+                                onClick={async () => {
+                                  updateField("avatar", "");
+                                  if (user?.id) {
+                                    setUploadingPhoto(true);
+                                    try {
+                                      const updateRes = await fetch(`${BASE}/api/users/${user.id}`, {
+                                        method: "PUT",
+                                        headers: authHeaders,
+                                        body: JSON.stringify({ avatar: "" }),
+                                      });
+                                      if (!updateRes.ok) {
+                                        const error = await updateRes.json().catch(() => null);
+                                        throw new Error(error?.message || "Failed to remove photo");
+                                      }
+                                      const updatedUser = await updateRes.json();
+                                      setProfile((prev) => prev ? { ...prev, ...updatedUser } : updatedUser);
+                                      syncForm(updatedUser);
+                                      patchUser(updatedUser);
+                                      toast({ title: "Profile photo removed successfully! ✅" });
+                                    } catch (error: any) {
+                                      toast({ title: error?.message || "Failed to remove photo", variant: "destructive" });
+                                    } finally {
+                                      setUploadingPhoto(false);
+                                    }
+                                  }
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                                Clear Photo
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
