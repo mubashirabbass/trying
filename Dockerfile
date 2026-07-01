@@ -15,6 +15,7 @@ RUN pnpm run build
 FROM node:24-alpine AS prod
 WORKDIR /app
 ENV NODE_ENV=production
+ENV PORT=7860
 
 # Copy built server and shared libs
 COPY --from=build /app/server/dist ./server/dist
