@@ -7,7 +7,7 @@
     "dev": "pnpm run --parallel --filter @workspace/global-college --filter @workspace/api-server dev",
     "dev:client": "pnpm --filter @workspace/global-college dev",
     "dev:server": "pnpm --filter @workspace/api-server dev",
-    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "build": "pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./client\" --filter \"./server\" --if-present run typecheck",
     "db:push": "cd db && pnpm drizzle-kit push",

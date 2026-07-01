@@ -30,8 +30,16 @@ import {
   DialogHeader, 
   DialogTitle, 
   DialogTrigger,
-  DialogFooter 
+  DialogFooter,
+  DialogDescription
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -572,8 +580,9 @@ export default function TeacherMessages() {
               {totalThreadPages > 1 && (
                 <div className="p-3 border-t border-slate-100 bg-slate-50/50">
                   <PaginationControls 
-                    currentPage={threadPage}
-                    totalPages={totalThreadPages}
+                    page={threadPage}
+                    pageSize={THREAD_PAGE_SIZE}
+                    totalItems={filteredThreads.length}
                     onPageChange={setThreadPage}
                   />
                 </div>

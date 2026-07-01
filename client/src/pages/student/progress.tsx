@@ -38,7 +38,7 @@ export default function StudentProgress() {
       ...enr,
       courseTitle: course?.title || `Course #${enr.courseId}`,
       category: course?.category || "General",
-      thumbnailUrl: course?.thumbnailUrl,
+      thumbnailUrl: course?.thumbnail,
       teacherName: course?.teacherName,
       totalLessons: course?.lessonCount || 0,
     };

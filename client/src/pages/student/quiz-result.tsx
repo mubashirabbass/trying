@@ -44,7 +44,7 @@ export default function QuizResultPage() {
     );
   }
 
-  const { quiz } = result;
+  const { quiz } = result as any;
 
   return (
     <DashboardLayout>
@@ -69,7 +69,7 @@ export default function QuizResultPage() {
               {quiz.title}
             </h1>
             <div className="flex items-center justify-center gap-4 text-slate-500 font-bold uppercase tracking-widest text-xs mt-2">
-              <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> {new Date(result.createdAt).toLocaleDateString()}</span>
+              <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> {new Date((result as any).createdAt).toLocaleDateString()}</span>
               <span className="text-slate-300">•</span>
               <span className="flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5" /> Detailed Report</span>
             </div>
@@ -98,7 +98,7 @@ export default function QuizResultPage() {
                 <CheckCircle2 className="h-6 w-6 text-primary" /> Question Review
               </h3>
               
-              {result.answers.map((answer: any, index: number) => {
+              {(result.answers || []).map((answer: any, index: number) => {
                 const question = quiz.questions.find((q: any) => q.id === answer.questionId);
                 return (
                   <div key={index} className={`p-6 rounded-[24px] border-2 transition-all hover:shadow-md ${answer.correct ? 'border-emerald-100 bg-emerald-50/20' : 'border-rose-100 bg-rose-50/20'}`}>

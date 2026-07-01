@@ -32,7 +32,8 @@ import {
   useUpvoteForumPost,
   useListCourses,
   getListForumPostsQueryKey,
-  getListForumRepliesQueryKey
+  getListForumRepliesQueryKey,
+  getListEnrollmentsQueryKey
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -51,19 +52,19 @@ export default function StudentForum() {
   const isFaculty = user?.role === 'teacher' || user?.role === 'admin';
   const { data: enrollments } = useListEnrollments(
     undefined,
-    { query: { enabled: !isFaculty } }
+    { query: { queryKey: getListEnrollmentsQueryKey(undefined), enabled: !isFaculty } }
   );
   const { data: allCourses } = useListCourses();
   
   const coursesToDisplay = isFaculty ? allCourses : enrollments?.map(e => ({ id: e.courseId, title: e.courseName }));
   const { data: posts, isLoading: postsLoading } = useListForumPosts(
     selectedCourseId as number,
-    { query: { enabled: !!selectedCourseId } }
+    { query: { queryKey: getListForumPostsQueryKey(selectedCourseId as number), enabled: !!selectedCourseId } }
   );
 
   const { data: replies, isLoading: repliesLoading } = useListForumReplies(
     selectedPostId as number,
-    { query: { enabled: !!selectedPostId } }
+    { query: { queryKey: getListForumRepliesQueryKey(selectedPostId as number), enabled: !!selectedPostId } }
   );
 
   const createPostMutation = useCreateForumPost();

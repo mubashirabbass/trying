@@ -3,7 +3,7 @@ import { MainLayout } from "@/components/MainLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { useVerifyCertificate } from "@workspace/api-client-react";
+import { useVerifyCertificate, getVerifyCertificateQueryKey } from "@workspace/api-client-react";
 import { CheckCircle2, XCircle, Search, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -13,12 +13,14 @@ export default function VerifyCertificate() {
   const [searchValue, setSearchValue] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
 
+  const verificationParams = {
+    cnic: searchType === "cnic" ? searchValue : undefined,
+    certificateNumber: searchType === "certificate" ? searchValue : undefined
+  };
+
   const { data: verificationResult, isLoading, refetch } = useVerifyCertificate(
-    {
-      cnic: searchType === "cnic" ? searchValue : undefined,
-      certificateNumber: searchType === "certificate" ? searchValue : undefined
-    },
-    { query: { enabled: false } }
+    verificationParams,
+    { query: { queryKey: getVerifyCertificateQueryKey(verificationParams), enabled: false } }
   );
 
   const handleVerify = (e: React.FormEvent) => {

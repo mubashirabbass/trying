@@ -79,7 +79,7 @@ app.use("/api", router);
 
 // 5. Serve Frontend in Production
 if (process.env.NODE_ENV === "production") {
-  const clientPath = path.join(__dirname, "../../client/dist");
+  const clientPath = path.join(__dirname, "../../client/dist/public");
   app.use(express.static(clientPath));
   
   app.get("*", (req, res) => {

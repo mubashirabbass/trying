@@ -70,7 +70,8 @@ export default function QuizPlayer() {
   useEffect(() => {
     if (!quiz || perQuestionTime !== null) return;
     const totalSeconds = (quiz.timeLimit || 30) * 60;
-    const numQuestions = quiz.questions.length;
+    const numQuestions = quiz.questions?.length ?? 0;
+    if (numQuestions === 0) return;
     const perQ = Math.floor(totalSeconds / numQuestions);
     setPerQuestionTime(perQ);
     setQuestionTimeLeft(perQ);
@@ -86,7 +87,7 @@ export default function QuizPlayer() {
       setIsSubmitting(true);
 
       const latestAnswers = currentAnswers ?? answersRef.current;
-      const submissionAnswers = quiz.questions.map((q: any) => ({
+      const submissionAnswers = (quiz.questions || []).map((q: any) => ({
         questionId: q.id,
         selectedOption: latestAnswers[q.id] ?? -1,
       }));
@@ -117,7 +118,7 @@ export default function QuizPlayer() {
     if (questionTimeLeft <= 0) {
       // Time's up for this question
       const nextIndex = currentQuestionIndex + 1;
-      if (nextIndex >= quiz.questions.length) {
+      if (nextIndex >= (quiz.questions || []).length) {
         // Last question — auto-submit
         toast({ title: "⏰ Time's up! Auto-submitting quiz...", variant: "destructive" });
         finishQuiz(answersRef.current);
@@ -402,9 +403,9 @@ export default function QuizPlayer() {
   }
 
   // ── Active quiz ───────────────────────────────────────────────────────────────
-  const currentQuestion = quiz.questions[currentQuestionIndex] as any;
-  const totalQuestions = quiz.questions.length;
-  const questionProgress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
+  const currentQuestion = (quiz.questions || [])[currentQuestionIndex] as any;
+  const totalQuestions = (quiz.questions || []).length;
+  const questionProgress = totalQuestions > 0 ? ((currentQuestionIndex + 1) / totalQuestions) * 100 : 0;
   const answeredCount = Object.keys(answers).length;
   const currentAnswer = answers[currentQuestion.id];
 
@@ -576,7 +577,7 @@ export default function QuizPlayer() {
 
             {/* Question dot navigator */}
             <div className="hidden md:flex gap-1.5 items-center flex-wrap justify-center max-w-xs">
-              {quiz.questions.map((_: any, i: number) => (
+              {(quiz.questions || []).map((_: any, i: number) => (
                 <button
                   key={i}
                   type="button"
@@ -585,12 +586,12 @@ export default function QuizPlayer() {
                   className={`h-3 w-3 rounded-full transition-all ${
                     i === currentQuestionIndex
                       ? "bg-primary scale-125 ring-2 ring-primary/30"
-                      : answers[(quiz.questions[i] as any).id] !== undefined
+                      : answers[((quiz.questions || [])[i] as any).id] !== undefined
                       ? "bg-emerald-400 hover:bg-emerald-500"
                       : "bg-slate-200 hover:bg-slate-300"
                   }`}
                   title={`Q${i + 1}${
-                    answers[(quiz.questions[i] as any).id] !== undefined
+                    answers[((quiz.questions || [])[i] as any).id] !== undefined
                       ? " ✓"
                       : ""
                   }`}

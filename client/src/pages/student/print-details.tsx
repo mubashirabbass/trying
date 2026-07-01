@@ -490,7 +490,7 @@ export default function PrintDetails() {
                   <thead>
                     <tr style={{ borderBottom: "1px solid black" }}>
                       <th
-                        colspan={5}
+                        colSpan={5}
                         className="py-1.5 px-3 font-bold bg-white text-center uppercase tracking-wide"
                         style={{ borderBottom: "1.5px solid black", fontSize: "13px" }}
                       >
@@ -518,7 +518,7 @@ export default function PrintDetails() {
                       ))
                     ) : enrollments.length === 0 ? (
                       <tr>
-                        <td colspan={5} className="py-6 px-4 text-center italic font-semibold text-slate-500">
+                        <td colSpan={5} className="py-6 px-4 text-center italic font-semibold text-slate-500">
                           No active academic course enrollments found.
                         </td>
                       </tr>
@@ -553,7 +553,7 @@ export default function PrintDetails() {
                   <thead>
                     <tr style={{ borderBottom: "1px solid black" }}>
                       <th
-                        colspan={7}
+                        colSpan={7}
                         className="py-1.5 px-3 font-bold bg-white text-center uppercase tracking-wide"
                         style={{ borderBottom: "1.5px solid black", fontSize: "13px" }}
                       >
@@ -585,7 +585,7 @@ export default function PrintDetails() {
                       ))
                     ) : payments.length === 0 ? (
                       <tr>
-                        <td colspan={7} className="py-6 px-4 text-center italic font-semibold text-slate-500">
+                        <td colSpan={7} className="py-6 px-4 text-center italic font-semibold text-slate-500">
                           No financial transaction records found.
                         </td>
                       </tr>

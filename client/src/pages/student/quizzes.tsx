@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { useListQuizzes, useListQuizResults, useListEnrollments } from "@workspace/api-client-react";
+import { useListQuizzes, useListQuizResults, useListEnrollments, getListEnrollmentsQueryKey } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/AuthContext";
 import { 
   Loader2, 
@@ -42,9 +42,10 @@ export default function StudentQuizzes() {
 
   const { data: quizzes, isLoading: quizzesLoading } = useListQuizzes();
   const { data: results = [], isLoading: resultsLoading } = useListQuizResults();
+  const enrollParams = { userId: user?.id };
   const { data: enrollments = [] } = useListEnrollments(
-    { userId: user?.id },
-    { query: { enabled: !!user?.id } }
+    enrollParams,
+    { query: { queryKey: getListEnrollmentsQueryKey(enrollParams), enabled: !!user?.id } }
   );
   // Only show courses the student is actively enrolled in
   const enrolledCourses = (enrollments as any[]).filter(
@@ -148,7 +149,7 @@ export default function StudentQuizzes() {
         index + 1,
         `"${q.title.replace(/"/g, '""')}"`,
         `"${courseName.replace(/"/g, '""')}"`,
-        q.questions.length,
+        q.questions?.length ?? 0,
         q.totalMarks,
         q.timeLimit || 0,
         `"${statusLabel}"`,
@@ -211,8 +212,8 @@ export default function StudentQuizzes() {
         aVal = resA?.percentage ?? -1;
         bVal = resB?.percentage ?? -1;
       } else if (sortField === "questions") {
-        aVal = a.questions.length;
-        bVal = b.questions.length;
+        aVal = a.questions?.length ?? 0;
+        bVal = b.questions?.length ?? 0;
       }
 
       if (aVal === null || aVal === undefined) return sortDirection === "asc" ? 1 : -1;
@@ -560,7 +561,7 @@ export default function StudentQuizzes() {
 
                       {/* Questions count */}
                       <td className="px-3 py-3.5 text-center font-bold text-slate-700">
-                        {quiz.questions.length}
+                        {quiz.questions?.length ?? 0}
                       </td>
 
                       {/* Total marks */}
