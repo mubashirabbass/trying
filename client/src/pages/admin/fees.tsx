@@ -794,8 +794,50 @@ export default function AdminFees() {
                             <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Installment Ledger Status</Label>
                             
                             {studentLedger.length === 0 ? (
-                              <div className="text-xs text-slate-400 p-2 border border-dashed rounded-xl text-center bg-white">
-                                Ledger not generated yet. Generating happens on first verified payment.
+                              <div className="text-xs text-slate-400 p-4 border border-dashed rounded-xl text-center bg-white space-y-3">
+                                <p className="font-semibold text-slate-500">Ledger slots have not been generated yet for this enrollment.</p>
+                                <Button
+                                  size="sm"
+                                  onClick={async () => {
+                                    const k = `generate-${row.userId}-${row.courseId}`;
+                                    setBusy(k, true);
+                                    try {
+                                      const genRes = await fetch(`${BASE}/api/installment-ledger/generate`, {
+                                        method: "POST",
+                                        headers: {
+                                          "Content-Type": "application/json",
+                                          Authorization: `Bearer ${token}`
+                                        },
+                                        body: JSON.stringify({
+                                          userId: row.userId,
+                                          courseId: row.courseId,
+                                          totalFee: row.courseFee,
+                                          durationMonths: row.durationMonths
+                                        })
+                                      });
+                                      if (genRes.ok) {
+                                        toast({ title: "Ledger slots generated successfully! 🎉" });
+                                        fetchLedgers();
+                                      } else {
+                                        throw new Error("Failed to generate ledger slots");
+                                      }
+                                    } catch (err: any) {
+                                      toast({ title: err.message, variant: "destructive" });
+                                    } finally {
+                                      setBusy(k, false);
+                                    }
+                                  }}
+                                  className="h-8 text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 gap-1.5 shadow-sm"
+                                >
+                                  {busyKeys[`generate-${row.userId}-${row.courseId}`] ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <RefreshCw className="h-3.5 w-3.5" />
+                                      Generate Ledger Slots Now
+                                    </>
+                                  )}
+                                </Button>
                               </div>
                             ) : (
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

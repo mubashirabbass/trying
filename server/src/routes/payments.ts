@@ -197,6 +197,41 @@ router.post("/payments/:id/verify", async (req, res): Promise<void> => {
           });
         }
       }
+      // Update the ledger row for this month
+      const [ledger] = await db.select()
+        .from(installmentLedgerTable)
+        .where(and(
+          eq(installmentLedgerTable.userId, payment.userId),
+          eq(installmentLedgerTable.courseId, payment.courseId),
+          eq(installmentLedgerTable.monthNumber, payment.installmentNumber ?? 1)
+        ));
+
+      if (ledger) {
+        const amtPaid = Number(payment.amount) || 0;
+        const newTotalPaid = (Number(ledger.totalPaid) || 0) + amtPaid;
+        const newRemaining = Math.max(0, (Number(ledger.installmentAmount) || 0) - newTotalPaid);
+        const newStatus = newRemaining <= 0 ? "paid" : newTotalPaid > 0 ? "partial" : "unpaid";
+        
+        const history: any[] = Array.isArray(ledger.paymentHistory) ? [...ledger.paymentHistory] : [];
+        if (!history.some((h: any) => h.paymentId === payment.id)) {
+          history.push({
+            paymentId: payment.id,
+            amount: amtPaid,
+            paidAt: new Date().toISOString(),
+            method: payment.method || "easypaisa",
+            notes: payment.notes || "Verified by Admin review",
+          });
+        }
+
+        await db.update(installmentLedgerTable)
+          .set({
+            totalPaid: newTotalPaid,
+            remainingBalance: newRemaining,
+            status: newStatus,
+            paymentHistory: history as any,
+          })
+          .where(eq(installmentLedgerTable.id, ledger.id));
+      }
     }
 
     // Trigger notification
