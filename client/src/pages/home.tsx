@@ -501,7 +501,7 @@ export default function Home() {
             </span>
           </div>
           
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-black leading-tight mb-12 drop-shadow-2xl">
+          <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-black leading-tight mb-6 md:mb-12 drop-shadow-2xl">
             {heroTitle.includes("Digital") || heroTitle.includes("Next") ? (
               <>{heroTitle.split(/(?=Digital|Next)/)[0]}<span className="text-[#ffec99]">{heroTitle.split(/(?=Digital|Next)/)[1] ?? ""}</span></>
             ) : (
@@ -509,7 +509,7 @@ export default function Home() {
             )}
           </h1>
           
-          <p className="text-slate-200 text-lg md:text-xl max-w-3xl mx-auto mb-12 font-medium leading-relaxed drop-shadow-md">
+          <p className="text-slate-200 text-base md:text-xl max-w-3xl mx-auto mb-6 md:mb-12 font-medium leading-relaxed drop-shadow-md">
             {heroSubtitle}
           </p>
           
@@ -637,8 +637,8 @@ export default function Home() {
           </div>
 
           <div className="relative group/courses max-w-7xl mx-auto">
-            {/* Scroll Buttons - Always Visible */}
-            <div className="absolute top-1/2 left-2 -translate-y-1/2 z-20">
+            {/* Scroll Buttons - Visible on desktop, swipable on mobile */}
+            <div className="hidden md:block absolute top-1/2 left-2 -translate-y-1/2 z-20">
               <Button
                 onClick={() => scrollCourses("left")}
                 variant="outline"
@@ -649,7 +649,7 @@ export default function Home() {
               </Button>
             </div>
 
-            <div className="absolute top-1/2 right-2 -translate-y-1/2 z-20">
+            <div className="hidden md:block absolute top-1/2 right-2 -translate-y-1/2 z-20">
               <Button
                 onClick={() => scrollCourses("right")}
                 variant="outline"
@@ -866,42 +866,42 @@ export default function Home() {
                 >
                   <div className="flex flex-col lg:flex-row items-center gap-12 w-full transition-all duration-700">
                     {/* Left Side: Content */}
-                    <div className="flex-1 text-left animate-in fade-in slide-in-from-left duration-700" key={activeAchiever}>
-                      <div className="flex gap-1 mb-6">
+                    <div className="flex-1 text-center lg:text-left animate-in fade-in slide-in-from-left duration-700" key={activeAchiever}>
+                      <div className="flex justify-center lg:justify-start gap-1 mb-6">
                         {[...Array(5)].map((_, i) => (
                           <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
                         ))}
                       </div>
                       
                       <div className="relative">
-                        <Quote className="h-12 w-12 text-blue-100 absolute -top-6 -left-6 -z-10" />
-                        <h3 className="text-2xl md:text-3xl font-black text-gray-900 leading-tight mb-8">
+                        <Quote className="h-12 w-12 text-blue-100 absolute -top-6 -left-6 -z-10 hidden lg:block" />
+                        <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-gray-900 leading-tight mb-8">
                           "{displaySuccessStories[activeAchiever]?.description || displaySuccessStories[activeAchiever]?.story || "I had an amazing learning experience at Global College!"}"
                         </h3>
                       </div>
 
-                      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <div>
-                          <p className="text-2xl font-black text-gray-900">
+                          <p className="text-xl md:text-2xl font-black text-gray-900">
                             {displaySuccessStories[activeAchiever]?.studentName || displaySuccessStories[activeAchiever]?.name || "Anonymous Achiever"}
                           </p>
-                          <p className="text-gray-500 font-bold">
+                          <p className="text-gray-500 font-bold text-sm md:text-base">
                             {displaySuccessStories[activeAchiever]?.title || displaySuccessStories[activeAchiever]?.role || "Graduate"}
                           </p>
                         </div>
-                        <span className="text-emerald-600 font-extrabold text-sm flex items-center gap-1 mt-2 md:mt-0 transition-colors group-hover:text-emerald-700">
+                        <span className="text-emerald-600 font-extrabold text-sm flex items-center justify-center lg:justify-start gap-1 mt-2 lg:mt-0 transition-colors group-hover:text-emerald-700">
                           Read Full Success Story <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                         </span>
                       </div>
 
-                      <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 px-4 py-2 text-base font-black rounded-xl pointer-events-none">
+                      <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 px-4 py-2 text-sm md:text-base font-black rounded-xl pointer-events-none">
                         💰 {displaySuccessStories[activeAchiever]?.metric1Value ? `${displaySuccessStories[activeAchiever]?.metric1Value} ${displaySuccessStories[activeAchiever]?.metric1Label || ''}` : (displaySuccessStories[activeAchiever]?.income || "$5,000+")}
                       </Badge>
                     </div>
 
                     {/* Right Side: Visual */}
-                    <div className="w-full lg:w-[400px] relative animate-in fade-in zoom-in duration-700" key={`img-${activeAchiever}`}>
-                      <div className="aspect-[1/1] rounded-full bg-gray-200 overflow-hidden shadow-2xl border-[12px] border-white relative flex items-center justify-center transition-transform duration-500 group-hover:scale-105">
+                    <div className="w-full max-w-[260px] sm:max-w-[300px] lg:max-w-[400px] mx-auto relative animate-in fade-in zoom-in duration-700" key={`img-${activeAchiever}`}>
+                      <div className="aspect-square rounded-full bg-gray-200 overflow-hidden shadow-2xl border-8 lg:border-[12px] border-white relative flex items-center justify-center transition-transform duration-500 group-hover:scale-105">
                         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent z-10" />
                         {displaySuccessStories[activeAchiever]?.image ? (
                           <img 
@@ -911,7 +911,7 @@ export default function Home() {
                           />
                         ) : (
                           <div className="w-full h-full bg-slate-300 flex items-center justify-center">
-                            <Users className="h-24 w-24 text-white/50" />
+                            <Users className="h-16 w-16 text-white/50" />
                           </div>
                         )}
                       </div>
@@ -1275,7 +1275,7 @@ export default function Home() {
             {/* Google Map Iframe */}
             <div className="relative group">
               <div className="absolute -inset-4 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-[3rem] blur-2xl opacity-10 group-hover:opacity-20 transition-opacity duration-500" />
-              <div className="relative h-[600px] w-full rounded-[2.5rem] overflow-hidden border-8 border-white shadow-2xl">
+              <div className="relative h-[300px] md:h-[450px] lg:h-[600px] w-full rounded-[2.5rem] overflow-hidden border-8 border-white shadow-2xl">
                 <iframe
                   title="Global College Main Campus Map"
                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3403.220123456789!2d72.0953338!3d31.1619472!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39238334fa95cf0b%3A0x8d18e20da5992720!2sGLOBAL%20COLLEGE%20OF%20COMPUTER%20SCIENCE%2018%20HAZARI%20JHANG!5e0!3m2!1sen!2spk!4v1715830000000!5m2!1sen!2spk"
