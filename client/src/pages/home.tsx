@@ -181,6 +181,10 @@ export default function Home() {
     query: { queryKey: getListBranchesQueryKey() },
   });
 
+  const { data: categories } = useListSuccessStoryCategories({
+    query: { queryKey: getListSuccessStoryCategoriesQueryKey() },
+  });
+
   const [articles, setArticles] = useState<any[]>([]);
   const [faqs, setFaqs] = useState<any[]>([]);
   const [selectedStory, setSelectedStory] = useState<any | null>(null);
@@ -195,59 +199,20 @@ export default function Home() {
   const [franchiseSuccess, setFranchiseSuccess] = useState(false);
   const [franchiseError, setFranchiseError] = useState("");
 
-  const handleFranchiseSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!franchiseForm.name || !franchiseForm.email || !franchiseForm.phone || !franchiseForm.address || !franchiseForm.description) {
-      setFranchiseError("Please fill in all required fields.");
-      return;
-    }
-    // Show thank-you immediately on submit click
-    setFranchiseSuccess(true);
-    const payload = { ...franchiseForm };
-    setFranchiseForm({ name: "", email: "", phone: "", address: "", city: "", description: "" });
-    // Save to backend in background
-    try {
-      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
-      await fetch(`${base}/api/franchise-applications`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-    } catch {
-      // Silent — user already sees thank-you
-    }
-  };
-
-
-  const { data: categories } = useListSuccessStoryCategories({
-    query: { queryKey: getListSuccessStoryCategoriesQueryKey() },
-  });
-
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | "all">("all");
 
-  useEffect(() => {
-    fetchPublic("/api/articles").then(setArticles);
-    fetchPublic("/api/faqs").then(setFaqs);
-    fetchPublic("/api/announcements/public").then((data) => {
-      if (Array.isArray(data)) {
-        setAnnouncements(data);
-      }
-    });
-  }, []);
+  const [activeAchiever, setActiveAchiever] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoLoaded, setVideoLoaded] = useState(false);
 
-  const isPageLoading = isSettingsLoading || isCoursesLoading || isStoriesLoading || isTestimonialsLoading || isBranchesLoading;
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
 
-  if (isPageLoading) {
-    return (
-      <MainLayout>
-        <div className="flex flex-col items-center justify-center min-h-[60vh] py-16 space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="text-sm font-semibold text-gray-500 animate-pulse">Loading {siteName}...</p>
-        </div>
-      </MainLayout>
-    );
-  }
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const branchScrollRef = useRef<HTMLDivElement>(null);
+  const coursesScrollRef = useRef<HTMLDivElement>(null);
 
+  // Success story calculations
   const rawSuccessStories = (successStories && successStories.filter((s: any) => !s.isHidden).length > 0)
     ? successStories.filter((story: any) => !story.isHidden)
     : [
@@ -328,9 +293,41 @@ export default function Home() {
     return Number(story.categoryId) === Number(selectedCategoryId);
   });
 
-  const [activeAchiever, setActiveAchiever] = useState(0);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoLoaded, setVideoLoaded] = useState(false);
+  const displayBranches = (branches || []).filter((branch: any) => branch.isActive !== false && !branch.isMain);
+  const mainCampus = branches?.find((b: any) => b.isMain);
+
+  // Franchise Form Submit Handler
+  const handleFranchiseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!franchiseForm.name || !franchiseForm.email || !franchiseForm.phone || !franchiseForm.address || !franchiseForm.description) {
+      setFranchiseError("Please fill in all required fields.");
+      return;
+    }
+    setFranchiseSuccess(true);
+    const payload = { ...franchiseForm };
+    setFranchiseForm({ name: "", email: "", phone: "", address: "", city: "", description: "" });
+    try {
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+      await fetch(`${base}/api/franchise-applications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // Silent
+    }
+  };
+
+  // Effects
+  useEffect(() => {
+    fetchPublic("/api/articles").then(setArticles);
+    fetchPublic("/api/faqs").then(setFaqs);
+    fetchPublic("/api/announcements/public").then((data) => {
+      if (Array.isArray(data)) {
+        setAnnouncements(data);
+      }
+    });
+  }, []);
 
   // Auto-scroll logic for Achievers
   useEffect(() => {
@@ -358,14 +355,7 @@ export default function Home() {
     }
   }, []);
 
-
-
-  const displayBranches = (branches || []).filter((branch: any) => branch.isActive !== false && !branch.isMain);
-  const mainCampus = branches?.find((b: any) => b.isMain);
-
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
-
+  // Scroll helpers
   const checkScroll = () => {
     if (scrollRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
@@ -391,9 +381,6 @@ export default function Home() {
     }
   };
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const branchScrollRef = useRef<HTMLDivElement>(null);
-
   const scrollBranches = (direction: "left" | "right") => {
     if (branchScrollRef.current) {
       const { scrollLeft, clientWidth } = branchScrollRef.current;
@@ -409,8 +396,6 @@ export default function Home() {
     }
   };
 
-  const coursesScrollRef = useRef<HTMLDivElement>(null);
-
   const scrollCourses = (direction: "left" | "right") => {
     if (coursesScrollRef.current) {
       const { scrollLeft, clientWidth } = coursesScrollRef.current;
@@ -425,6 +410,10 @@ export default function Home() {
       });
     }
   };
+
+  // Loading check (placed after all hooks)
+  const isPageLoading = isSettingsLoading || isCoursesLoading || isStoriesLoading || isTestimonialsLoading || isBranchesLoading;
+
 
   const displayCourses = (courses && courses.length > 0) ? courses : [
     {
