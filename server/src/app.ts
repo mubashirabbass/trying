@@ -45,9 +45,31 @@ const xssClean = () => {
 const app: Express = express();
 
 // 1. Core Security Middlewares
-app.use(helmet()); // Set security HTTP headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+})); // Set security HTTP headers with permissive resource policy for media
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  origin: (origin, callback) => {
+    // Allow same-origin requests (no origin header, e.g. curl or direct app visits)
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    // Allow Hugging Face domains or local development origins
+    if (
+      origin.endsWith(".hf.space") ||
+      origin === "https://huggingface.co" ||
+      origin.includes("localhost") ||
+      origin.includes("127.0.0.1") ||
+      origin === process.env.FRONTEND_URL
+    ) {
+      callback(null, true);
+    } else {
+      // Fallback: Mirror the origin to prevent CORS blocking for credentials
+      callback(null, true);
+    }
+  },
   credentials: true
 })); // Enable CORS
 
