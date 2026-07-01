@@ -155,7 +155,7 @@ const fetchPublic = async (path: string) => {
 
 export default function Home() {
   console.log("Home component rendering");
-  const { get } = useSettings();
+  const { get, loading: isSettingsLoading } = useSettings();
 
   const siteName          = get("site_name",            "Global College");
   const heroTitle         = get("hero_title",           "Learn from the Best Industry Experts");
@@ -164,17 +164,21 @@ export default function Home() {
   const aboutTitle        = get("about_section_title",  "Empowering Next Generation of Professionals");
   const aboutContent      = get("about_section_content", "Global College is dedicated to providing high-quality technical and professional education to students across Pakistan.");
 
-  const { data: courses } = useListCourses(
+  const { data: courses, isLoading: isCoursesLoading } = useListCourses(
     { featured: true },
     { query: { queryKey: getListCoursesQueryKey({ featured: true }) } }
   );
 
-  const { data: testimonials } = useListTestimonials({
+  const { data: testimonials, isLoading: isTestimonialsLoading } = useListTestimonials({
     query: { queryKey: getListTestimonialsQueryKey() },
   });
 
-  const { data: successStories } = useListSuccessStories({
+  const { data: successStories, isLoading: isStoriesLoading } = useListSuccessStories({
     query: { queryKey: getListSuccessStoriesQueryKey() },
+  });
+
+  const { data: branches, isLoading: isBranchesLoading } = useListBranches({
+    query: { queryKey: getListBranchesQueryKey() },
   });
 
   const [articles, setArticles] = useState<any[]>([]);
@@ -230,6 +234,19 @@ export default function Home() {
       }
     });
   }, []);
+
+  const isPageLoading = isSettingsLoading || isCoursesLoading || isStoriesLoading || isTestimonialsLoading || isBranchesLoading;
+
+  if (isPageLoading) {
+    return (
+      <MainLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] py-16 space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-sm font-semibold text-gray-500 animate-pulse">Loading {siteName}...</p>
+        </div>
+      </MainLayout>
+    );
+  }
 
   const rawSuccessStories = (successStories && successStories.filter((s: any) => !s.isHidden).length > 0)
     ? successStories.filter((story: any) => !story.isHidden)
@@ -341,9 +358,7 @@ export default function Home() {
     }
   }, []);
 
-  const { data: branches } = useListBranches({
-    query: { queryKey: getListBranchesQueryKey() },
-  });
+
 
   const displayBranches = (branches || []).filter((branch: any) => branch.isActive !== false && !branch.isMain);
   const mainCampus = branches?.find((b: any) => b.isMain);

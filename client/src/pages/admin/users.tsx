@@ -66,6 +66,9 @@ export default function AdminStudents() {
   const [collectNotes, setCollectNotes] = useState("");
   const [isCollecting, setIsCollecting] = useState(false);
 
+  // Manage Enrollments modal
+  const [manageEnrollmentUser, setManageEnrollmentUser] = useState<any>(null);
+
   // Original Dashboard Modals & Filters
   const [roleFilter, setRoleFilter] = useState<string>("student");
   const [studentTab, setStudentTab] = useState<"all" | "registered" | "fee_unpaid" | "enrolled">("all");
@@ -1367,86 +1370,48 @@ export default function AdminStudents() {
                             </TableCell>
                             <TableCell className="text-slate-600 font-mono text-xs">{u.email}</TableCell>
                             <TableCell className="py-2.5">
-                              <div className="flex flex-col gap-2">
+                              <div className="flex flex-wrap gap-1.5 max-w-xs">
                                 {activeEnrollments.map((e: any) => {
                                   const course = courses.find((c: any) => c.id === e.courseId);
-                                  const verifiedPayments = payments.filter((p: any) => 
-                                    p.userId === u.id && 
-                                    p.courseId === e.courseId && 
-                                    p.status === "verified"
+                                  const verifiedPayments = payments.filter((p: any) =>
+                                    p.userId === u.id && p.courseId === e.courseId && p.status === "verified"
                                   );
-                                  
                                   const totalPaid = verifiedPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-
-                                  // Use totalFee from payment record first (most reliable), fallback to course.fee
                                   const courseFee = verifiedPayments[0]?.totalFee || course?.fee || 0;
-
-                                  // Detect payment plan
                                   const isMonthlyPlan = verifiedPayments.some((p: any) => p.paymentPlan === "monthly");
-                                  
-                                  // Parse total installment months from course duration string ("6 Months" → 6)
                                   const durationStr = course?.duration || "";
                                   const durationMatch = durationStr.match(/(\d+)/);
-                                  const totalInstallmentMonths = 
+                                  const totalInstallmentMonths =
                                     verifiedPayments[0]?.installmentMonths ||
                                     (durationMatch ? parseInt(durationMatch[1], 10) : 0);
-
                                   const installmentsPaid = verifiedPayments.length;
-
                                   const remainingBalance = courseFee > 0 ? courseFee - totalPaid : 0;
-                                  
-                                  // For monthly plans: only "fully paid" when ALL installments are paid
-                                  // For non-monthly: fully paid when remaining balance is 0
                                   const isFullyPaid = isMonthlyPlan
                                     ? (totalInstallmentMonths > 0 && installmentsPaid >= totalInstallmentMonths)
                                     : (courseFee > 0 && remainingBalance <= 0);
-                                  
+
+                                  const statusColor = isFullyPaid
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : installmentsPaid === 0
+                                    ? "bg-red-50 text-red-700 border-red-200"
+                                    : "bg-amber-50 text-amber-700 border-amber-200";
+
+                                  const statusDot = isFullyPaid ? "bg-emerald-500" : installmentsPaid === 0 ? "bg-red-500" : "bg-amber-400";
+
                                   return (
-                                    <div key={e.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 border border-slate-100">
-                                      <div className="flex-1">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-100 rounded text-[10px] font-bold px-1.5 py-0.5">
-                                            {e.courseName || `Course #${e.courseId}`}
-                                          </Badge>
-                                          {isFullyPaid ? (
-                                            <Badge className="bg-green-100 text-green-700 border border-green-200 rounded text-[9px] font-black px-1.5 py-0.5">
-                                              ✓ Fully Paid
-                                            </Badge>
-                                          ) : isMonthlyPlan ? (
-                                            <Badge className={`rounded text-[9px] font-black px-1.5 py-0.5 ${
-                                              installmentsPaid === 0
-                                                ? "bg-red-100 text-red-700 border border-red-200"
-                                                : "bg-amber-100 text-amber-700 border border-amber-200"
-                                            }`}>
-                                              {installmentsPaid}/{totalInstallmentMonths > 0 ? totalInstallmentMonths : "?"} Installments
-                                            </Badge>
-                                          ) : (
-                                            <Badge className="bg-blue-100 text-blue-700 border border-blue-200 rounded text-[9px] font-black px-1.5 py-0.5">
-                                              Partial
-                                            </Badge>
-                                          )}
-                                        </div>
-                                        <div className="text-[10px] text-slate-500 mt-1">
-                                          {isFullyPaid ? (
-                                            <span className="font-bold text-green-600">Fully Paid: Rs. {courseFee.toLocaleString()}</span>
-                                          ) : isMonthlyPlan ? (
-                                            <div className="flex flex-col gap-0.5">
-                                              <span>Paid: <span className="font-bold text-emerald-600">Rs. {totalPaid.toLocaleString()}</span>{courseFee > 0 ? ` / Rs. ${courseFee.toLocaleString()}` : ""}</span>
-                                              {courseFee > 0 && remainingBalance > 0 && (
-                                                <span>Remaining: <span className="font-bold text-amber-600">Rs. {remainingBalance.toLocaleString()}</span></span>
-                                              )}
-                                            </div>
-                                          ) : (
-                                            <div className="flex flex-col gap-0.5">
-                                              <span>Paid: <span className="font-bold text-emerald-600">Rs. {totalPaid.toLocaleString()}</span>{courseFee > 0 ? ` / Rs. ${courseFee.toLocaleString()}` : ""}</span>
-                                              {courseFee > 0 && remainingBalance > 0 && (
-                                                <span>Remaining: <span className="font-bold text-amber-600">Rs. {remainingBalance.toLocaleString()}</span></span>
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
+                                    <span
+                                      key={e.id}
+                                      title={isFullyPaid
+                                        ? `Fully Paid · Rs. ${courseFee.toLocaleString()}`
+                                        : isMonthlyPlan
+                                        ? `${installmentsPaid}/${totalInstallmentMonths || "?"} installments · Rs. ${totalPaid.toLocaleString()} paid`
+                                        : `Rs. ${totalPaid.toLocaleString()} paid · Rs. ${remainingBalance.toLocaleString()} remaining`
+                                      }
+                                      className={`inline-flex items-center gap-1 border rounded-full px-2 py-0.5 text-[10px] font-bold leading-none cursor-default ${statusColor}`}
+                                    >
+                                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDot}`} />
+                                      <span className="truncate max-w-[110px]">{e.courseName || `Course #${e.courseId}`}</span>
+                                    </span>
                                   );
                                 })}
                               </div>
@@ -1473,124 +1438,21 @@ export default function AdminStudents() {
                                       <MoreVertical className="h-4 w-4 text-slate-500" />
                                     </Button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-64 rounded-2xl p-1.5">
+                                  <DropdownMenuContent align="end" className="w-52 rounded-2xl p-1.5">
                                     <DropdownMenuItem className="rounded-xl font-bold text-xs gap-2 py-2" onClick={() => setLocation(`/admin/users/${u.id}`)}>
                                       <User className="h-4 w-4 text-slate-400" /> View Profile
                                     </DropdownMenuItem>
-                                    
                                     {activeEnrollments.length > 0 && (
                                       <>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuLabel className="text-[10px] font-black text-slate-400 uppercase px-2 py-1">Active Enrollments</DropdownMenuLabel>
-                                        {activeEnrollments.map((e: any) => (
-                                          <DropdownMenuItem 
-                                            key={e.id} 
-                                            className="rounded-xl font-bold text-xs gap-2 py-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50" 
-                                            disabled={actioning === e.id}
-                                            onClick={() => unenrollStudent(e.id, e.courseName || `Course #${e.courseId}`, u.name)}
-                                          >
-                                            <XCircle className="h-4 w-4" /> 
-                                            Unenroll: {e.courseName || `Course #${e.courseId}`}
-                                          </DropdownMenuItem>
-                                        ))}
-                                      </>
-                                    )}
-                                    
-                                    {/* Collect Fee Options */}
-                                    {activeEnrollments.length > 0 && (
-                                      <>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuLabel className="text-[10px] font-black text-slate-400 uppercase px-2 py-1">Fee Collection</DropdownMenuLabel>
-                                        {activeEnrollments.map((e: any) => {
-                                          const course = courses.find((c: any) => c.id === e.courseId);
-                                          const verifiedPayments = payments.filter((p: any) => 
-                                            p.userId === u.id && 
-                                            p.courseId === e.courseId && 
-                                            p.status === "verified"
-                                          );
-                                          
-                                          const totalPaid = verifiedPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-                                          const courseFee = course?.fee || 0;
-                                          const remainingBalance = courseFee - totalPaid;
-                                          const isFullyPaid = remainingBalance <= 0;
-                                          
-                                          return (
-                                            <div key={`fee-${e.id}`}>
-                                              {/* Show Collect Fee button if not fully paid (even on first payment) */}
-                                              {!isFullyPaid && (
-                                                <DropdownMenuItem 
-                                                  className="rounded-xl font-bold text-xs gap-2 py-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50" 
-                                                  onClick={() => openCollectFeeDialog(e, u)}
-                                                >
-                                                  <DollarSign className="h-4 w-4" /> 
-                                                  Collect Fee: {e.courseName || `Course #${e.courseId}`}
-                                                </DropdownMenuItem>
-                                              )}
-                                            </div>
-                                          );
-                                        })}
-                                      </>
-                                    )}
-                                    
-                                    {/* Print Receipts Option */}
-                                    {activeEnrollments.length > 0 && (
-                                      <>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuLabel className="text-[10px] font-black text-slate-400 uppercase px-2 py-1">Fee Receipts</DropdownMenuLabel>
-                                        {activeEnrollments.map((e: any) => {
-                                          const verifiedPayments = payments.filter((p: any) => 
-                                            p.userId === u.id && 
-                                            p.courseId === e.courseId && 
-                                            p.status === "verified"
-                                          );
-                                          
-                                          if (verifiedPayments.length === 0) return null;
-                                          
-                                          // If multiple payments, show submenu for each
-                                          if (verifiedPayments.length > 1) {
-                                            return verifiedPayments.map((payment: any, pIdx: number) => (
-                                              <DropdownMenuItem 
-                                                key={`receipt-${e.id}-${payment.id}`} 
-                                                className="rounded-xl font-bold text-xs gap-2 py-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50" 
-                                                onClick={() => {
-                                                  setReceiptData({
-                                                    ...payment,
-                                                    studentName: u.name,
-                                                    studentEmail: u.email,
-                                                    studentPhone: u.phone,
-                                                    courseName: e.courseName || `Course #${e.courseId}`,
-                                                  });
-                                                  setShowReceipt(true);
-                                                }}
-                                              >
-                                                <Receipt className="h-4 w-4" /> 
-                                                Receipt #{pIdx + 1}: {e.courseName || `Course #${e.courseId}`}
-                                              </DropdownMenuItem>
-                                            ));
-                                          } else {
-                                            // Single payment
-                                            const payment = verifiedPayments[0];
-                                            return (
-                                              <DropdownMenuItem 
-                                                key={`receipt-${e.id}`} 
-                                                className="rounded-xl font-bold text-xs gap-2 py-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50" 
-                                                onClick={() => {
-                                                  setReceiptData({
-                                                    ...payment,
-                                                    studentName: u.name,
-                                                    studentEmail: u.email,
-                                                    studentPhone: u.phone,
-                                                    courseName: e.courseName || `Course #${e.courseId}`,
-                                                  });
-                                                  setShowReceipt(true);
-                                                }}
-                                              >
-                                                <Printer className="h-4 w-4" /> 
-                                                Print Receipt: {e.courseName || `Course #${e.courseId}`}
-                                              </DropdownMenuItem>
-                                            );
-                                          }
-                                        })}
+                                        <DropdownMenuItem
+                                          className="rounded-xl font-bold text-xs gap-2 py-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                                          onClick={() => setManageEnrollmentUser(u)}
+                                        >
+                                          <GraduationCap className="h-4 w-4" />
+                                          Manage Enrollments
+                                          <ArrowRight className="h-3 w-3 ml-auto" />
+                                        </DropdownMenuItem>
                                       </>
                                     )}
                                   </DropdownMenuContent>
@@ -2466,6 +2328,134 @@ export default function AdminStudents() {
           }}
         />
       )}
+      {/* ── Manage Enrollments Modal ── */}
+      {manageEnrollmentUser && (() => {
+        const mu = manageEnrollmentUser;
+        const muEnrollments = enrollments.filter((e: any) => e.userId === mu.id && e.status === "active");
+        return (
+          <Dialog open={!!manageEnrollmentUser} onOpenChange={(open) => { if (!open) setManageEnrollmentUser(null); }}>
+            <DialogContent className="max-w-2xl rounded-2xl p-0 overflow-hidden">
+              {/* Header */}
+              <div className="bg-gradient-to-br from-slate-900 to-indigo-950 px-6 py-5 text-white">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center shrink-0">
+                    <GraduationCap className="h-5 w-5 text-indigo-300" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-base font-black text-white leading-tight">Manage Enrollments</DialogTitle>
+                    <p className="text-xs text-white/60 mt-0.5">{mu.name} &middot; {muEnrollments.length} active course{muEnrollments.length !== 1 ? "s" : ""}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Course Cards */}
+              <div className="p-5 space-y-4 max-h-[65vh] overflow-y-auto custom-scrollbar">
+                {muEnrollments.length === 0 ? (
+                  <div className="text-center py-10 text-slate-400 text-sm">No active enrollments found.</div>
+                ) : muEnrollments.map((e: any) => {
+                  const course = courses.find((c: any) => c.id === e.courseId);
+                  const verifiedPayments = payments.filter((p: any) =>
+                    p.userId === mu.id && p.courseId === e.courseId && p.status === "verified"
+                  );
+                  const totalPaid = verifiedPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+                  const courseFee = course?.fee || 0;
+                  const remaining = Math.max(0, courseFee - totalPaid);
+                  const isFullyPaid = remaining <= 0;
+                  const paidPct = courseFee > 0 ? Math.min(100, Math.round((totalPaid / courseFee) * 100)) : 100;
+
+                  return (
+                    <div key={e.id} className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+                      {/* Course Header */}
+                      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <BookOpen className="h-4 w-4 text-indigo-500 shrink-0" />
+                          <span className="font-black text-sm text-slate-800 truncate">{e.courseName || `Course #${e.courseId}`}</span>
+                        </div>
+                        <div className="shrink-0 ml-2">
+                          {isFullyPaid ? (
+                            <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full">Fully Paid</Badge>
+                          ) : (
+                            <Badge className="bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-black px-2 py-0.5 rounded-full">Balance Due</Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Fee Progress */}
+                      <div className="px-4 py-3 space-y-2">
+                        <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
+                          <span>Paid: <span className="text-emerald-600 font-black">Rs. {totalPaid.toLocaleString()}</span>{courseFee > 0 ? ` / Rs. ${courseFee.toLocaleString()}` : ""}</span>
+                          {!isFullyPaid && <span>Remaining: <span className="text-amber-600 font-black">Rs. {remaining.toLocaleString()}</span></span>}
+                        </div>
+                        {courseFee > 0 && (
+                          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-2 rounded-full transition-all ${isFullyPaid ? "bg-emerald-500" : "bg-amber-400"}`}
+                              style={{ width: `${paidPct}%` }}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap gap-2 items-center">
+                        {!isFullyPaid && (
+                          <Button
+                            size="sm"
+                            className="h-8 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                            onClick={() => { openCollectFeeDialog(e, mu); setManageEnrollmentUser(null); }}
+                          >
+                            <DollarSign className="h-3.5 w-3.5" /> Collect Fee
+                          </Button>
+                        )}
+                        {verifiedPayments.map((payment: any, pIdx: number) => (
+                          <Button
+                            key={payment.id}
+                            size="sm"
+                            variant="outline"
+                            className="h-8 rounded-xl text-xs font-bold text-blue-600 border-blue-200 hover:bg-blue-50 gap-1.5"
+                            onClick={() => {
+                              setReceiptData({ ...payment, studentName: mu.name, studentEmail: mu.email, studentPhone: mu.phone, courseName: e.courseName || `Course #${e.courseId}` });
+                              setShowReceipt(true);
+                              setManageEnrollmentUser(null);
+                            }}
+                          >
+                            <Receipt className="h-3.5 w-3.5" /> Receipt #{pIdx + 1}
+                          </Button>
+                        ))}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 rounded-xl text-xs font-bold text-rose-600 border-rose-200 hover:bg-rose-50 gap-1.5 ml-auto"
+                          disabled={actioning === e.id}
+                          onClick={() => { setManageEnrollmentUser(null); unenrollStudent(e.id, e.courseName || `Course #${e.courseId}`, mu.name); }}
+                        >
+                          <XCircle className="h-3.5 w-3.5" /> Unenroll
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-4 border-t border-slate-100 flex justify-between items-center bg-slate-50">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs font-bold text-slate-500 gap-1.5"
+                  onClick={() => { setManageEnrollmentUser(null); setLocation(`/admin/users/${mu.id}`); }}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Full Profile
+                </Button>
+                <Button variant="outline" size="sm" className="text-xs font-bold rounded-xl" onClick={() => setManageEnrollmentUser(null)}>
+                  Close
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        );
+      })()}
+
     </DashboardLayout>
   );
 }

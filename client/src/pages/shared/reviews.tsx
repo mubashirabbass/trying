@@ -549,10 +549,78 @@ export default function LectureReviews() {
         <Card className="border-none shadow-sm ring-1 ring-slate-100 dark:ring-slate-800 rounded-[24px] overflow-hidden bg-white dark:bg-slate-950">
           <CardContent className="p-0">
             {isLoading ? (
-              <div className="py-24 text-center">
-                <Loader2 className="h-10 w-10 animate-spin text-indigo-600 mx-auto opacity-50 mb-3" />
-                <h3 className="text-sm font-bold text-slate-650 dark:text-slate-350">Loading Lecture Reviews</h3>
-                <p className="text-xs text-slate-400 mt-1">Please wait while the feedback is fetched...</p>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader className="bg-slate-50/70 dark:bg-slate-900/40">
+                    <TableRow>
+                      <TableHead className="font-black text-slate-500 py-4 pl-6">Student</TableHead>
+                      <TableHead className="font-black text-slate-500 py-4">Course &amp; Lesson</TableHead>
+                      {user?.role === "admin" && (
+                        <TableHead className="font-black text-slate-500 py-4">Teacher</TableHead>
+                      )}
+                      <TableHead className="font-black text-slate-500 py-4">Rating</TableHead>
+                      <TableHead className="font-black text-slate-500 py-4 w-[35%]">Feedback Comment</TableHead>
+                      <TableHead className="font-black text-slate-500 py-4 pr-6">Date</TableHead>
+                      {user?.role === "admin" && (
+                        <TableHead className="font-black text-slate-500 py-4 pr-6 text-right">Action</TableHead>
+                      )}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <TableRow key={i} className="animate-pulse">
+                        {/* Student */}
+                        <TableCell className="py-4 pl-6">
+                          <div className="flex items-center gap-3">
+                            <div className="h-9 w-9 rounded-full bg-slate-100 dark:bg-slate-800 shrink-0" />
+                            <div className="space-y-1.5">
+                              <div className="h-3.5 w-28 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                              <div className="h-2.5 w-16 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                            </div>
+                          </div>
+                        </TableCell>
+                        {/* Course & Lesson */}
+                        <TableCell className="py-4">
+                          <div className="space-y-1.5">
+                            <div className="h-3.5 w-36 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                            <div className="h-2.5 w-24 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                          </div>
+                        </TableCell>
+                        {/* Teacher (admin only) */}
+                        {user?.role === "admin" && (
+                          <TableCell className="py-4">
+                            <div className="h-3.5 w-24 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                          </TableCell>
+                        )}
+                        {/* Rating */}
+                        <TableCell className="py-4">
+                          <div className="flex gap-0.5">
+                            {[1,2,3,4,5].map(s => (
+                              <div key={s} className="h-4 w-4 rounded bg-slate-100 dark:bg-slate-800" />
+                            ))}
+                          </div>
+                        </TableCell>
+                        {/* Comment */}
+                        <TableCell className="py-4">
+                          <div className="space-y-1.5">
+                            <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full" />
+                            <div className="h-2.5 w-3/4 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                          </div>
+                        </TableCell>
+                        {/* Date */}
+                        <TableCell className="py-4 pr-6">
+                          <div className="h-3.5 w-20 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                        </TableCell>
+                        {/* Action (admin only) */}
+                        {user?.role === "admin" && (
+                          <TableCell className="py-4 pr-6 text-right">
+                            <div className="h-8 w-8 bg-slate-100 dark:bg-slate-800 rounded-xl ml-auto" />
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             ) : filteredReviews.length === 0 ? (
               <div className="py-16 text-center">

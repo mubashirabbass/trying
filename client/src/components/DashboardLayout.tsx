@@ -559,13 +559,24 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
           </button>
 
           {/* Student Portal notice banner - fully controlled by admin settings */}
-          {user.role === "student" && get("student_notice_enabled", "true") === "true" && (
-            <div className="mb-6 bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/30 text-amber-800 dark:text-amber-300 rounded-xl py-3 px-4 text-xs font-semibold overflow-hidden relative flex items-center gap-2">
+          {user.role === "student" && location === "/dashboard" && get("student_notice_enabled", "true") === "true" && (
+            <div className="mb-6 bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/30 text-amber-800 dark:text-amber-300 rounded-xl py-3 px-4 text-xs font-semibold overflow-hidden relative flex items-center gap-2 h-10">
               <Megaphone className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400 animate-bounce" />
-              <div className="flex-1 overflow-hidden">
-                <div className="whitespace-nowrap animate-marquee">
+              <div className="flex-1 overflow-hidden relative h-5 flex items-center">
+                <span 
+                  className="absolute whitespace-nowrap text-xs font-bold leading-none"
+                  style={{
+                    animation: "dashboard-notice-scroll 22s linear infinite",
+                  }}
+                >
                   {get("student_notice_text", "Important Note: Attendance criteria for Spring, 2026 is 75%.")}
-                </div>
+                </span>
+                <style>{`
+                  @keyframes dashboard-notice-scroll {
+                    0% { transform: translateX(100%); }
+                    100% { transform: translateX(-100%); }
+                  }
+                `}</style>
               </div>
             </div>
           )}

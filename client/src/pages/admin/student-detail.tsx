@@ -770,15 +770,6 @@ export default function AdminStudentDetail() {
                               <p className="text-xs text-gray-500 font-medium">
                                 {student.cnic || "CNIC / B-Form verification document"}
                               </p>
-                              {student.isIdentityVerified ? (
-                                <Badge className="bg-emerald-500 hover:bg-emerald-500 border-none text-white text-[10px] px-2 py-0.5 mt-1 font-bold">
-                                  Verified
-                                </Badge>
-                              ) : (
-                                <Badge className="bg-amber-500 hover:bg-amber-500 border-none text-white text-[10px] px-2 py-0.5 mt-1 font-bold animate-pulse">
-                                  Pending Verification
-                                </Badge>
-                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">

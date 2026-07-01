@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useAuth } from "@/lib/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,7 +12,14 @@ import {
   ChevronLeft, ChevronRight, Grid3X3, FileDown
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { exportAllTeachersSummary, exportSingleTeacherReport } from "@/lib/exportAttendance";
+import {
+  exportAllTeachersSummary,
+  exportSingleTeacherReport,
+  exportMonthlyMatrix,
+  exportMonthlySummaryReport,
+  exportAllTimeRankings,
+  type TeacherSummary,
+} from "@/lib/exportAttendance";
 
 interface Teacher {
   id: number;
@@ -85,6 +92,12 @@ export default function AdminTeacherAttendance() {
   const [historyYear, setHistoryYear] = useState(new Date().getFullYear());
   const [historyTeacherId, setHistoryTeacherId] = useState<number | "all">("all");
   const [historyStatus, setHistoryStatus] = useState<string>("all");
+
+  // High-standard History Dash states
+  const [historyViewMode, setHistoryViewMode] = useState<"daily" | "monthly_summary" | "all_time">("daily");
+  const [historyDateFilterType, setHistoryDateFilterType] = useState<"month" | "custom" | "all_time">("month");
+  const [historyStartDate, setHistoryStartDate] = useState<string>("");
+  const [historyEndDate, setHistoryEndDate] = useState<string>("");
 
   // ── Monthly view state ──────────────────────────────────────────────────
   const [monthlyTeacherId, setMonthlyTeacherId] = useState<number | "">("");
@@ -265,33 +278,30 @@ export default function AdminTeacherAttendance() {
       if (res.ok) {
         const data: AttendanceHistoryRecord[] = await res.json();
         const savedIds = new Set<number>();
-        
-        // Build updated records mapping
         const updatedRecords: Record<number, AttendanceRecord> = {};
-        
-        // First initialize all teachers with default values
-        teachers.forEach(teacher => {
-          updatedRecords[teacher.id] = {
-            teacherId: teacher.id,
-            status: "present",
-            checkInTime: "09:00",
-            checkOutTime: "",
-            notes: "",
-            leaveType: ""
-          };
-        });
 
-        // Overlay existing database records
-        data.forEach(record => {
-          savedIds.add(record.teacherId);
-          updatedRecords[record.teacherId] = {
-            teacherId: record.teacherId,
-            status: record.status,
-            checkInTime: record.checkInTime || "",
-            checkOutTime: record.checkOutTime || "",
-            notes: record.notes || "",
-            leaveType: record.leaveType || ""
-          };
+        teachers.forEach(teacher => {
+          const matching = data.find(r => r.teacherId === teacher.id);
+          if (matching) {
+            updatedRecords[teacher.id] = {
+              teacherId: teacher.id,
+              status: matching.status,
+              checkInTime: matching.checkInTime || "",
+              checkOutTime: matching.checkOutTime || "",
+              notes: matching.notes || "",
+              leaveType: matching.leaveType || ""
+            };
+            savedIds.add(teacher.id);
+          } else {
+            updatedRecords[teacher.id] = {
+              teacherId: teacher.id,
+              status: "present",
+              checkInTime: "09:00",
+              checkOutTime: "",
+              notes: "",
+              leaveType: ""
+            };
+          }
         });
 
         setAttendanceRecords(updatedRecords);
@@ -308,13 +318,25 @@ export default function AdminTeacherAttendance() {
     setIsLoadingHistory(true);
     try {
       const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
-      let url = `${window.location.origin}/api/teacher-attendance/all?month=${historyMonth}&year=${historyYear}`;
+      let url = `${window.location.origin}/api/teacher-attendance/all?`;
+      const params: string[] = [];
+
+      if (historyDateFilterType === "month") {
+        params.push(`month=${historyMonth}`);
+        params.push(`year=${historyYear}`);
+      } else if (historyDateFilterType === "custom") {
+        if (historyStartDate) params.push(`startDate=${historyStartDate}`);
+        if (historyEndDate) params.push(`endDate=${historyEndDate}`);
+      }
+
       if (historyTeacherId !== "all") {
-        url += `&teacherId=${historyTeacherId}`;
+        params.push(`teacherId=${historyTeacherId}`);
       }
       if (historyStatus !== "all") {
-        url += `&status=${historyStatus}`;
+        params.push(`status=${historyStatus}`);
       }
+
+      url += params.join("&");
       const res = await fetch(url, { headers });
       if (res.ok) {
         const data = await res.json();
@@ -347,7 +369,7 @@ export default function AdminTeacherAttendance() {
     if (token) {
       fetchHistory();
     }
-  }, [historyMonth, historyYear, historyTeacherId, historyStatus, token]); // Only run when these change
+  }, [historyMonth, historyYear, historyTeacherId, historyStatus, historyDateFilterType, historyStartDate, historyEndDate, token]); // Refetch on filters change
 
   const handleStatusChange = (teacherId: number, status: string) => {
     setAttendanceRecords(prev => {
@@ -469,6 +491,93 @@ export default function AdminTeacherAttendance() {
     ? Math.round(((historySummary.present + historySummary.late) / historySummary.total) * 100)
     : 0;
 
+  // Calculate summary stats grouped by teacher from current history records
+  const teacherSummaries = useMemo(() => {
+    const summaryMap: Record<number, {
+      teacherName: string;
+      teacherEmail: string;
+      total: number;
+      present: number;
+      absent: number;
+      late: number;
+      half_day: number;
+      leave: number;
+      totalHours: number;
+      checkInMinutes: number[];
+      checkOutMinutes: number[];
+    }> = {};
+
+    historyRecords.forEach(r => {
+      if (!summaryMap[r.teacherId]) {
+        summaryMap[r.teacherId] = {
+          teacherName: r.teacherName || "Unknown",
+          teacherEmail: r.teacherEmail || "",
+          total: 0,
+          present: 0,
+          absent: 0,
+          late: 0,
+          half_day: 0,
+          leave: 0,
+          totalHours: 0,
+          checkInMinutes: [],
+          checkOutMinutes: []
+        };
+      }
+
+      const s = summaryMap[r.teacherId];
+      s.total++;
+      if (r.status === "present") s.present++;
+      else if (r.status === "absent") s.absent++;
+      else if (r.status === "late") s.late++;
+      else if (r.status === "half_day") s.half_day++;
+      else if (r.status === "leave") s.leave++;
+
+      if (r.workingHours) {
+        const parts = r.workingHours.split(":");
+        if (parts.length >= 2) {
+          const hrs = parseFloat(parts[0]) + parseFloat(parts[1]) / 60;
+          s.totalHours += hrs;
+        } else {
+          const hrs = parseFloat(r.workingHours);
+          if (!isNaN(hrs)) s.totalHours += hrs;
+        }
+      }
+
+      if (r.checkInTime && r.checkInTime.includes(":")) {
+        const [h, m] = r.checkInTime.split(":").map(Number);
+        s.checkInMinutes.push(h * 60 + m);
+      }
+      if (r.checkOutTime && r.checkOutTime.includes(":")) {
+        const [h, m] = r.checkOutTime.split(":").map(Number);
+        s.checkOutMinutes.push(h * 60 + m);
+      }
+    });
+
+    return Object.entries(summaryMap).map(([idStr, s]) => {
+      const id = Number(idStr);
+      const avgCheckInMin = s.checkInMinutes.length > 0 ? Math.round(s.checkInMinutes.reduce((a,b)=>a+b, 0) / s.checkInMinutes.length) : null;
+      const avgCheckOutMin = s.checkOutMinutes.length > 0 ? Math.round(s.checkOutMinutes.reduce((a,b)=>a+b, 0) / s.checkOutMinutes.length) : null;
+
+      const formatMin = (m: number | null) => {
+        if (m === null) return "—";
+        const hr = Math.floor(m / 60);
+        const min = m % 60;
+        return `${String(hr).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+      };
+
+      const presentRate = s.total > 0 ? Math.round(((s.present + s.late) / s.total) * 100) : 0;
+
+      return {
+        teacherId: id,
+        ...s,
+        avgCheckIn: formatMin(avgCheckInMin),
+        avgCheckOut: formatMin(avgCheckOutMin),
+        presentRate,
+        formattedHours: s.totalHours.toFixed(1)
+      };
+    }).sort((a, b) => b.presentRate - a.presentRate); // Sorted by attendance rate
+  }, [historyRecords]);
+
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto px-4 py-6 bg-[#f8fafc] min-h-screen">
@@ -570,9 +679,58 @@ export default function AdminTeacherAttendance() {
               </div>
 
               {isLoading || isLoadingDaily ? (
-                <div className="flex items-center justify-center py-16">
-                  <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                  <span className="ml-3 text-slate-500 text-sm">Loading attendance...</span>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[800px]">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/40">
+                        <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-8">#</th>
+                        <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Teacher</th>
+                        <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-36">Status</th>
+                        <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-28">Check In</th>
+                        <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-28">Check Out</th>
+                        <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Notes</th>
+                        <th className="text-center py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider w-20">Saved</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 animate-pulse">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <tr key={i} className="hover:bg-slate-50">
+                          {/* # */}
+                          <td className="py-2.5 px-4 text-xs text-slate-300 font-mono">{i + 1}</td>
+                          {/* Teacher */}
+                          <td className="py-2.5 px-4">
+                            <div className="flex items-center gap-2.5">
+                              <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 shrink-0" />
+                              <div className="space-y-1.5">
+                                <div className="h-3.5 w-28 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                                <div className="h-2.5 w-20 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                              </div>
+                            </div>
+                          </td>
+                          {/* Status */}
+                          <td className="py-2.5 px-4">
+                            <div className="h-8 w-full bg-slate-100 dark:bg-slate-800 rounded-lg" />
+                          </td>
+                          {/* Check In */}
+                          <td className="py-2.5 px-4">
+                            <div className="h-8 w-full bg-slate-100 dark:bg-slate-800 rounded-lg" />
+                          </td>
+                          {/* Check Out */}
+                          <td className="py-2.5 px-4">
+                            <div className="h-8 w-full bg-slate-100 dark:bg-slate-800 rounded-lg" />
+                          </td>
+                          {/* Notes */}
+                          <td className="py-2.5 px-4">
+                            <div className="h-8 w-full bg-slate-100 dark:bg-slate-800 rounded-lg" />
+                          </td>
+                          {/* Saved status */}
+                          <td className="py-2.5 px-4 text-center">
+                            <div className="h-5 w-16 bg-slate-100 dark:bg-slate-800 rounded-full mx-auto" />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : filteredTeachers.length > 0 ? (
                 <div className="overflow-x-auto">
@@ -746,65 +904,128 @@ export default function AdminTeacherAttendance() {
             </Card>
           </TabsContent>
 
-
           {/* History Tab */}
           <TabsContent value="history" className="space-y-6">
-            {/* Filter Controls */}
+            {/* View Mode & Date Range Type Toggles */}
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-4 border border-slate-100 rounded-2xl shadow-sm">
+              <div className="flex items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl self-stretch lg:self-auto">
+                <button
+                  onClick={() => setHistoryViewMode("daily")}
+                  className={`flex-1 lg:flex-initial text-xs font-bold px-4 py-2 rounded-lg transition-all ${
+                    historyViewMode === "daily" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  📋 Daily Logs
+                </button>
+                <button
+                  onClick={() => setHistoryViewMode("monthly_summary")}
+                  className={`flex-1 lg:flex-initial text-xs font-bold px-4 py-2 rounded-lg transition-all ${
+                    historyViewMode === "monthly_summary" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  📊 Monthly summary
+                </button>
+                <button
+                  onClick={() => setHistoryViewMode("all_time")}
+                  className={`flex-1 lg:flex-initial text-xs font-bold px-4 py-2 rounded-lg transition-all ${
+                    historyViewMode === "all_time" ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  🏆 Performance Rank
+                </button>
+              </div>
+
+              {/* Date Filter Type Selector */}
+              <div className="flex items-center gap-2 self-stretch lg:self-auto justify-end">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1">Range:</span>
+                <div className="flex bg-slate-100 p-1 rounded-xl">
+                  {["month", "custom", "all_time"].map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setHistoryDateFilterType(t as any)}
+                      className={`text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all ${
+                        historyDateFilterType === t ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      {t === "month" ? "Selected Month" : t === "custom" ? "Custom Range" : "All Time"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Filter Controls Card */}
             <Card className="border border-slate-100 shadow-sm rounded-xl bg-white">
               <CardContent className="p-4 space-y-4">
-                {/* Filters row */}
-                <div className="flex flex-wrap items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-semibold text-slate-700">Month/Year:</label>
-                  </div>
-                  <select
-                    value={historyMonth}
-                    onChange={(e) => setHistoryMonth(Number(e.target.value))}
-                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700"
-                  >
-                    {months.map((month, index) => (
-                      <option key={index} value={index + 1}>
-                        {month}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={historyYear}
-                    onChange={(e) => setHistoryYear(Number(e.target.value))}
-                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700"
-                  >
-                    {years.map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
+                  
+                  {/* Dynamic Date Inputs */}
+                  {historyDateFilterType === "month" && (
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={historyMonth}
+                        onChange={(e) => setHistoryMonth(Number(e.target.value))}
+                        className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700"
+                      >
+                        {months.map((month, index) => (
+                          <option key={index} value={index + 1}>{month}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={historyYear}
+                        onChange={(e) => setHistoryYear(Number(e.target.value))}
+                        className="w-[100px] px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700"
+                      >
+                        {years.map((year) => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
-                  <div className="h-6 w-px bg-slate-200 hidden md:block" />
+                  {historyDateFilterType === "custom" && (
+                    <div className="flex items-center gap-2 col-span-1 md:col-span-2 lg:col-span-1">
+                      <Input
+                        type="date"
+                        value={historyStartDate}
+                        onChange={(e) => setHistoryStartDate(e.target.value)}
+                        className="text-xs h-9 rounded-lg"
+                        placeholder="Start Date"
+                      />
+                      <span className="text-slate-400 text-xs">—</span>
+                      <Input
+                        type="date"
+                        value={historyEndDate}
+                        onChange={(e) => setHistoryEndDate(e.target.value)}
+                        className="text-xs h-9 rounded-lg"
+                        placeholder="End Date"
+                      />
+                    </div>
+                  )}
 
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-semibold text-slate-700">Teacher:</label>
-                  </div>
+                  {historyDateFilterType === "all_time" && (
+                    <div className="px-3 py-1.5 border border-slate-100 rounded-lg text-xs font-bold text-slate-400 bg-slate-50 flex items-center justify-center h-9">
+                      Showing complete record history
+                    </div>
+                  )}
+
+                  {/* Teacher Filter */}
                   <select
                     value={historyTeacherId}
                     onChange={(e) => setHistoryTeacherId(e.target.value === "all" ? "all" : Number(e.target.value))}
-                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700 min-w-[180px]"
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700 w-full"
                   >
                     <option value="all">All Teachers</option>
                     {teachers.map((teacher) => (
-                      <option key={teacher.id} value={teacher.id}>
-                        {teacher.name}
-                      </option>
+                      <option key={teacher.id} value={teacher.id}>{teacher.name}</option>
                     ))}
                   </select>
 
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-semibold text-slate-700">Status:</label>
-                  </div>
+                  {/* Status Filter */}
                   <select
                     value={historyStatus}
                     onChange={(e) => setHistoryStatus(e.target.value)}
-                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700 min-w-[120px]"
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-slate-700 w-full"
                   >
                     <option value="all">All Statuses</option>
                     <option value="present">Present</option>
@@ -813,59 +1034,109 @@ export default function AdminTeacherAttendance() {
                     <option value="half_day">Half Day</option>
                     <option value="leave">Leave</option>
                   </select>
+
+                  {/* Reset Filters / Actions */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setHistoryTeacherId("all");
+                        setHistoryStatus("all");
+                        setHistoryDateFilterType("month");
+                        setHistoryStartDate("");
+                        setHistoryEndDate("");
+                        setHistoryMonth(new Date().getMonth() + 1);
+                      }}
+                      className="text-xs font-semibold rounded-lg flex-1"
+                    >
+                      Clear Filters
+                    </Button>
+                  </div>
                 </div>
 
-                {/* Export row */}
-                {historyRecords.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mr-1">
-                      <FileDown className="h-3.5 w-3.5 inline mr-1 -mt-0.5" />
-                      Download:
-                    </p>
+                {/* Export row — context-aware per view mode */}
+                {historyRecords.length > 0 && (() => {
+                  // Build a human-readable period label from current filter state
+                  const rangeLabel = (() => {
+                    if (historyDateFilterType === "all_time") return `All Time · ${historyYear}`;
+                    if (historyDateFilterType === "custom" && historyStartDate && historyEndDate)
+                      return `${historyStartDate} – ${historyEndDate}`;
+                    return new Date(historyYear, historyMonth - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+                  })();
 
-                    {/* All-teachers summary */}
-                    <button
-                      onClick={() =>
-                        exportAllTeachersSummary(historyRecords, teachers, historyMonth, historyYear)
-                      }
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 shadow-sm hover:shadow transition-all duration-150"
-                    >
-                      <FileDown className="h-4 w-4" />
-                      All Teachers Report
-                    </button>
+                  return (
+                    <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100">
+                      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mr-1">
+                        <FileDown className="h-3.5 w-3.5" />
+                        Export:
+                      </span>
 
-                    {/* Single teacher report (only shown when a specific teacher is selected) */}
-                    {historyTeacherId !== "all" && (() => {
-                      const t = teachers.find(x => x.id === historyTeacherId);
-                      return t ? (
+                      {/* ── Daily Logs view: Daily Log + Attendance Register buttons ── */}
+                      {historyViewMode === "daily" && (
+                        <>
+                          <button
+                            onClick={() => exportAllTeachersSummary(historyRecords, teachers, historyMonth, historyYear, rangeLabel)}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-sm hover:shadow transition-all"
+                          >
+                            <FileDown className="h-3.5 w-3.5" />
+                            📋 Daily Log Report
+                          </button>
+                          <button
+                            onClick={() => exportMonthlyMatrix(historyRecords, teachers, historyMonth, historyYear)}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 shadow-sm hover:shadow transition-all"
+                          >
+                            <FileDown className="h-3.5 w-3.5" />
+                            📊 Attendance Register
+                          </button>
+                          {/* Single teacher in daily mode */}
+                          {historyTeacherId !== "all" && (() => {
+                            const t = teachers.find(x => x.id === historyTeacherId);
+                            return t ? (
+                              <button
+                                onClick={() => exportSingleTeacherReport(historyRecords, t.name, t.email, historyMonth, historyYear, rangeLabel)}
+                                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 shadow-sm hover:shadow transition-all"
+                              >
+                                <FileDown className="h-3.5 w-3.5" />
+                                👤 {t.name}'s Report
+                              </button>
+                            ) : null;
+                          })()}
+                        </>
+                      )}
+
+                      {/* ── Monthly Summary view ── */}
+                      {historyViewMode === "monthly_summary" && (
                         <button
-                          onClick={() =>
-                            exportSingleTeacherReport(
-                              historyRecords,
-                              t.name,
-                              t.email,
-                              historyMonth,
-                              historyYear
-                            )
-                          }
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 shadow-sm hover:shadow transition-all duration-150"
+                          onClick={() => exportMonthlySummaryReport(teacherSummaries as TeacherSummary[], historyMonth, historyYear, rangeLabel)}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-sm hover:shadow transition-all"
                         >
-                          <FileDown className="h-4 w-4" />
-                          {t.name}'s Report
+                          <FileDown className="h-3.5 w-3.5" />
+                          📊 Monthly Summary Report
                         </button>
-                      ) : null;
-                    })()}
+                      )}
 
-                    <p className="text-xs text-slate-400 ml-auto">
-                      {historyRecords.length} records · {months[historyMonth - 1]} {historyYear}
-                    </p>
-                  </div>
-                )}
+                      {/* ── All-Time Rankings view ── */}
+                      {historyViewMode === "all_time" && (
+                        <button
+                          onClick={() => exportAllTimeRankings(teacherSummaries as TeacherSummary[], rangeLabel)}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-gradient-to-r from-amber-400 to-yellow-500 text-white hover:from-amber-500 hover:to-yellow-600 shadow-sm hover:shadow transition-all"
+                        >
+                          <FileDown className="h-3.5 w-3.5" />
+                          🏆 All-Time Rankings
+                        </button>
+                      )}
+
+                      <span className="text-xs text-slate-400 ml-auto font-semibold">
+                        {historyRecords.length} record{historyRecords.length !== 1 ? "s" : ""} found
+                      </span>
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
 
-
-            {/* Stats Cards Grid */}
+            {/* Metrics cards for stats */}
             {!isLoadingHistory && historyRecords.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-4">
                 <Card className="border border-slate-100 shadow-sm rounded-xl bg-white hover:shadow transition-shadow duration-150">
@@ -913,89 +1184,267 @@ export default function AdminTeacherAttendance() {
               </div>
             )}
 
-            {/* History Records */}
-            <Card className="border border-slate-100 shadow-sm rounded-xl bg-white">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-bold text-slate-800 mb-4">Attendance Logs</h3>
-                {isLoadingHistory ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                  </div>
-                ) : historyRecords.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-slate-100 bg-slate-50/40">
-                          <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Teacher</th>
-                          <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Date</th>
-                          <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Status</th>
-                          <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Check In</th>
-                          <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Check Out</th>
-                          <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Hours</th>
-                          <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Notes</th>
-                          <th className="text-center py-3 px-4 text-xs font-bold text-slate-500 uppercase w-20">Export</th>
+            {/* Table / Content list by View Mode */}
+            {isLoadingHistory ? (
+              <Card className="border border-slate-100 shadow-sm rounded-xl bg-white p-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/40">
+                        <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Teacher</th>
+                        <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Date</th>
+                        <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Status</th>
+                        <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Check In</th>
+                        <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Check Out</th>
+                        <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Hours</th>
+                        <th className="text-left py-3 px-4 text-xs font-bold text-slate-500 uppercase">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50 animate-pulse">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <tr key={i}>
+                          <td className="py-3 px-4">
+                            <div className="h-3.5 w-28 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="h-3.5 w-16 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="h-5 w-12 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="h-3.5 w-10 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="h-3.5 w-10 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="h-3.5 w-10 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="h-3.5 w-20 bg-slate-100 dark:bg-slate-800 rounded-full" />
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50">
-                        {historyRecords.map((record) => (
-                          <tr key={record.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="py-3 px-4">
-                              <div>
-                                <p className="text-sm font-semibold text-slate-700">{record.teacherName}</p>
-                                <p className="text-xs text-slate-500">{record.teacherEmail}</p>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            ) : historyRecords.length === 0 ? (
+              <Card className="border border-slate-100 shadow-sm rounded-xl bg-white py-16 text-center text-slate-400">
+                <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                <p className="text-sm font-medium">No attendance records found matching filters</p>
+              </Card>
+            ) : (
+              <>
+                {/* ── MODE 1: Daily Log list ── */}
+                {historyViewMode === "daily" && (
+                  <Card className="border border-slate-100 shadow-sm rounded-xl bg-white overflow-hidden">
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-slate-100 bg-slate-50/60">
+                              <th className="text-left py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Teacher</th>
+                              <th className="text-left py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Date</th>
+                              <th className="text-left py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                              <th className="text-left py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Check In</th>
+                              <th className="text-left py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Check Out</th>
+                              <th className="text-left py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Hours</th>
+                              <th className="text-left py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Notes</th>
+                              <th className="text-center py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider w-20">Export</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50">
+                            {historyRecords.map((record) => (
+                              <tr key={record.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="py-3 px-5">
+                                  <div>
+                                    <p className="text-sm font-bold text-slate-800">{record.teacherName}</p>
+                                    <p className="text-[11px] text-slate-400">{record.teacherEmail}</p>
+                                  </div>
+                                </td>
+                                <td className="py-3 px-5 text-xs font-semibold text-slate-600">
+                                  {new Date(record.date).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric'
+                                  })}
+                                </td>
+                                <td className="py-3 px-5">{getStatusBadge(record.status)}</td>
+                                <td className="py-3 px-5 text-xs text-slate-500">{record.checkInTime || "—"}</td>
+                                <td className="py-3 px-5 text-xs text-slate-500">{record.checkOutTime || "—"}</td>
+                                <td className="py-3 px-5 text-xs font-bold text-slate-700">{record.workingHours || "—"}</td>
+                                <td className="py-3 px-5 text-xs text-slate-500 italic max-w-[200px] truncate" title={record.notes || ""}>
+                                  {record.notes || "—"}
+                                </td>
+                                <td className="py-3 px-5 text-center">
+                                  <button
+                                    title={`Download ${record.teacherName}'s report`}
+                                    onClick={() => {
+                                      const teacherRows = historyRecords.filter(r => r.teacherId === record.teacherId);
+                                      exportSingleTeacherReport(teacherRows, record.teacherName, record.teacherEmail, historyMonth, historyYear);
+                                    }}
+                                    className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition-colors"
+                                  >
+                                    <FileDown className="h-3.5 w-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* ── MODE 2: Monthly Summary aggregates ── */}
+                {historyViewMode === "monthly_summary" && (
+                  <Card className="border border-slate-100 shadow-sm rounded-xl bg-white overflow-hidden">
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-slate-100 bg-slate-50/60">
+                              <th className="text-left py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Teacher</th>
+                              <th className="text-center py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Rate</th>
+                              <th className="text-center py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Total Days</th>
+                              <th className="text-center py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider text-emerald-600">Present</th>
+                              <th className="text-center py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider text-red-500">Absent</th>
+                              <th className="text-center py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider text-amber-500">Late</th>
+                              <th className="text-center py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider text-purple-500">Leave</th>
+                              <th className="text-center py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Avg Check-In</th>
+                              <th className="text-center py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider">Hours Worked</th>
+                              <th className="text-center py-3.5 px-5 text-xs font-bold text-slate-500 uppercase tracking-wider w-20">Export</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50">
+                            {teacherSummaries.map((s: typeof teacherSummaries[number]) => {
+                              let rateColor = "text-red-600 bg-red-50 border-red-200";
+                              if (s.presentRate >= 90) rateColor = "text-emerald-700 bg-emerald-50 border-emerald-200";
+                              else if (s.presentRate >= 75) rateColor = "text-amber-700 bg-amber-50 border-amber-200";
+
+                              return (
+                                <tr key={s.teacherId} className="hover:bg-slate-50/50 transition-colors">
+                                  <td className="py-3.5 px-5">
+                                    <div>
+                                      <p className="text-sm font-bold text-slate-800">{s.teacherName}</p>
+                                      <p className="text-[11px] text-slate-400">{s.teacherEmail}</p>
+                                    </div>
+                                  </td>
+                                  <td className="py-3.5 px-5 text-center">
+                                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-black border ${rateColor}`}>
+                                      {s.presentRate}%
+                                    </span>
+                                  </td>
+                                  <td className="py-3.5 px-5 text-center text-xs font-bold text-slate-600">{s.total}</td>
+                                  <td className="py-3.5 px-5 text-center text-xs font-bold text-emerald-600">{s.present}</td>
+                                  <td className="py-3.5 px-5 text-center text-xs font-bold text-red-500">{s.absent}</td>
+                                  <td className="py-3.5 px-5 text-center text-xs font-bold text-amber-500">{s.late}</td>
+                                  <td className="py-3.5 px-5 text-center text-xs font-bold text-purple-600">{s.leave}</td>
+                                  <td className="py-3.5 px-5 text-center text-xs font-semibold text-slate-500">{s.avgCheckIn}</td>
+                                  <td className="py-3.5 px-5 text-center text-xs font-black text-slate-700">{s.formattedHours} hrs</td>
+                                  <td className="py-3.5 px-5 text-center">
+                                    <button
+                                      title="Export single teacher details"
+                                      onClick={() => {
+                                        const teacherRows = historyRecords.filter(r => r.teacherId === s.teacherId);
+                                        exportSingleTeacherReport(teacherRows, s.teacherName, s.teacherEmail, historyMonth, historyYear);
+                                      }}
+                                      className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition-colors"
+                                    >
+                                      <FileDown className="h-3.5 w-3.5" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* ── MODE 3: All Time Leaderboard rankings ── */}
+                {historyViewMode === "all_time" && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {teacherSummaries.map((s: typeof teacherSummaries[number], idx: number) => {
+                      let medalColor = "bg-slate-100 text-slate-600";
+                      if (idx === 0) medalColor = "bg-amber-100 text-amber-700 border-amber-300 border";
+                      else if (idx === 1) medalColor = "bg-slate-200 text-slate-700 border-slate-350 border";
+                      else if (idx === 2) medalColor = "bg-orange-100 text-orange-700 border-orange-200 border";
+
+                      return (
+                        <Card key={s.teacherId} className="border border-slate-100 shadow-sm rounded-2xl bg-white overflow-hidden hover:shadow-md transition-shadow">
+                          <div className="p-5 flex items-center justify-between border-b border-slate-50 bg-slate-50/40">
+                            <div className="flex items-center gap-3">
+                              <div className={`h-8 w-8 rounded-xl font-bold flex items-center justify-center text-sm shrink-0 ${medalColor}`}>
+                                #{idx + 1}
                               </div>
-                            </td>
-                            <td className="py-3 px-4 text-sm text-slate-600">
-                              {new Date(record.date).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
-                              })}
-                            </td>
-                            <td className="py-3 px-4">{getStatusBadge(record.status)}</td>
-                            <td className="py-3 px-4 text-sm text-slate-600">
-                              {record.checkInTime || "—"}
-                            </td>
-                            <td className="py-3 px-4 text-sm text-slate-600">
-                              {record.checkOutTime || "—"}
-                            </td>
-                            <td className="py-3 px-4 text-sm font-semibold text-slate-700">
-                              {record.workingHours || "—"}
-                            </td>
-                            <td className="py-3 px-4 text-xs text-slate-500">
-                              {record.notes || "—"}
-                            </td>
-                            <td className="py-3 px-4 text-center">
-                              <button
-                                title={`Download ${record.teacherName}'s report`}
-                                onClick={() => {
-                                  const teacherRows = historyRecords.filter(r => r.teacherId === record.teacherId);
-                                  exportSingleTeacherReport(
-                                    teacherRows,
-                                    record.teacherName,
-                                    record.teacherEmail,
-                                    historyMonth,
-                                    historyYear
-                                  );
-                                }}
-                                className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition-colors"
-                              >
-                                <FileDown className="h-3.5 w-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="py-12 text-center text-slate-400">
-                    <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                    <p className="text-sm font-medium">No attendance records found matching filters</p>
+                              <div>
+                                <h4 className="font-black text-slate-800 text-sm">{s.teacherName}</h4>
+                                <p className="text-[10px] text-slate-400">{s.teacherEmail}</p>
+                              </div>
+                            </div>
+
+                            <span className="text-xl font-black text-blue-600 shrink-0">
+                              {s.presentRate}% <span className="text-[10px] font-bold text-slate-400">rate</span>
+                            </span>
+                          </div>
+
+                          <div className="p-5 space-y-4">
+                            {/* Performance progress bar */}
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500">
+                                <span>Attendance Performance</span>
+                                <span>{s.presentRate >= 90 ? "Excellent" : s.presentRate >= 75 ? "Good" : "Needs Improvement"}</span>
+                              </div>
+                              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${
+                                    s.presentRate >= 90 ? "bg-emerald-500" : s.presentRate >= 75 ? "bg-amber-400" : "bg-red-500"
+                                  }`}
+                                  style={{ width: `${s.presentRate}%` }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Stat breakdown pills */}
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100/50 text-center">
+                                <span className="block text-[10px] font-bold text-slate-400 uppercase">Worked</span>
+                                <span className="block text-sm font-black text-slate-700 mt-0.5">{s.formattedHours} hrs</span>
+                              </div>
+                              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100/50 text-center">
+                                <span className="block text-[10px] font-bold text-slate-400 uppercase">Avg In</span>
+                                <span className="block text-sm font-black text-slate-700 mt-0.5">{s.avgCheckIn}</span>
+                              </div>
+                              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100/50 text-center">
+                                <span className="block text-[10px] font-bold text-slate-400 uppercase">Avg Out</span>
+                                <span className="block text-sm font-black text-slate-700 mt-0.5">{s.avgCheckOut}</span>
+                              </div>
+                            </div>
+
+                            {/* Detailed breakdown metrics */}
+                            <div className="flex items-center justify-between text-xs text-slate-500 font-semibold px-1">
+                              <span>Days Tracked: <span className="font-bold text-slate-700">{s.total}</span></span>
+                              <div className="flex gap-2">
+                                <span className="text-emerald-600">{s.present}P</span>
+                                <span className="text-red-550">{s.absent}A</span>
+                                <span className="text-amber-600">{s.late}L</span>
+                                <span className="text-purple-600">{s.leave}Lv</span>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </>
+            )}
           </TabsContent>
 
           {/* ── Monthly View Tab ──────────────────────────────────────── */}
@@ -1097,8 +1546,25 @@ export default function AdminTeacherAttendance() {
                 </div>
 
                 {isFetchingMonthly ? (
-                  <div className="flex justify-center py-16">
-                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                  <div className="animate-pulse">
+                    {/* Day-of-week headers placeholder */}
+                    <div className="grid grid-cols-7 mb-2">
+                      {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => (
+                        <div key={d} className="text-center text-xs font-bold py-2 text-slate-300">{d}</div>
+                      ))}
+                    </div>
+                    {/* Day cells placeholder */}
+                    <div className="grid grid-cols-7 gap-1">
+                      {Array.from({ length: 31 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="min-h-[62px] rounded-lg border border-slate-100 bg-slate-50/50 flex flex-col items-center justify-center"
+                        >
+                          <div className="h-2.5 w-4 bg-slate-200 dark:bg-slate-800 rounded-full mb-1.5" />
+                          <div className="h-3.5 w-6 bg-slate-200 dark:bg-slate-800 rounded-full" />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <>

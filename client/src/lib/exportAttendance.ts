@@ -4,9 +4,9 @@
  * Produces fully-styled workbooks with college branding, color-coded
  * status cells, bordered tables, summary dashboards, and per-teacher sheets.
  *
- * Uses SheetJS Community Edition (xlsx).
+ * Uses ExcelJS for advanced formatting and styling.
  */
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,45 +31,44 @@ export interface Teacher {
   email: string;
 }
 
+export interface TeacherSummary {
+  teacherId: number;
+  teacherName: string;
+  teacherEmail: string;
+  total: number;
+  present: number;
+  absent: number;
+  late: number;
+  half_day: number;
+  leave: number;
+  presentRate: number;
+  avgCheckIn: string;
+  avgCheckOut: string;
+  formattedHours: string;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const COLLEGE_NAME  = "Global College of Computer Science & Commerce";
 const COLLEGE_SHORT = "GCCSC";
 
-/** Hex colour palette */
-const C = {
-  // Header / branding
-  navy:      "1E3A8A",
-  navyLight: "2563EB",
-  navyFg:    "DBEAFE",
-  // Status fills (light)
-  present:   "D1FAE5",  // emerald-100
-  absent:    "FEE2E2",  // red-100
-  late:      "FEF3C7",  // amber-100
-  halfDay:   "DBEAFE",  // blue-100
-  leave:     "EDE9FE",  // violet-100
-  weekend:   "F1F5F9",  // slate-100
-  // Status text (dark)
-  presentTxt:"065F46",
-  absentTxt: "991B1B",
-  lateTxt:   "92400E",
-  halfTxt:   "1E40AF",
-  leaveTxt:  "4C1D95",
-  // Table
-  headerBg:  "1E40AF",  // blue-800
-  headerFg:  "FFFFFF",
-  altRow:    "F8FAFC",  // slate-50
-  border:    "CBD5E1",  // slate-300
-  darkBorder:"94A3B8",  // slate-400
-  // Summary card fills
-  totalBg:   "EFF6FF",
-  summaryBg: "F0FDF4",
-  // Misc
-  white:     "FFFFFF",
-  black:     "0F172A",
-  gray:      "64748B",
-  lightGray: "F8FAFC",
-  gold:      "D97706",  // amber-600
+// Status colors (ARGB format)
+const STATUS_FILL: Record<string, string> = {
+  present:  "FFD1FAE5", // light emerald
+  absent:   "FFFEE2E2", // light red
+  late:     "FFFEF3C7", // light amber
+  half_day: "FFDBEAFE", // light blue
+  leave:    "FFEDE9FE", // light violet
+  weekend:  "FFF1F5F9", // light slate
+};
+
+const STATUS_TXT: Record<string, string> = {
+  present:  "FF065F46", // dark emerald
+  absent:   "FF991B1B", // dark red
+  late:     "FF92400E", // dark amber
+  half_day: "FF1E40AF", // dark blue
+  leave:    "FF4C1D95", // dark violet
+  weekend:  "FF64748B", // slate
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -81,220 +80,224 @@ const STATUS_LABEL: Record<string, string> = {
   weekend:  "Weekend",
 };
 
-const STATUS_FILL: Record<string, string> = {
-  present:  C.present,
-  absent:   C.absent,
-  late:     C.late,
-  half_day: C.halfDay,
-  leave:    C.leave,
-  weekend:  C.weekend,
+const STATUS_SHORT: Record<string, string> = {
+  present:  "P",
+  absent:   "A",
+  late:     "L",
+  half_day: "H",
+  leave:    "Lv",
+  weekend:  "—",
 };
 
-const STATUS_TXT: Record<string, string> = {
-  present:  C.presentTxt,
-  absent:   C.absentTxt,
-  late:     C.lateTxt,
-  half_day: C.halfTxt,
-  leave:    C.leaveTxt,
-  weekend:  C.gray,
-};
+// ─── Helper Functions for Styling ─────────────────────────────────────────────
 
-// ─── Cell builder helpers ─────────────────────────────────────────────────────
-
-type CellStyle = Record<string, unknown>;
-
-function cell(
-  value: string | number | null | undefined,
-  style: CellStyle = {},
-  type: "s" | "n" = typeof value === "number" ? "n" : "s"
-): XLSX.CellObject {
-  return { v: value ?? "", t: type, s: style } as XLSX.CellObject;
-}
-
-function border(color = C.border, style: "thin" | "medium" | "thick" = "thin") {
-  return { style, color: { rgb: color } };
-}
-
-const allBorders = (col = C.border, style: "thin" | "medium" | "thick" = "thin") => ({
-  top:    border(col, style),
-  bottom: border(col, style),
-  left:   border(col, style),
-  right:  border(col, style),
-});
-
-const bottomBorder = (col = C.darkBorder) => ({
-  bottom: border(col, "medium"),
-});
-
-/** Full-bleed solid fill style */
-function fill(bgRgb: string): CellStyle {
-  return { patternType: "solid", fgColor: { rgb: bgRgb } };
-}
-
-/** College banner cell – massive, centered */
-function collegeBannerCell(label: string): XLSX.CellObject {
-  return cell(label, {
-    font: { bold: true, sz: 18, color: { rgb: C.navyFg }, name: "Calibri" },
-    fill: fill(C.navy),
-    alignment: { horizontal: "center", vertical: "center", wrapText: false },
-    border: allBorders(C.navyLight, "medium"),
-  });
-}
-
-function subBannerCell(label: string): XLSX.CellObject {
-  return cell(label, {
-    font: { bold: false, sz: 11, color: { rgb: C.navyFg }, name: "Calibri" },
-    fill: fill(C.navyLight),
-    alignment: { horizontal: "center", vertical: "center" },
-    border: allBorders(C.navyLight),
-  });
-}
-
-function reportTitleCell(label: string): XLSX.CellObject {
-  return cell(label, {
-    font: { bold: true, sz: 14, color: { rgb: C.navy }, name: "Calibri" },
-    fill: fill(C.navyFg),
-    alignment: { horizontal: "center", vertical: "center" },
-    border: { ...allBorders(C.navyLight, "medium"), bottom: border(C.navy, "medium") },
-  });
-}
-
-function tableHeaderCell(label: string): XLSX.CellObject {
-  return cell(label, {
-    font: { bold: true, sz: 10, color: { rgb: C.headerFg }, name: "Calibri" },
-    fill: fill(C.headerBg),
-    alignment: { horizontal: "center", vertical: "center", wrapText: true },
-    border: allBorders(C.navyLight, "thin"),
-  });
-}
-
-function dataCell(
-  value: string | number | null | undefined,
+function styleCell(
+  cell: ExcelJS.Cell,
   options: {
+    value?: ExcelJS.CellValue;
     bold?: boolean;
     align?: "left" | "center" | "right";
     bg?: string;
     fg?: string;
     sz?: number;
     italic?: boolean;
+    borderStyle?: "thin" | "medium" | "thick";
+    borderColor?: string;
+    wrapText?: boolean;
     altRow?: boolean;
-  } = {}
-): XLSX.CellObject {
-  const { bold = false, align = "center", bg, fg = C.black, sz = 10, italic = false, altRow: alt = false } = options;
-  return cell(value, {
-    font: { bold, sz, color: { rgb: fg }, italic, name: "Calibri" },
-    fill: fill(bg ?? (alt ? C.altRow : C.white)),
-    alignment: { horizontal: align, vertical: "center", wrapText: true },
-    border: allBorders(C.border, "thin"),
+  }
+) {
+  const {
+    value,
+    bold = false,
+    align = "center",
+    bg,
+    fg = "FF0F172A",
+    sz = 10,
+    italic = false,
+    borderStyle = "thin",
+    borderColor = "FFCBD5E1",
+    wrapText = true,
+    altRow = false,
+  } = options;
+
+  if (value !== undefined) {
+    cell.value = value;
+  }
+
+  cell.font = {
+    name: "Calibri",
+    size: sz,
+    bold,
+    italic,
+    color: { argb: fg },
+  };
+
+  const finalBg = bg ?? (altRow ? "FFF8FAFC" : "FFFFFFFF");
+  cell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: finalBg },
+  };
+
+  cell.border = {
+    top: { style: borderStyle, color: { argb: borderColor } },
+    bottom: { style: borderStyle, color: { argb: borderColor } },
+    left: { style: borderStyle, color: { argb: borderColor } },
+    right: { style: borderStyle, color: { argb: borderColor } },
+  };
+
+  cell.alignment = {
+    horizontal: align,
+    vertical: "middle",
+    wrapText,
+  };
+}
+
+function mergeAndStyle(
+  worksheet: ExcelJS.Worksheet,
+  r1: number,
+  c1: number,
+  r2: number,
+  c2: number,
+  value: ExcelJS.CellValue,
+  style: {
+    font?: Partial<ExcelJS.Font>;
+    fill?: ExcelJS.Fill;
+    alignment?: Partial<ExcelJS.Alignment>;
+    border?: Partial<ExcelJS.Borders>;
+  }
+) {
+  worksheet.mergeCells(r1, c1, r2, c2);
+  for (let r = r1; r <= r2; r++) {
+    for (let c = c1; c <= c2; c++) {
+      const cell = worksheet.getCell(r, c);
+      if (style.font) cell.font = style.font;
+      if (style.fill) cell.fill = style.fill;
+      if (style.border) cell.border = style.border;
+      if (style.alignment) cell.alignment = style.alignment;
+    }
+  }
+  worksheet.getCell(r1, c1).value = value;
+}
+
+// Banner helper — writes a 3-row college header
+function writeBanner(worksheet: ExcelJS.Worksheet, startRow: number, cols: number, subTitle: string): number {
+  let r = startRow;
+  
+  // Row 1: Brand Title Banner
+  worksheet.getRow(r).height = 42;
+  mergeAndStyle(worksheet, r, 1, r, cols, COLLEGE_NAME, {
+    font: { bold: true, size: 18, color: { argb: "FFDBEAFE" }, name: "Calibri" },
+    fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A8A" } },
+    alignment: { horizontal: "center", vertical: "middle" },
+    border: {
+      top: { style: "medium", color: { argb: "FF2563EB" } },
+      bottom: { style: "medium", color: { argb: "FF2563EB" } },
+      left: { style: "medium", color: { argb: "FF2563EB" } },
+      right: { style: "medium", color: { argb: "FF2563EB" } }
+    }
   });
-}
+  r++;
 
-function statusCell(status: string, alt = false): XLSX.CellObject {
-  const bg  = STATUS_FILL[status] ?? C.altRow;
-  const fg  = STATUS_TXT[status]  ?? C.gray;
-  const lbl = STATUS_LABEL[status] ?? status;
-  return cell(lbl, {
-    font: { bold: true, sz: 10, color: { rgb: fg }, name: "Calibri" },
-    fill: fill(alt ? bg : bg),
-    alignment: { horizontal: "center", vertical: "center" },
-    border: allBorders(C.border, "thin"),
+  // Row 2: Subtitle Banner
+  worksheet.getRow(r).height = 24;
+  mergeAndStyle(worksheet, r, 1, r, cols, subTitle, {
+    font: { bold: false, size: 11, color: { argb: "FFDBEAFE" }, name: "Calibri" },
+    fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FF2563EB" } },
+    alignment: { horizontal: "center", vertical: "middle" },
+    border: {
+      top: { style: "thin", color: { argb: "FF2563EB" } },
+      bottom: { style: "thin", color: { argb: "FF2563EB" } },
+      left: { style: "thin", color: { argb: "FF2563EB" } },
+      right: { style: "thin", color: { argb: "FF2563EB" } }
+    }
   });
-}
+  r++;
 
-function sectionLabelCell(label: string): XLSX.CellObject {
-  return cell(label, {
-    font: { bold: true, sz: 10, color: { rgb: C.white }, name: "Calibri" },
-    fill: fill(C.gold),
-    alignment: { horizontal: "left", vertical: "center" },
-    border: { ...allBorders(C.gold), left: border(C.gold, "thick") },
+  // Row 3: Thin separator row
+  worksheet.getRow(r).height = 8;
+  mergeAndStyle(worksheet, r, 1, r, cols, "", {
+    fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFDBEAFE" } }
   });
+  r++;
+
+  return r;
 }
 
-function metaLabelCell(label: string): XLSX.CellObject {
-  return cell(label, {
-    font: { bold: true, sz: 10, color: { rgb: C.navy }, name: "Calibri" },
-    fill: fill(C.navyFg),
-    alignment: { horizontal: "left", vertical: "center" },
-    border: allBorders(C.border),
+// Meta info block — writes key-value block
+function writeMeta(worksheet: ExcelJS.Worksheet, startRow: number, cols: number, metas: [string, string][]): number {
+  let r = startRow;
+  for (const [lbl, val] of metas) {
+    worksheet.getRow(r).height = 20;
+
+    // Label cols (1 to 2)
+    mergeAndStyle(worksheet, r, 1, r, 2, lbl, {
+      font: { bold: true, size: 10, color: { argb: "FF1E3A8A" }, name: "Calibri" },
+      fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFDBEAFE" } },
+      alignment: { horizontal: "left", vertical: "middle" },
+      border: {
+        top: { style: "thin", color: { argb: "FFCBD5E1" } },
+        bottom: { style: "thin", color: { argb: "FFCBD5E1" } },
+        left: { style: "thin", color: { argb: "FFCBD5E1" } },
+        right: { style: "thin", color: { argb: "FFCBD5E1" } }
+      }
+    });
+
+    // Value cols (3 to cols)
+    mergeAndStyle(worksheet, r, 3, r, cols, val, {
+      font: { bold: false, size: 10, color: { argb: "FF0F172A" }, name: "Calibri" },
+      fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } },
+      alignment: { horizontal: "left", vertical: "middle" },
+      border: {
+        top: { style: "thin", color: { argb: "FFCBD5E1" } },
+        bottom: { style: "thin", color: { argb: "FFCBD5E1" } },
+        left: { style: "thin", color: { argb: "FFCBD5E1" } },
+        right: { style: "thin", color: { argb: "FFCBD5E1" } }
+      }
+    });
+
+    r++;
+  }
+
+  // Row blank spacer
+  worksheet.getRow(r).height = 10;
+  mergeAndStyle(worksheet, r, 1, r, cols, "", {
+    fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } }
   });
+  r++;
+
+  return r;
 }
 
-function metaValueCell(value: string): XLSX.CellObject {
-  return cell(value, {
-    font: { bold: false, sz: 10, color: { rgb: C.black }, name: "Calibri" },
-    fill: fill(C.white),
-    alignment: { horizontal: "left", vertical: "center" },
-    border: allBorders(C.border),
+// Section Header Row
+function writeSectionLabel(worksheet: ExcelJS.Worksheet, r: number, cols: number, label: string): number {
+  worksheet.getRow(r).height = 22;
+  mergeAndStyle(worksheet, r, 1, r, cols, label, {
+    font: { bold: true, size: 10, color: { argb: "FFFFFFFF" }, name: "Calibri" },
+    fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFD97706" } }, // Gold Accent
+    alignment: { horizontal: "left", vertical: "middle" },
+    border: {
+      top: { style: "thin", color: { argb: "FFD97706" } },
+      bottom: { style: "thin", color: { argb: "FFD97706" } },
+      left: { style: "medium", color: { argb: "FFD97706" } },
+      right: { style: "thin", color: { argb: "FFD97706" } }
+    }
   });
+  return r + 1;
 }
 
-function statLabelCell(label: string, bg: string, fg: string): XLSX.CellObject {
-  return cell(label, {
-    font: { bold: true, sz: 10, color: { rgb: fg }, name: "Calibri" },
-    fill: fill(bg),
-    alignment: { horizontal: "center", vertical: "center" },
-    border: allBorders(C.border),
+// Footer note row
+function writeFootNote(worksheet: ExcelJS.Worksheet, r: number, cols: number): number {
+  worksheet.getRow(r).height = 20;
+  const note = `${COLLEGE_NAME}  ·  This document is system-generated and is valid without a signature.`;
+  mergeAndStyle(worksheet, r, 1, r, cols, note, {
+    font: { italic: true, size: 9, color: { argb: "FF64748B" }, name: "Calibri" },
+    fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } },
+    alignment: { horizontal: "left", vertical: "middle" }
   });
+  return r + 1;
 }
-
-function statValueCell(value: string | number, bg: string, fg: string, sz = 14): XLSX.CellObject {
-  return cell(value, {
-    font: { bold: true, sz, color: { rgb: fg }, name: "Calibri" },
-    fill: fill(bg),
-    alignment: { horizontal: "center", vertical: "center" },
-    border: allBorders(C.border),
-  });
-}
-
-function emptyCell(bg = C.white): XLSX.CellObject {
-  return cell("", { fill: fill(bg), border: allBorders(C.white) });
-}
-
-// ─── Worksheet utilities ──────────────────────────────────────────────────────
-
-function setCell(ws: XLSX.WorkSheet, row: number, col: number, c: XLSX.CellObject) {
-  const ref = XLSX.utils.encode_cell({ r: row, c: col });
-  ws[ref] = c;
-}
-
-function mergeRange(ws: XLSX.WorkSheet, r1: number, c1: number, r2: number, c2: number) {
-  if (!ws["!merges"]) ws["!merges"] = [];
-  ws["!merges"].push({ s: { r: r1, c: c1 }, e: { r: r2, c: c2 } });
-}
-
-function setColWidths(ws: XLSX.WorkSheet, widths: number[]) {
-  ws["!cols"] = widths.map(w => ({ wch: w }));
-}
-
-function setRowHeights(ws: XLSX.WorkSheet, heights: Record<number, number>) {
-  if (!ws["!rows"]) ws["!rows"] = [];
-  Object.entries(heights).forEach(([row, hpt]) => {
-    const r = Number(row);
-    while ((ws["!rows"] as XLSX.RowInfo[]).length <= r) (ws["!rows"] as XLSX.RowInfo[]).push({});
-    (ws["!rows"] as XLSX.RowInfo[])[r] = { hpt };
-  });
-}
-
-function pct(num: number, denom: number): string {
-  if (denom === 0) return "0%";
-  return `${Math.round((num / denom) * 100)}%`;
-}
-
-function fmtDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    weekday: "short", year: "numeric", month: "short", day: "numeric",
-  });
-}
-
-function monthName(month: number, year: number): string {
-  return new Date(year, month - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
-}
-
-function downloadWorkbook(wb: XLSX.WorkBook, filename: string) {
-  XLSX.writeFile(wb, filename, { compression: true });
-}
-
-// ─── Build attendance stats ───────────────────────────────────────────────────
 
 interface Stats {
   total: number; present: number; absent: number;
@@ -312,355 +315,856 @@ function buildStats(records: AttendanceHistoryRecord[]): Stats {
   );
 }
 
-// ─── Sheet 1: Per-teacher detailed daily log ──────────────────────────────────
+function writeStatsDashboard(worksheet: ExcelJS.Worksheet, startRow: number, stats: Stats): number {
+  let r = startRow;
+  r = writeSectionLabel(worksheet, r, 9, "  ATTENDANCE STATISTICS");
 
-function buildTeacherSheet(
-  records: AttendanceHistoryRecord[],
-  teacherName: string,
-  teacherEmail: string,
-  month: number,
-  year: number
-): XLSX.WorkSheet {
-  const ws: XLSX.WorkSheet = {};
-  const period = monthName(month, year);
-  const stats  = buildStats(records);
-  const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date));
-
-  // Column widths: #, Date, Day, Status, Check-In, Check-Out, Hours, Notes, Leave
-  setColWidths(ws, [5, 16, 12, 12, 11, 11, 10, 28, 14]);
-
-  let r = 0;
-
-  // ── Row 0: College banner (spans all 9 cols) ─────────────────────────────
-  for (let c = 0; c < 9; c++) setCell(ws, r, c, collegeBannerCell(COLLEGE_NAME));
-  mergeRange(ws, r, 0, r, 8);
+  // Headers
+  worksheet.getRow(r).height = 20;
+  const statHeaders = ["Working Days", "Present", "Absent", "Late", "Half Day", "Leave", "Attend. %", "Punctual. %", "Grade"];
+  const statBgs = ["FFEFF6FF", "FFD1FAE5", "FFFEE2E2", "FFFEF3C7", "FFDBEAFE", "FFEDE9FE", "FF1E3A8A", "FF1E3A8A", "FFDBEAFE"];
+  const statFgs = ["FF1E3A8A", "FF065F46", "FF991B1B", "FF92400E", "FF1E40AF", "FF4C1D95", "FFFFFFFF", "FFFFFFFF", "FF1E3A8A"];
+  
+  statHeaders.forEach((h, i) => {
+    styleCell(worksheet.getCell(r, i + 1), {
+      value: h,
+      bold: true,
+      bg: statBgs[i],
+      fg: statFgs[i],
+      sz: 10
+    });
+  });
   r++;
 
-  // ── Row 1: Sub-banner ────────────────────────────────────────────────────
-  const sub = `TEACHER ATTENDANCE REGISTER  ·  ${period}`;
-  for (let c = 0; c < 9; c++) setCell(ws, r, c, subBannerCell(sub));
-  mergeRange(ws, r, 0, r, 8);
-  r++;
-
-  // ── Row 2: Empty spacer ──────────────────────────────────────────────────
-  for (let c = 0; c < 9; c++) setCell(ws, r, c, emptyCell(C.navyFg));
-  mergeRange(ws, r, 0, r, 8);
-  r++;
-
-  // ── Rows 3-5: Meta info table (2 cols wide) ──────────────────────────────
-  const metaRows: [string, string][] = [
-    ["Teacher Name",   teacherName],
-    ["Email Address",  teacherEmail],
-    ["Report Period",  period],
-    ["Generated On",   new Date().toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" })],
-    ["Prepared By",    `${COLLEGE_SHORT} Administration`],
-  ];
-  for (const [lbl, val] of metaRows) {
-    setCell(ws, r, 0, metaLabelCell(lbl));
-    mergeRange(ws, r, 0, r, 1);
-    setCell(ws, r, 2, metaValueCell(val));
-    mergeRange(ws, r, 2, r, 8);
-    for (let c = 1; c < 2; c++) setCell(ws, r, c, emptyCell(C.navyFg));
-    for (let c = 3; c < 9; c++) setCell(ws, r, c, emptyCell(C.white));
-    r++;
-  }
-
-  // ── Row blank ────────────────────────────────────────────────────────────
-  for (let c = 0; c < 9; c++) setCell(ws, r, c, emptyCell(C.white));
-  mergeRange(ws, r, 0, r, 8);
-  r++;
-
-  // ── Section: Statistics Dashboard ───────────────────────────────────────
-  for (let c = 0; c < 9; c++) setCell(ws, r, c, sectionLabelCell("  ATTENDANCE STATISTICS"));
-  mergeRange(ws, r, 0, r, 8);
-  r++;
-
-  // Stat header row
-  const statHeaders = ["Working Days", "Present", "Absent", "Late", "Half Day", "Leave", "Attend. %", "Punctual. %", "Status"];
-  const statBgs = [C.totalBg, C.present, C.absent, C.late, C.halfDay, C.leave, C.navy, C.navy, C.navyFg];
-  const statFgs = [C.navy, C.presentTxt, C.absentTxt, C.lateTxt, C.halfTxt, C.leaveTxt, C.white, C.white, C.navy];
-  statHeaders.forEach((h, i) => setCell(ws, r, i, statLabelCell(h, statBgs[i], statFgs[i])));
-  r++;
-
-  // Stat value row
+  // Values
+  worksheet.getRow(r).height = 28;
   const attendPct  = pct(stats.present + stats.late, stats.total);
   const punctPct   = pct(stats.present, stats.total);
   const pctNum     = stats.total > 0 ? Math.round(((stats.present + stats.late) / stats.total) * 100) : 0;
+  
   const gradeLabel = pctNum >= 90 ? "Excellent" : pctNum >= 75 ? "Good" : pctNum >= 60 ? "Average" : "Poor";
-  const gradeFg    = pctNum >= 90 ? C.presentTxt : pctNum >= 75 ? C.lateTxt : pctNum >= 60 ? C.halfTxt : C.absentTxt;
-  const gradeBg    = pctNum >= 90 ? C.present : pctNum >= 75 ? C.late : pctNum >= 60 ? C.halfDay : C.absent;
+  const gradeFg    = pctNum >= 90 ? "FF065F46" : pctNum >= 75 ? "FF92400E" : pctNum >= 60 ? "FF1E40AF" : "FF991B1B";
+  const gradeBg    = pctNum >= 90 ? "FFD1FAE5" : pctNum >= 75 ? "FFFEF3C7" : pctNum >= 60 ? "FFDBEAFE" : "FFFEE2E2";
 
   const statVals = [stats.total, stats.present, stats.absent, stats.late, stats.half_day, stats.leave, attendPct, punctPct, gradeLabel];
-  const statVBgs = [C.totalBg, C.present, C.absent, C.late, C.halfDay, C.leave, C.navyLight, C.navyLight, gradeBg];
-  const statVFgs = [C.navy, C.presentTxt, C.absentTxt, C.lateTxt, C.halfTxt, C.leaveTxt, C.white, C.white, gradeFg];
-  statVals.forEach((v, i) => setCell(ws, r, i, statValueCell(v, statVBgs[i], statVFgs[i])));
+  const statVBgs = ["FFEFF6FF", "FFD1FAE5", "FFFEE2E2", "FFFEF3C7", "FFDBEAFE", "FFEDE9FE", "FF2563EB", "FF2563EB", gradeBg];
+  const statVFgs = ["FF1E3A8A", "FF065F46", "FF991B1B", "FF92400E", "FF1E40AF", "FF4C1D95", "FFFFFFFF", "FFFFFFFF", gradeFg];
+
+  statVals.forEach((v, i) => {
+    styleCell(worksheet.getCell(r, i + 1), {
+      value: v,
+      bold: true,
+      bg: statVBgs[i],
+      fg: statVFgs[i],
+      sz: i === 8 ? 11 : 14
+    });
+  });
   r++;
 
-  // ── Row blank ────────────────────────────────────────────────────────────
-  for (let c = 0; c < 9; c++) setCell(ws, r, c, emptyCell(C.white));
-  mergeRange(ws, r, 0, r, 8);
+  // Spacer
+  worksheet.getRow(r).height = 10;
+  mergeAndStyle(worksheet, r, 1, r, 9, "", {
+    fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } }
+  });
   r++;
 
-  // ── Section: Daily Log ───────────────────────────────────────────────────
-  for (let c = 0; c < 9; c++) setCell(ws, r, c, sectionLabelCell("  DAILY ATTENDANCE LOG"));
-  mergeRange(ws, r, 0, r, 8);
+  return r;
+}
+
+function writeLegend(worksheet: ExcelJS.Worksheet, startRow: number, totalCols: number): number {
+  let r = startRow;
+  r = writeSectionLabel(worksheet, r, totalCols, "  LEGEND");
+
+  worksheet.getRow(r).height = 20;
+  const legendItems: [string, string, string, string][] = [
+    ["P", "Present",  "FFD1FAE5", "FF065F46"],
+    ["A", "Absent",   "FFFEE2E2", "FF991B1B"],
+    ["L", "Late",     "FFFEF3C7", "FF92400E"],
+    ["H", "Half Day", "FFDBEAFE", "FF1E40AF"],
+    ["Lv", "Leave",   "FFEDE9FE", "FF4C1D95"],
+    ["—", "Weekend",  "FFF1F5F9", "FF64748B"],
+  ];
+
+  legendItems.forEach(([code, label, bg, fg], i) => {
+    const col = i * 2 + 1;
+    styleCell(worksheet.getCell(r, col), {
+      value: code,
+      bold: true,
+      bg,
+      fg,
+      sz: 10
+    });
+    styleCell(worksheet.getCell(r, col + 1), {
+      value: `= ${label}`,
+      align: "left",
+      bg: "FFF8FAFC",
+      sz: 10
+    });
+  });
   r++;
+
+  // Spacer
+  worksheet.getRow(r).height = 10;
+  mergeAndStyle(worksheet, r, 1, r, totalCols, "", {
+    fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } }
+  });
+  r++;
+
+  return r;
+}
+
+// ─── Format Utilities ─────────────────────────────────────────────────────────
+
+function pct(num: number, denom: number): string {
+  if (denom === 0) return "0%";
+  return `${Math.round((num / denom) * 100)}%`;
+}
+
+function fmtDate(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString("en-US", {
+    weekday: "short", year: "numeric", month: "short", day: "numeric",
+  });
+}
+
+function monthName(month: number, year: number): string {
+  return new Date(year, month - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" });
+}
+
+async function saveWorkbook(workbook: ExcelJS.Workbook, filename: string) {
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── Sheet Builders ──────────────────────────────────────────────────────────
+
+function buildTeacherSheet(
+  worksheet: ExcelJS.Worksheet,
+  records: AttendanceHistoryRecord[],
+  teacherName: string,
+  teacherEmail: string,
+  periodLabel: string
+) {
+  const stats  = buildStats(records);
+  const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date));
+  const COLS = 9;
+
+  const widths = [5, 16, 12, 12, 11, 11, 10, 28, 14];
+  widths.forEach((w, i) => {
+    worksheet.getColumn(i + 1).width = w;
+  });
+
+  let r = 1;
+  r = writeBanner(worksheet, r, COLS, `TEACHER ATTENDANCE REGISTER  ·  ${periodLabel}`);
+
+  const metas: [string, string][] = [
+    ["Teacher Name",  teacherName],
+    ["Email Address", teacherEmail],
+    ["Report Period", periodLabel],
+    ["Generated On",  new Date().toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" })],
+    ["Prepared By",   `${COLLEGE_SHORT} Administration`],
+  ];
+  r = writeMeta(worksheet, r, COLS, metas);
+  r = writeStatsDashboard(worksheet, r, stats);
+  r = writeSectionLabel(worksheet, r, COLS, "  DAILY ATTENDANCE LOG");
 
   // Table header
+  worksheet.getRow(r).height = 24;
   const logHeaders = ["#", "Date", "Day", "Status", "Check In", "Check Out", "Hrs Worked", "Notes / Remarks", "Leave Type"];
-  logHeaders.forEach((h, i) => setCell(ws, r, i, tableHeaderCell(h)));
+  logHeaders.forEach((h, i) => {
+    styleCell(worksheet.getCell(r, i + 1), {
+      value: h,
+      bold: true,
+      bg: "FF1E40AF",
+      fg: "FFFFFFFF",
+      sz: 10
+    });
+  });
   r++;
 
   // Data rows
   sorted.forEach((rec, idx) => {
+    worksheet.getRow(r).height = 20;
     const isAlt = idx % 2 === 1;
     const d = new Date(rec.date);
     const dayName = d.toLocaleDateString("en-US", { weekday: "long" });
 
-    setCell(ws, r, 0, dataCell(idx + 1,      { align: "center", bold: false, altRow: isAlt }));
-    setCell(ws, r, 1, dataCell(fmtDate(rec.date), { align: "left",   altRow: isAlt }));
-    setCell(ws, r, 2, dataCell(dayName,       { align: "left",   altRow: isAlt }));
-    setCell(ws, r, 3, statusCell(rec.status,  isAlt));
-    setCell(ws, r, 4, dataCell(rec.checkInTime  ?? "—", { align: "center", altRow: isAlt }));
-    setCell(ws, r, 5, dataCell(rec.checkOutTime ?? "—", { align: "center", altRow: isAlt }));
-    setCell(ws, r, 6, dataCell(rec.workingHours ?? "—", { align: "center", bold: true, altRow: isAlt }));
-    setCell(ws, r, 7, dataCell(rec.notes       ?? "—", { align: "left",   altRow: isAlt }));
-    setCell(ws, r, 8, dataCell(rec.leaveType   ?? "—", { align: "center", altRow: isAlt }));
+    styleCell(worksheet.getCell(r, 1), { value: idx + 1, align: "center", altRow: isAlt });
+    styleCell(worksheet.getCell(r, 2), { value: fmtDate(rec.date), align: "left", altRow: isAlt });
+    styleCell(worksheet.getCell(r, 3), { value: dayName, align: "left", altRow: isAlt });
+    
+    // Status
+    styleCell(worksheet.getCell(r, 4), {
+      value: STATUS_LABEL[rec.status] ?? rec.status,
+      bold: true,
+      bg: STATUS_FILL[rec.status] ?? "FFF1F5F9",
+      fg: STATUS_TXT[rec.status] ?? "FF64748B"
+    });
+
+    styleCell(worksheet.getCell(r, 5), { value: rec.checkInTime ?? "—", align: "center", altRow: isAlt });
+    styleCell(worksheet.getCell(r, 6), { value: rec.checkOutTime ?? "—", align: "center", altRow: isAlt });
+    styleCell(worksheet.getCell(r, 7), { value: rec.workingHours ?? "—", align: "center", bold: true, altRow: isAlt });
+    styleCell(worksheet.getCell(r, 8), { value: rec.notes ?? "—", align: "left", altRow: isAlt });
+    styleCell(worksheet.getCell(r, 9), { value: rec.leaveType ?? "—", align: "center", altRow: isAlt });
     r++;
   });
 
-  // Totals footer row
-  const footerLabels: (string | number)[] = [
+  // Footer Totals row
+  worksheet.getRow(r).height = 22;
+  const footerCells: (string | number)[] = [
     "", "TOTAL", "",
     `P:${stats.present}  A:${stats.absent}  L:${stats.late}  H:${stats.half_day}  Lv:${stats.leave}`,
     "", "", "", "", "",
   ];
-  footerLabels.forEach((v, i) => {
-    setCell(ws, r, i, cell(v, {
-      font: { bold: true, sz: 10, color: { rgb: C.white }, name: "Calibri" },
-      fill: fill(C.navy),
-      alignment: { horizontal: i === 3 ? "center" : "center", vertical: "center" },
-      border: allBorders(C.navyLight, "medium"),
-    }));
+
+  footerCells.forEach((v, i) => {
+    styleCell(worksheet.getCell(r, i + 1), {
+      bold: true,
+      bg: "FF1E3A8A",
+      fg: "FFFFFFFF",
+      sz: 10
+    });
   });
-  mergeRange(ws, r, 3, r, 8);
+  mergeAndStyle(worksheet, r, 4, r, 9, footerCells[3], {
+    font: { bold: true, size: 10, color: { argb: "FFFFFFFF" }, name: "Calibri" },
+    fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A8A" } },
+    alignment: { horizontal: "center", vertical: "middle" }
+  });
+  worksheet.getCell(r, 2).value = "TOTAL";
   r++;
-
-  // ── Row blank + footer note ──────────────────────────────────────────────
-  for (let c = 0; c < 9; c++) setCell(ws, r, c, emptyCell(C.white));
-  mergeRange(ws, r, 0, r, 8);
-  r++;
-
-  const footNote = `This report is generated by ${COLLEGE_NAME} — Attendance Management System`;
-  for (let c = 0; c < 9; c++) {
-    setCell(ws, r, c, cell(c === 0 ? footNote : "", {
-      font: { italic: true, sz: 9, color: { rgb: C.gray }, name: "Calibri" },
-      fill: fill(C.lightGray),
-      alignment: { horizontal: "left", vertical: "center" },
-    }));
-  }
-  mergeRange(ws, r, 0, r, 8);
-
-  // Row heights
-  setRowHeights(ws, { 0: 42, 1: 24, 2: 8, 10: 8 });
-
-  // Worksheet range
-  ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r, c: 8 } });
-
-  return ws;
-}
-
-// ─── Master Summary Sheet ─────────────────────────────────────────────────────
-
-function buildSummarySheet(
-  records: AttendanceHistoryRecord[],
-  teachers: Teacher[],
-  month: number,
-  year: number
-): XLSX.WorkSheet {
-  const ws: XLSX.WorkSheet = {};
-  const period = monthName(month, year);
-
-  // Columns: #, Name, Email, Days, Present, Absent, Late, HalfDay, Leave, AttRate, PunctRate, Grade
-  setColWidths(ws, [5, 24, 30, 11, 10, 10, 10, 10, 10, 12, 12, 12]);
-
-  let r = 0;
-
-  // Banner
-  for (let c = 0; c < 12; c++) setCell(ws, r, c, collegeBannerCell(COLLEGE_NAME));
-  mergeRange(ws, r, 0, r, 11);
-  r++;
-
-  const sub = `ALL TEACHERS ATTENDANCE SUMMARY  ·  ${period}`;
-  for (let c = 0; c < 12; c++) setCell(ws, r, c, subBannerCell(sub));
-  mergeRange(ws, r, 0, r, 11);
-  r++;
-
-  for (let c = 0; c < 12; c++) setCell(ws, r, c, emptyCell(C.navyFg));
-  mergeRange(ws, r, 0, r, 11);
-  r++;
-
-  // Meta row
-  const metas: [string, string][] = [
-    ["Report Period", period],
-    ["Total Teachers", String(teachers.length)],
-    ["Generated", new Date().toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" })],
-    ["Prepared By", `${COLLEGE_SHORT} Administration`],
-  ];
-  for (const [lbl, val] of metas) {
-    setCell(ws, r, 0, metaLabelCell(lbl));
-    mergeRange(ws, r, 0, r, 1);
-    setCell(ws, r, 2, metaValueCell(val));
-    mergeRange(ws, r, 2, r, 11);
-    for (let c = 3; c < 12; c++) setCell(ws, r, c, emptyCell(C.white));
-    r++;
-  }
 
   // Spacer
-  for (let c = 0; c < 12; c++) setCell(ws, r, c, emptyCell(C.white));
-  mergeRange(ws, r, 0, r, 11);
+  worksheet.getRow(r).height = 10;
+  mergeAndStyle(worksheet, r, 1, r, COLS, "", {
+    fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } }
+  });
   r++;
 
-  // Section label
-  for (let c = 0; c < 12; c++) setCell(ws, r, c, sectionLabelCell("  TEACHER-WISE ATTENDANCE SUMMARY"));
-  mergeRange(ws, r, 0, r, 11);
-  r++;
+  r = writeFootNote(worksheet, r, COLS);
+}
 
-  // Table header
+function buildSummarySheet(
+  worksheet: ExcelJS.Worksheet,
+  records: AttendanceHistoryRecord[],
+  teachers: Teacher[],
+  periodLabel: string
+) {
+  const COLS = 12;
+  const widths = [5, 24, 30, 11, 10, 10, 10, 10, 10, 12, 12, 12];
+  widths.forEach((w, i) => {
+    worksheet.getColumn(i + 1).width = w;
+  });
+
+  let r = 1;
+  r = writeBanner(worksheet, r, COLS, `ALL TEACHERS ATTENDANCE SUMMARY  ·  ${periodLabel}`);
+
+  const metas: [string, string][] = [
+    ["Report Period",  periodLabel],
+    ["Total Teachers", String(teachers.length)],
+    ["Generated",      new Date().toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" })],
+    ["Prepared By",    `${COLLEGE_SHORT} Administration`],
+  ];
+  r = writeMeta(worksheet, r, COLS, metas);
+  r = writeSectionLabel(worksheet, r, COLS, "  TEACHER-WISE ATTENDANCE SUMMARY");
+
+  // Headers
+  worksheet.getRow(r).height = 26;
   const headers = [
     "#", "Teacher Name", "Email",
     "Working\nDays", "Present", "Absent", "Late", "Half\nDay", "Leave",
     "Attendance\nRate", "Punctuality\nRate", "Grade",
   ];
-  headers.forEach((h, i) => setCell(ws, r, i, tableHeaderCell(h)));
+  headers.forEach((h, i) => {
+    styleCell(worksheet.getCell(r, i + 1), {
+      value: h,
+      bold: true,
+      bg: "FF1E40AF",
+      fg: "FFFFFFFF",
+      sz: 10
+    });
+  });
   r++;
 
-  // Per-teacher stats
   let totDays = 0, totPresent = 0, totAbsent = 0, totLate = 0, totHalf = 0, totLeave = 0;
 
   teachers.forEach((t, idx) => {
-    const tRecs  = records.filter(rec => rec.teacherId === t.id);
-    const st     = buildStats(tRecs);
-    const isAlt  = idx % 2 === 1;
-    const ap     = pct(st.present + st.late, st.total);
-    const pp     = pct(st.present, st.total);
-    const pn     = st.total > 0 ? Math.round(((st.present + st.late) / st.total) * 100) : 0;
-    const gLbl   = pn >= 90 ? "Excellent" : pn >= 75 ? "Good" : pn >= 60 ? "Average" : "Poor";
-    const gFg    = pn >= 90 ? C.presentTxt : pn >= 75 ? C.lateTxt : pn >= 60 ? C.halfTxt : C.absentTxt;
-    const gBg    = pn >= 90 ? C.present : pn >= 75 ? C.late : pn >= 60 ? C.halfDay : C.absent;
+    worksheet.getRow(r).height = 20;
+    const tRecs = records.filter(rec => rec.teacherId === t.id);
+    const st    = buildStats(tRecs);
+    const isAlt = idx % 2 === 1;
+    const ap    = pct(st.present + st.late, st.total);
+    const pp    = pct(st.present, st.total);
+    const pn    = st.total > 0 ? Math.round(((st.present + st.late) / st.total) * 100) : 0;
 
     totDays += st.total; totPresent += st.present; totAbsent += st.absent;
     totLate += st.late;  totHalf += st.half_day;   totLeave += st.leave;
 
-    setCell(ws, r, 0,  dataCell(idx + 1,    { align: "center", altRow: isAlt }));
-    setCell(ws, r, 1,  dataCell(t.name,     { align: "left", bold: true, altRow: isAlt }));
-    setCell(ws, r, 2,  dataCell(t.email,    { align: "left", altRow: isAlt }));
-    setCell(ws, r, 3,  dataCell(st.total,   { align: "center", altRow: isAlt }));
-    setCell(ws, r, 4,  dataCell(st.present, { align: "center", bg: st.total > 0 ? C.present : undefined, fg: C.presentTxt, bold: true }));
-    setCell(ws, r, 5,  dataCell(st.absent,  { align: "center", bg: st.absent > 0 ? C.absent : undefined, fg: st.absent > 0 ? C.absentTxt : C.black }));
-    setCell(ws, r, 6,  dataCell(st.late,    { align: "center", bg: st.late > 0 ? C.late : undefined, fg: st.late > 0 ? C.lateTxt : C.black }));
-    setCell(ws, r, 7,  dataCell(st.half_day,{ align: "center", bg: st.half_day > 0 ? C.halfDay : undefined, fg: st.half_day > 0 ? C.halfTxt : C.black }));
-    setCell(ws, r, 8,  dataCell(st.leave,   { align: "center", bg: st.leave > 0 ? C.leave : undefined, fg: st.leave > 0 ? C.leaveTxt : C.black }));
-    setCell(ws, r, 9,  dataCell(ap,         { align: "center", bold: true, altRow: isAlt }));
-    setCell(ws, r, 10, dataCell(pp,         { align: "center", altRow: isAlt }));
-    setCell(ws, r, 11, cell(gLbl, {
-      font: { bold: true, sz: 10, color: { rgb: gFg }, name: "Calibri" },
-      fill: fill(gBg),
-      alignment: { horizontal: "center", vertical: "center" },
-      border: allBorders(C.border),
-    }));
+    styleCell(worksheet.getCell(r, 1), { value: idx + 1, align: "center", altRow: isAlt });
+    styleCell(worksheet.getCell(r, 2), { value: t.name, align: "left", bold: true, altRow: isAlt });
+    styleCell(worksheet.getCell(r, 3), { value: t.email, align: "left", altRow: isAlt });
+    styleCell(worksheet.getCell(r, 4), { value: st.total, align: "center", altRow: isAlt });
+    
+    styleCell(worksheet.getCell(r, 5), { value: st.present, align: "center", bg: "FFD1FAE5", fg: "FF065F46", bold: true });
+    styleCell(worksheet.getCell(r, 6), { value: st.absent, align: "center", bg: st.absent > 0 ? "FFFEE2E2" : undefined, fg: st.absent > 0 ? "FF991B1B" : "FF0F172A", bold: st.absent > 0 });
+    styleCell(worksheet.getCell(r, 7), { value: st.late, align: "center", bg: st.late > 0 ? "FFFEF3C7" : undefined, fg: st.late > 0 ? "FF92400E" : "FF0F172A", bold: st.late > 0 });
+    styleCell(worksheet.getCell(r, 8), { value: st.half_day, align: "center", bg: st.half_day > 0 ? "FFDBEAFE" : undefined, fg: st.half_day > 0 ? "FF1E40AF" : "FF0F172A", bold: st.half_day > 0 });
+    styleCell(worksheet.getCell(r, 9), { value: st.leave, align: "center", bg: st.leave > 0 ? "FFEDE9FE" : undefined, fg: st.leave > 0 ? "FF4C1D95" : "FF0F172A", bold: st.leave > 0 });
+
+    styleCell(worksheet.getCell(r, 10), { value: ap, align: "center", bold: true, altRow: isAlt });
+    styleCell(worksheet.getCell(r, 11), { value: pp, align: "center", altRow: isAlt });
+    
+    // Grade
+    const cellGrade = worksheet.getCell(r, 12);
+    const gradeLabel = pn >= 90 ? "Excellent" : pn >= 75 ? "Good" : pn >= 60 ? "Average" : "Poor";
+    const gradeFg    = pn >= 90 ? "FF065F46" : pn >= 75 ? "FF92400E" : pn >= 60 ? "FF1E40AF" : "FF991B1B";
+    const gradeBg    = pn >= 90 ? "FFD1FAE5" : pn >= 75 ? "FFFEF3C7" : pn >= 60 ? "FFDBEAFE" : "FFFEE2E2";
+    styleCell(cellGrade, {
+      value: gradeLabel,
+      bold: true,
+      bg: gradeBg,
+      fg: gradeFg
+    });
+
     r++;
   });
 
-  // Grand totals footer
+  // Footer Grand totals
+  worksheet.getRow(r).height = 22;
   const grandPct  = pct(totPresent + totLate, totDays);
   const grandPpct = pct(totPresent, totDays);
-  const footerVals: (string | number)[] = [
-    "", "GRAND TOTAL", "", totDays, totPresent, totAbsent, totLate, totHalf, totLeave, grandPct, grandPpct, "",
+  const footerVals = [
+    "", "GRAND TOTAL", "", totDays, totPresent, totAbsent, totLate, totHalf, totLeave, grandPct, grandPpct, ""
   ];
+
   footerVals.forEach((v, i) => {
-    setCell(ws, r, i, cell(v, {
-      font: { bold: true, sz: 10, color: { rgb: C.white }, name: "Calibri" },
-      fill: fill(C.navy),
-      alignment: { horizontal: i === 1 ? "left" : "center", vertical: "center" },
-      border: allBorders(C.navyLight, "medium"),
-    }));
+    styleCell(worksheet.getCell(r, i + 1), {
+      value: v,
+      bold: true,
+      bg: "FF1E3A8A",
+      fg: "FFFFFFFF",
+      align: i === 1 ? "left" : "center",
+      sz: 10
+    });
   });
   r++;
 
-  // Footer note
-  for (let c = 0; c < 12; c++) setCell(ws, r, c, emptyCell(C.white));
-  mergeRange(ws, r, 0, r, 11);
+  // Spacer
+  worksheet.getRow(r).height = 10;
+  mergeAndStyle(worksheet, r, 1, r, COLS, "", {
+    fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } }
+  });
   r++;
 
-  const footNote = `${COLLEGE_NAME}  ·  This document is system-generated and is valid without a signature.`;
-  for (let c = 0; c < 12; c++) {
-    setCell(ws, r, c, cell(c === 0 ? footNote : "", {
-      font: { italic: true, sz: 9, color: { rgb: C.gray }, name: "Calibri" },
-      fill: fill(C.lightGray),
-      alignment: { horizontal: "left", vertical: "center" },
-    }));
-  }
-  mergeRange(ws, r, 0, r, 11);
-
-  setRowHeights(ws, { 0: 42, 1: 24, 2: 8 });
-  ws["!ref"] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r, c: 11 } });
-
-  return ws;
+  r = writeFootNote(worksheet, r, COLS);
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
-
-/**
- * Exports a full workbook:
- *  - Sheet 1: Summary of all teachers
- *  - Sheet 2+: One dedicated sheet per teacher with daily log
- */
-export function exportAllTeachersSummary(
+function buildMonthlyMatrixSheet(
+  worksheet: ExcelJS.Worksheet,
   records: AttendanceHistoryRecord[],
   teachers: Teacher[],
   month: number,
   year: number
 ) {
-  const period = monthName(month, year).replace(" ", "_");
-  const wb = XLSX.utils.book_new();
+  const periodLabel = monthName(month, year);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const FIXED_LEFT = 2; // #, Name
+  const FIXED_RIGHT = 7; // Present, Absent, Late, Half, Leave, Rate%, Grade
+  const COLS = FIXED_LEFT + daysInMonth + FIXED_RIGHT;
 
-  // Summary first
-  XLSX.utils.book_append_sheet(wb, buildSummarySheet(records, teachers, month, year), "Summary");
-
-  // One sheet per teacher
-  teachers.forEach(t => {
-    const tRecs  = records.filter(r => r.teacherId === t.id);
-    const email  = tRecs[0]?.teacherEmail ?? t.email;
-    // Sheet names max 31 chars
-    const sheetName = t.name.substring(0, 28).replace(/[\\/*?[\]]/g, "_");
-    XLSX.utils.book_append_sheet(wb, buildTeacherSheet(tRecs, t.name, email, month, year), sheetName);
+  worksheet.getColumn(1).width = 4;
+  worksheet.getColumn(2).width = 22;
+  for (let d = 1; d <= daysInMonth; d++) {
+    worksheet.getColumn(FIXED_LEFT + d).width = 4;
+  }
+  const rightWidths = [8, 7, 6, 6, 6, 8, 11];
+  rightWidths.forEach((w, i) => {
+    worksheet.getColumn(FIXED_LEFT + daysInMonth + i + 1).width = w;
   });
 
-  downloadWorkbook(wb, `All_Teachers_Attendance_${period}.xlsx`);
+  let r = 1;
+  r = writeBanner(worksheet, r, COLS, `ATTENDANCE REGISTER  ·  ${periodLabel}`);
+
+  const metas: [string, string][] = [
+    ["Report Period",  periodLabel],
+    ["Total Teachers", String(teachers.length)],
+    ["Generated On",   new Date().toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" })],
+    ["Prepared By",    `${COLLEGE_SHORT} Administration`],
+  ];
+  r = writeMeta(worksheet, r, COLS, metas);
+  r = writeLegend(worksheet, r, COLS);
+  r = writeSectionLabel(worksheet, r, COLS, "  MONTHLY ATTENDANCE REGISTER");
+
+  // Header row
+  worksheet.getRow(r).height = 28;
+  styleCell(worksheet.getCell(r, 1), { value: "#", bold: true, bg: "FF1E40AF", fg: "FFFFFFFF" });
+  styleCell(worksheet.getCell(r, 2), { value: "Teacher Name", bold: true, bg: "FF1E40AF", fg: "FFFFFFFF", align: "left" });
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const col = FIXED_LEFT + d;
+    const dayOfWeek = new Date(year, month - 1, d).toLocaleDateString("en-US", { weekday: "narrow" });
+    const isWeekend = [0, 6].includes(new Date(year, month - 1, d).getDay());
+    styleCell(worksheet.getCell(r, col), {
+      value: `${d}\n${dayOfWeek}`,
+      bold: true,
+      bg: isWeekend ? "FFF1F5F9" : "FF1E40AF",
+      fg: isWeekend ? "FF64748B" : "FFFFFFFF"
+    });
+  }
+
+  const rightHeaders = ["Present", "Absent", "Late", "Half\nDay", "Leave", "Att.\nRate %", "Grade"];
+  const rightBgs     = ["FFD1FAE5", "FFFEE2E2", "FFFEF3C7", "FFDBEAFE", "FFEDE9FE", "FF1E3A8A", "FFDBEAFE"];
+  const rightFgs     = ["FF065F46", "FF991B1B", "FF92400E", "FF1E40AF", "FF4C1D95", "FFFFFFFF", "FF1E3A8A"];
+  rightHeaders.forEach((h, i) => {
+    const col = FIXED_LEFT + daysInMonth + i + 1;
+    styleCell(worksheet.getCell(r, col), {
+      value: h,
+      bold: true,
+      bg: rightBgs[i],
+      fg: rightFgs[i],
+      sz: 9
+    });
+  });
+  r++;
+
+  // Accumulate day totals
+  const dayTotals: Record<number, { present: number; absent: number; late: number; half_day: number; leave: number; total: number }> = {};
+  for (let d = 1; d <= daysInMonth; d++) dayTotals[d] = { present: 0, absent: 0, late: 0, half_day: 0, leave: 0, total: 0 };
+
+  teachers.forEach((t, idx) => {
+    worksheet.getRow(r).height = 20;
+    const isAlt = idx % 2 === 1;
+    const tRecs = records.filter(rec => rec.teacherId === t.id);
+
+    const dayStatusMap: Record<number, string> = {};
+    tRecs.forEach(rec => {
+      const d = new Date(rec.date).getDate();
+      dayStatusMap[d] = rec.status;
+    });
+
+    styleCell(worksheet.getCell(r, 1), { value: idx + 1, align: "center", altRow: isAlt });
+    styleCell(worksheet.getCell(r, 2), { value: t.name, align: "left", bold: true, altRow: isAlt });
+
+    let present = 0, absent = 0, late = 0, half_day = 0, leave = 0;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const col = FIXED_LEFT + d;
+      const status = dayStatusMap[d];
+      const isWeekend = [0, 6].includes(new Date(year, month - 1, d).getDay());
+
+      if (status) {
+        styleCell(worksheet.getCell(r, col), {
+          value: STATUS_SHORT[status] ?? "?",
+          bold: true,
+          bg: STATUS_FILL[status] ?? "FFFFFFFF",
+          fg: STATUS_TXT[status] ?? "FF64748B",
+          sz: 9
+        });
+        
+        if (status === "present") { present++; dayTotals[d].present++; }
+        else if (status === "absent") { absent++; dayTotals[d].absent++; }
+        else if (status === "late") { late++; dayTotals[d].late++; }
+        else if (status === "half_day") { half_day++; dayTotals[d].half_day++; }
+        else if (status === "leave") { leave++; dayTotals[d].leave++; }
+        dayTotals[d].total++;
+      } else if (isWeekend) {
+        styleCell(worksheet.getCell(r, col), { value: "—", bold: true, bg: "FFF1F5F9", fg: "FF64748B", sz: 9 });
+      } else {
+        styleCell(worksheet.getCell(r, col), { bg: "FFF8FAFC" });
+      }
+    }
+
+    const total = present + absent + late + half_day + leave;
+    const attPct = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
+    const rightCols = FIXED_LEFT + daysInMonth + 1;
+
+    styleCell(worksheet.getCell(r, rightCols + 0), { value: present, bg: "FFD1FAE5", fg: "FF065F46", bold: true });
+    styleCell(worksheet.getCell(r, rightCols + 1), { value: absent, bg: absent > 0 ? "FFFEE2E2" : undefined, fg: absent > 0 ? "FF991B1B" : "FF0F172A", bold: absent > 0 });
+    styleCell(worksheet.getCell(r, rightCols + 2), { value: late, bg: late > 0 ? "FFFEF3C7" : undefined, fg: late > 0 ? "FF92400E" : "FF0F172A", bold: late > 0 });
+    styleCell(worksheet.getCell(r, rightCols + 3), { value: half_day, bg: half_day > 0 ? "FFDBEAFE" : undefined, fg: half_day > 0 ? "FF1E40AF" : "FF0F172A", bold: half_day > 0 });
+    styleCell(worksheet.getCell(r, rightCols + 4), { value: leave, bg: leave > 0 ? "FFEDE9FE" : undefined, fg: leave > 0 ? "FF4C1D95" : "FF0F172A", bold: leave > 0 });
+
+    const attPctStr = `${attPct}%`;
+    const attBg = attPct >= 90 ? "FFD1FAE5" : attPct >= 75 ? "FFFEF3C7" : "FFFEE2E2";
+    const attFg = attPct >= 90 ? "FF065F46" : attPct >= 75 ? "FF92400E" : "FF991B1B";
+    styleCell(worksheet.getCell(r, rightCols + 5), { value: attPctStr, bold: true, bg: attBg, fg: attFg });
+    
+    // Grade
+    const cellGrade = worksheet.getCell(r, rightCols + 6);
+    const gradeLabel = attPct >= 90 ? "Excellent" : attPct >= 75 ? "Good" : attPct >= 60 ? "Average" : "Poor";
+    const gradeFg    = attPct >= 90 ? "FF065F46" : attPct >= 75 ? "FF92400E" : attPct >= 60 ? "FF1E40AF" : "FF991B1B";
+    const gradeBg    = attPct >= 90 ? "FFD1FAE5" : attPct >= 75 ? "FFFEF3C7" : attPct >= 60 ? "FFDBEAFE" : "FFFEE2E2";
+    styleCell(cellGrade, { value: gradeLabel, bold: true, bg: gradeBg, fg: gradeFg });
+
+    r++;
+  });
+
+  // Day totals footer row
+  worksheet.getRow(r).height = 24;
+  styleCell(worksheet.getCell(r, 1), { bg: "FF1E3A8A", fg: "FFFFFFFF" });
+  styleCell(worksheet.getCell(r, 2), { value: "Day Totals", bold: true, bg: "FF1E3A8A", fg: "FFFFFFFF", align: "left" });
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const col = FIXED_LEFT + d;
+    const dt = dayTotals[d];
+    const dayPct = dt.total > 0 ? Math.round(((dt.present + dt.late) / dt.total) * 100) : 0;
+    const summary = dt.total > 0 ? `${dt.present + dt.late}/${dt.total}\n${dayPct}%` : "";
+    styleCell(worksheet.getCell(r, col), {
+      value: summary,
+      bold: true,
+      bg: "FF1E3A8A",
+      fg: "FFFFFFFF",
+      sz: 8
+    });
+  }
+
+  const totP = teachers.reduce((s, t) => s + buildStats(records.filter(r2 => r2.teacherId === t.id)).present, 0);
+  const totA = teachers.reduce((s, t) => s + buildStats(records.filter(r2 => r2.teacherId === t.id)).absent, 0);
+  const totL = teachers.reduce((s, t) => s + buildStats(records.filter(r2 => r2.teacherId === t.id)).late, 0);
+  const totH = teachers.reduce((s, t) => s + buildStats(records.filter(r2 => r2.teacherId === t.id)).half_day, 0);
+  const totLv = teachers.reduce((s, t) => s + buildStats(records.filter(r2 => r2.teacherId === t.id)).leave, 0);
+  const totAll = totP + totA + totL + totH + totLv;
+  const grandRate = totAll > 0 ? Math.round(((totP + totL) / totAll) * 100) : 0;
+  const rightCols = FIXED_LEFT + daysInMonth + 1;
+
+  [totP, totA, totL, totH, totLv, `${grandRate}%`, ""].forEach((v, i) => {
+    styleCell(worksheet.getCell(r, rightCols + i), {
+      value: v,
+      bold: true,
+      bg: "FF1E3A8A",
+      fg: "FFFFFFFF",
+      sz: 9
+    });
+  });
+  r++;
+
+  // Spacer
+  worksheet.getRow(r).height = 10;
+  mergeAndStyle(worksheet, r, 1, r, COLS, "", {
+    fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } }
+  });
+  r++;
+
+  r = writeFootNote(worksheet, r, COLS);
 }
 
-/**
- * Exports a single teacher report:
- *  - Sheet 1: Detailed daily log with stats dashboard
- */
-export function exportSingleTeacherReport(
+function buildMonthlySummarySheet(
+  worksheet: ExcelJS.Worksheet,
+  summaries: TeacherSummary[],
+  periodLabel: string
+) {
+  const COLS = 13;
+  const widths = [4, 24, 28, 11, 10, 10, 8, 8, 8, 12, 13, 12, 11];
+  widths.forEach((w, i) => {
+    worksheet.getColumn(i + 1).width = w;
+  });
+
+  let r = 1;
+  r = writeBanner(worksheet, r, COLS, `MONTHLY ATTENDANCE SUMMARY  ·  ${periodLabel}`);
+
+  const metas: [string, string][] = [
+    ["Report Period",  periodLabel],
+    ["Total Teachers", String(summaries.length)],
+    ["Generated On",   new Date().toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" })],
+    ["Prepared By",    `${COLLEGE_SHORT} Administration`],
+  ];
+  r = writeMeta(worksheet, r, COLS, metas);
+  r = writeSectionLabel(worksheet, r, COLS, "  TEACHER ATTENDANCE SUMMARY TABLE");
+
+  // Headers
+  worksheet.getRow(r).height = 26;
+  const headers = [
+    "#", "Teacher Name", "Email",
+    "Total\nDays", "Present", "Absent", "Late", "Half\nDay", "Leave",
+    "Attendance\nRate %", "Punctuality\nRate %", "Hrs\nWorked", "Grade",
+  ];
+  headers.forEach((h, i) => {
+    styleCell(worksheet.getCell(r, i + 1), {
+      value: h,
+      bold: true,
+      bg: "FF1E40AF",
+      fg: "FFFFFFFF",
+      sz: 10
+    });
+  });
+  r++;
+
+  let totDays = 0, totPresent = 0, totAbsent = 0, totLate = 0, totHalf = 0, totLeave = 0;
+
+  summaries.forEach((s, idx) => {
+    worksheet.getRow(r).height = 20;
+    const isAlt = idx % 2 === 1;
+    const pp = s.total > 0 ? `${Math.round((s.present / s.total) * 100)}%` : "0%";
+    const ap = `${s.presentRate}%`;
+
+    totDays    += s.total;
+    totPresent += s.present;
+    totAbsent  += s.absent;
+    totLate    += s.late;
+    totHalf    += s.half_day;
+    totLeave   += s.leave;
+
+    styleCell(worksheet.getCell(r, 1), { value: idx + 1, align: "center", altRow: isAlt });
+    styleCell(worksheet.getCell(r, 2), { value: s.teacherName, align: "left", bold: true, altRow: isAlt });
+    styleCell(worksheet.getCell(r, 3), { value: s.teacherEmail, align: "left", altRow: isAlt });
+    styleCell(worksheet.getCell(r, 4), { value: s.total, align: "center", altRow: isAlt });
+
+    styleCell(worksheet.getCell(r, 5), { value: s.present, align: "center", bg: "FFD1FAE5", fg: "FF065F46", bold: true });
+    styleCell(worksheet.getCell(r, 6), { value: s.absent, align: "center", bg: s.absent > 0 ? "FFFEE2E2" : undefined, fg: s.absent > 0 ? "FF991B1B" : "FF0F172A", bold: s.absent > 0 });
+    styleCell(worksheet.getCell(r, 7), { value: s.late, align: "center", bg: s.late > 0 ? "FFFEF3C7" : undefined, fg: s.late > 0 ? "FF92400E" : "FF0F172A", bold: s.late > 0 });
+    styleCell(worksheet.getCell(r, 8), { value: s.half_day, align: "center", bg: s.half_day > 0 ? "FFDBEAFE" : undefined, fg: s.half_day > 0 ? "FF1E40AF" : "FF0F172A", bold: s.half_day > 0 });
+    styleCell(worksheet.getCell(r, 9), { value: s.leave, align: "center", bg: s.leave > 0 ? "FFEDE9FE" : undefined, fg: s.leave > 0 ? "FF4C1D95" : "FF0F172A", bold: s.leave > 0 });
+
+    styleCell(worksheet.getCell(r, 10), {
+      value: ap,
+      bold: true,
+      bg: s.presentRate >= 90 ? "FFD1FAE5" : s.presentRate >= 75 ? "FFFEF3C7" : "FFFEE2E2",
+      fg: s.presentRate >= 90 ? "FF065F46" : s.presentRate >= 75 ? "FF92400E" : "FF991B1B",
+      sz: 11
+    });
+
+    styleCell(worksheet.getCell(r, 11), { value: pp, align: "center", altRow: isAlt });
+    styleCell(worksheet.getCell(r, 12), { value: `${s.formattedHours} hrs`, align: "center", bold: true, altRow: isAlt });
+    
+    // Grade cell
+    const cellGrade = worksheet.getCell(r, 13);
+    const gradeLabel = s.presentRate >= 90 ? "Excellent" : s.presentRate >= 75 ? "Good" : s.presentRate >= 60 ? "Average" : "Poor";
+    const gradeFg    = s.presentRate >= 90 ? "FF065F46" : s.presentRate >= 75 ? "FF92400E" : s.presentRate >= 60 ? "FF1E40AF" : "FF991B1B";
+    const gradeBg    = s.presentRate >= 90 ? "FFD1FAE5" : s.presentRate >= 75 ? "FFFEF3C7" : s.presentRate >= 60 ? "FFDBEAFE" : "FFFEE2E2";
+    styleCell(cellGrade, { value: gradeLabel, bold: true, bg: gradeBg, fg: gradeFg });
+
+    r++;
+  });
+
+  const grandRate  = totDays > 0 ? `${Math.round(((totPresent + totLate) / totDays) * 100)}%` : "0%";
+  const grandPunct = totDays > 0 ? `${Math.round((totPresent / totDays) * 100)}%` : "0%";
+  const footerVals = [
+    "", "GRAND TOTAL", "", totDays, totPresent, totAbsent, totLate, totHalf, totLeave, grandRate, grandPunct, "", ""
+  ];
+
+  footerVals.forEach((v, i) => {
+    styleCell(worksheet.getCell(r, i + 1), {
+      value: v,
+      bold: true,
+      bg: "FF1E3A8A",
+      fg: "FFFFFFFF",
+      align: i === 1 ? "left" : "center",
+      sz: 10
+    });
+  });
+  r++;
+
+  // Spacer
+  worksheet.getRow(r).height = 10;
+  mergeAndStyle(worksheet, r, 1, r, COLS, "", {
+    fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } }
+  });
+  r++;
+
+  r = writeFootNote(worksheet, r, COLS);
+}
+
+function buildRankingsSheet(
+  worksheet: ExcelJS.Worksheet,
+  summaries: TeacherSummary[],
+  periodLabel: string
+) {
+  const COLS = 13;
+  const widths = [6, 24, 28, 11, 9, 9, 7, 7, 7, 12, 12, 12, 11];
+  widths.forEach((w, i) => {
+    worksheet.getColumn(i + 1).width = w;
+  });
+
+  let r = 1;
+  r = writeBanner(worksheet, r, COLS, `ALL-TIME ATTENDANCE RANKINGS  ·  ${periodLabel}`);
+
+  const metas: [string, string][] = [
+    ["Report Period",  periodLabel],
+    ["Total Teachers", String(summaries.length)],
+    ["Generated On",   new Date().toLocaleString("en-US", { dateStyle: "full", timeStyle: "short" })],
+    ["Prepared By",    `${COLLEGE_SHORT} Administration`],
+  ];
+  r = writeMeta(worksheet, r, COLS, metas);
+  r = writeSectionLabel(worksheet, r, COLS, "  ATTENDANCE PERFORMANCE LEADERBOARD");
+
+  // Headers
+  worksheet.getRow(r).height = 26;
+  const headers = [
+    "Rank", "Teacher Name", "Email",
+    "Total\nDays", "Present", "Absent", "Late", "Half\nDay", "Leave",
+    "Attendance\nRate %", "Avg\nCheck-In", "Avg\nCheck-Out", "Grade",
+  ];
+  headers.forEach((h, i) => {
+    styleCell(worksheet.getCell(r, i + 1), {
+      value: h,
+      bold: true,
+      bg: "FF1E40AF",
+      fg: "FFFFFFFF",
+      sz: 10
+    });
+  });
+  r++;
+
+  summaries.forEach((s, idx) => {
+    worksheet.getRow(r).height = 22;
+    const rank = idx + 1;
+    const isMedal = rank <= 3;
+
+    let rowBg  = idx % 2 === 1 ? "FFF8FAFC" : "FFFFFFFF";
+    let rankBg = "FFEFF6FF";
+    let rankFg = "FF1E3A8A";
+    let rankLabel = `#${rank}`;
+
+    if (rank === 1) { rowBg = "FFFEF3C7"; rankBg = "FFD97706"; rankFg = "FFFFFFFF"; rankLabel = "🥇 #1"; }
+    if (rank === 2) { rowBg = "FFF1F5F9"; rankBg = "FF94A3B8"; rankFg = "FFFFFFFF"; rankLabel = "🥈 #2"; }
+    if (rank === 3) { rowBg = "FFFFEDD5"; rankBg = "FF9A3412"; rankFg = "FFFFFFFF"; rankLabel = "🥉 #3"; }
+
+    styleCell(worksheet.getCell(r, 1), {
+      value: rankLabel,
+      bold: true,
+      bg: rankBg,
+      fg: rankFg,
+      sz: isMedal ? 11 : 10,
+      borderStyle: isMedal ? "medium" : "thin"
+    });
+
+    styleCell(worksheet.getCell(r, 2),  { value: s.teacherName,  align: "left", bold: isMedal, bg: rowBg });
+    styleCell(worksheet.getCell(r, 3),  { value: s.teacherEmail, align: "left", bg: rowBg });
+    styleCell(worksheet.getCell(r, 4),  { value: s.total,        align: "center", bg: rowBg });
+    
+    styleCell(worksheet.getCell(r, 5),  { value: s.present,      align: "center", bg: "FFD1FAE5", fg: "FF065F46", bold: true });
+    styleCell(worksheet.getCell(r, 6),  { value: s.absent,       align: "center", bg: s.absent > 0 ? "FFFEE2E2" : rowBg, fg: s.absent > 0 ? "FF991B1B" : "FF0F172A", bold: s.absent > 0 });
+    styleCell(worksheet.getCell(r, 7),  { value: s.late,         align: "center", bg: s.late > 0 ? "FFFEF3C7" : rowBg, fg: s.late > 0 ? "FF92400E" : "FF0F172A", bold: s.late > 0 });
+    styleCell(worksheet.getCell(r, 8),  { value: s.half_day,     align: "center", bg: s.half_day > 0 ? "FFDBEAFE" : rowBg, fg: s.half_day > 0 ? "FF1E40AF" : "FF0F172A", bold: s.half_day > 0 });
+    styleCell(worksheet.getCell(r, 9),  { value: s.leave,        align: "center", bg: s.leave > 0 ? "FFEDE9FE" : rowBg, fg: s.leave > 0 ? "FF4C1D95" : "FF0F172A", bold: s.leave > 0 });
+
+    styleCell(worksheet.getCell(r, 10), {
+      value: `${s.presentRate}%`,
+      bold: true,
+      bg: s.presentRate >= 90 ? "FFD1FAE5" : s.presentRate >= 75 ? "FFFEF3C7" : "FFFEE2E2",
+      fg: s.presentRate >= 90 ? "FF065F46" : s.presentRate >= 75 ? "FF92400E" : "FF991B1B",
+      sz: isMedal ? 12 : 10,
+      borderStyle: isMedal ? "medium" : "thin"
+    });
+
+    styleCell(worksheet.getCell(r, 11), { value: s.avgCheckIn,  align: "center", bg: rowBg });
+    styleCell(worksheet.getCell(r, 12), { value: s.avgCheckOut, align: "center", bg: rowBg });
+    
+    // Grade
+    const cellGrade = worksheet.getCell(r, 13);
+    const gradeLabel = s.presentRate >= 90 ? "Excellent" : s.presentRate >= 75 ? "Good" : s.presentRate >= 60 ? "Average" : "Poor";
+    const gradeFg    = s.presentRate >= 90 ? "FF065F46" : s.presentRate >= 75 ? "FF92400E" : s.presentRate >= 60 ? "FF1E40AF" : "FF991B1B";
+    const gradeBg    = s.presentRate >= 90 ? "FFD1FAE5" : s.presentRate >= 75 ? "FFFEF3C7" : s.presentRate >= 60 ? "FFDBEAFE" : "FFFEE2E2";
+    styleCell(cellGrade, { value: gradeLabel, bold: true, bg: gradeBg, fg: gradeFg });
+
+    r++;
+  });
+
+  // Spacer
+  worksheet.getRow(r).height = 10;
+  mergeAndStyle(worksheet, r, 1, r, COLS, "", {
+    fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFFF" } }
+  });
+  r++;
+
+  r = writeFootNote(worksheet, r, COLS);
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+export async function exportAllTeachersSummary(
+  records: AttendanceHistoryRecord[],
+  teachers: Teacher[],
+  month: number,
+  year: number,
+  rangeLabel?: string
+) {
+  const period = rangeLabel ?? monthName(month, year);
+  const fileTag = period.replace(/\s+/g, "_");
+  const workbook = new ExcelJS.Workbook();
+
+  // 1. Summary sheet
+  const summarySheet = workbook.addWorksheet("Summary");
+  buildSummarySheet(summarySheet, records, teachers, period);
+
+  // 2. Individual sheets
+  teachers.forEach(t => {
+    const tRecs = records.filter(r => r.teacherId === t.id);
+    const email = tRecs[0]?.teacherEmail ?? t.email;
+    const sheetName = t.name.substring(0, 28).replace(/[\\/*?[\]]/g, "_");
+    const teacherSheet = workbook.addWorksheet(sheetName);
+    buildTeacherSheet(teacherSheet, tRecs, t.name, email, period);
+  });
+
+  await saveWorkbook(workbook, `Daily_Log_Report_${fileTag}.xlsx`);
+}
+
+export async function exportSingleTeacherReport(
   teacherRecords: AttendanceHistoryRecord[],
   teacherName: string,
   teacherEmail: string,
   month: number,
-  year: number
+  year: number,
+  rangeLabel?: string
 ) {
-  const period    = monthName(month, year).replace(" ", "_");
-  const safeName  = teacherName.replace(/[^a-zA-Z0-9 ]/g, "").trim().replace(/ /g, "_");
-  const wb        = XLSX.utils.book_new();
+  const period   = rangeLabel ?? monthName(month, year);
+  const fileTag  = period.replace(/\s+/g, "_");
+  const safeName = teacherName.replace(/[^a-zA-Z0-9 ]/g, "").trim().replace(/ /g, "_");
+  const workbook = new ExcelJS.Workbook();
   const sheetName = teacherName.substring(0, 28).replace(/[\\/*?[\]]/g, "_");
 
-  XLSX.utils.book_append_sheet(
-    wb,
-    buildTeacherSheet(teacherRecords, teacherName, teacherEmail, month, year),
-    sheetName
-  );
+  const teacherSheet = workbook.addWorksheet(sheetName);
+  buildTeacherSheet(teacherSheet, teacherRecords, teacherName, teacherEmail, period);
 
-  downloadWorkbook(wb, `${safeName}_Attendance_${period}.xlsx`);
+  await saveWorkbook(workbook, `${safeName}_Attendance_${fileTag}.xlsx`);
+}
+
+export async function exportMonthlyMatrix(
+  records: AttendanceHistoryRecord[],
+  teachers: Teacher[],
+  month: number,
+  year: number
+) {
+  const period  = monthName(month, year);
+  const fileTag = period.replace(/\s+/g, "_");
+  const workbook = new ExcelJS.Workbook();
+
+  const registerSheet = workbook.addWorksheet("Attendance Register");
+  buildMonthlyMatrixSheet(registerSheet, records, teachers, month, year);
+
+  await saveWorkbook(workbook, `Attendance_Register_${fileTag}.xlsx`);
+}
+
+export async function exportMonthlySummaryReport(
+  summaries: TeacherSummary[],
+  month: number,
+  year: number,
+  rangeLabel?: string
+) {
+  const period  = rangeLabel ?? monthName(month, year);
+  const fileTag = period.replace(/\s+/g, "_");
+  const workbook = new ExcelJS.Workbook();
+
+  const summarySheet = workbook.addWorksheet("Monthly Summary");
+  buildMonthlySummarySheet(summarySheet, summaries, period);
+
+  await saveWorkbook(workbook, `Monthly_Summary_${fileTag}.xlsx`);
+}
+
+export async function exportAllTimeRankings(
+  summaries: TeacherSummary[],
+  rangeLabel?: string
+) {
+  const period  = rangeLabel ?? new Date().getFullYear().toString();
+  const fileTag = period.replace(/\s+/g, "_");
+  const workbook = new ExcelJS.Workbook();
+
+  const rankingsSheet = workbook.addWorksheet("Rankings");
+  buildRankingsSheet(rankingsSheet, summaries, period);
+
+  await saveWorkbook(workbook, `Attendance_Rankings_${fileTag}.xlsx`);
 }
