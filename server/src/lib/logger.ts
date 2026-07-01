@@ -16,6 +16,17 @@ export const logger = winston.createLogger({
   format: logFormat,
   defaultMeta: { service: "api-server" },
   transports: [
+    new winston.transports.Console({
+      format: process.env.NODE_ENV === "production"
+        ? winston.format.combine(
+            winston.format.timestamp(),
+            winston.format.json()
+          )
+        : winston.format.combine(
+            winston.format.colorize(),
+            winston.format.simple()
+          )
+    }),
     // Error logs
     new winston.transports.DailyRotateFile({
       filename: "logs/error-%DATE%.log",
@@ -35,15 +46,3 @@ export const logger = winston.createLogger({
     }),
   ],
 });
-
-// Console output for development
-if (process.env.NODE_ENV !== "production") {
-  logger.add(
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      ),
-    })
-  );
-}
