@@ -30,7 +30,7 @@ import {
 import { 
   Loader2, Plus, GripVertical, Pencil, Trash2, Video, FileText, Save, X,
   Layout, ClipboardList, Calendar, Clock, HelpCircle, Youtube, Edit, Eye, EyeOff,
-  ExternalLink, Link2, ArrowLeft
+  ExternalLink, Link2, ArrowLeft, Upload, Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1642,14 +1642,102 @@ export default function TeacherCourseBuilder() {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <Label className="text-lg font-bold">Questions</Label>
-                <Button variant="outline" size="sm" onClick={() => {
-                  setQuizData({
-                    ...quizData,
-                    questions: [...quizData.questions, { question: "", options: ["", "", "", ""], correctOption: 0, marks: 1 }]
-                  });
-                }}>
-                  <Plus className="h-4 w-4 mr-2" /> Add Question
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => {
+                    const headers = ["Question", "Option A", "Option B", "Option C", "Option D", "Correct Option (A/B/C/D)", "Marks"];
+                    const sample = ["What is the capital of France?", "London", "Paris", "Berlin", "Rome", "B", "1"];
+                    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), sample.join(",")].join("\n");
+                    const encodedUri = encodeURI(csvContent);
+                    const link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", "quiz_mcq_template.csv");
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }} className="h-8 rounded-lg text-xs font-bold">
+                    <Download className="h-3.5 w-3.5 mr-1.5 text-slate-500" /> Template
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = ".csv";
+                    input.onchange = (e: any) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (evt: any) => {
+                        try {
+                          const text = evt.target.result;
+                          const lines = text.split("\n").filter((l: string) => l.trim());
+                          const startIndex = lines[0].toLowerCase().includes("question") ? 1 : 0;
+                          const importedQuestions: any[] = [];
+                          for (let i = startIndex; i < lines.length; i++) {
+                            const parts: string[] = [];
+                            let current = "";
+                            let inQuotes = false;
+                            const line = lines[i];
+                            for (let j = 0; j < line.length; j++) {
+                              const char = line[j];
+                              if (char === '"') {
+                                inQuotes = !inQuotes;
+                              } else if (char === ',' && !inQuotes) {
+                                parts.push(current.trim());
+                                current = "";
+                              } else {
+                                current += char;
+                              }
+                            }
+                            parts.push(current.trim());
+                            
+                            if (parts.length >= 6) {
+                              const question = parts[0].replace(/^"|"$/g, "");
+                              const options = [
+                                parts[1].replace(/^"|"$/g, ""),
+                                parts[2].replace(/^"|"$/g, ""),
+                                parts[3].replace(/^"|"$/g, ""),
+                                parts[4].replace(/^"|"$/g, "")
+                              ];
+                              
+                              let correctOption = 0;
+                              const correctStr = parts[5].trim().toUpperCase();
+                              if (correctStr === "A" || correctStr === "0") correctOption = 0;
+                              else if (correctStr === "B" || correctStr === "1") correctOption = 1;
+                              else if (correctStr === "C" || correctStr === "2") correctOption = 2;
+                              else if (correctStr === "D" || correctStr === "3") correctOption = 3;
+                              
+                              const marks = Number(parts[6]) || 1;
+                              importedQuestions.push({ question, options, correctOption, marks });
+                            }
+                          }
+                          
+                          if (importedQuestions.length > 0) {
+                            setQuizData((prev: any) => ({
+                              ...prev,
+                              questions: [...prev.questions, ...importedQuestions]
+                            }));
+                            toast({ title: `Successfully imported ${importedQuestions.length} questions! 🎓` });
+                          } else {
+                            throw new Error("No valid question rows found in CSV");
+                          }
+                        } catch (err: any) {
+                          toast({ title: "CSV Parse Failed", description: err.message, variant: "destructive" });
+                        }
+                      };
+                      reader.readAsText(file);
+                    };
+                    input.click();
+                  }} className="h-8 rounded-lg text-xs font-bold">
+                    <Upload className="h-3.5 w-3.5 mr-1.5 text-indigo-650" /> Import CSV
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => {
+                    setQuizData((prev: any) => ({
+                      ...prev,
+                      questions: [...prev.questions, { question: "", options: ["", "", "", ""], correctOption: 0, marks: 1 }]
+                    }));
+                  }} className="h-8 rounded-lg text-xs font-bold">
+                    <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Question
+                  </Button>
+                </div>
               </div>
 
               {quizData.questions.map((q, qIndex) => (
