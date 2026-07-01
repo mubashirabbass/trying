@@ -23,6 +23,7 @@ COPY --from=build /app/server/package.json ./server/
 COPY --from=build /app/shared ./shared
 COPY --from=build /app/db/dist ./db/dist
 COPY --from=build /app/db/package.json ./db/
+COPY --from=build /app/server/uploads ./uploads
 
 # Copy built client to be served by server
 COPY --from=build /app/client/dist ./client/dist
