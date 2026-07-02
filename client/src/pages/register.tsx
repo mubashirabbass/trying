@@ -528,8 +528,8 @@ export default function Register() {
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
-                          if (file.size > 50 * 1024) {
-                            toast({ title: "Image too large. Maximum size is 50 KB.", variant: "destructive" });
+                          if (file.size > 2 * 1024 * 1024) {
+                            toast({ title: "Image too large. Maximum size is 2 MB.", variant: "destructive" });
                             e.target.value = "";
                             return;
                           }
@@ -834,8 +834,8 @@ export default function Register() {
                         required
                         onChange={(e) => {
                           const file = e.target.files?.[0] || null;
-                          if (file && file.size > 50 * 1024) {
-                            toast({ title: "Identity Document too large. Maximum size is 50 KB.", variant: "destructive" });
+                          if (file && file.size > 2 * 1024 * 1024) {
+                            toast({ title: "Identity Document too large. Maximum size is 2 MB.", variant: "destructive" });
                             e.target.value = "";
                             setCnicFile(null);
                             return;
@@ -845,7 +845,7 @@ export default function Register() {
                         className="pl-10 h-12 pt-3 bg-slate-50 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 file:border-0 file:bg-transparent file:text-sm file:font-medium"
                       />
                     </div>
-                    <p className="text-[10px] text-slate-400 font-medium mt-1 pl-1">JPEG, PNG, WebP or GIF · Max 50 KB</p>
+                    <p className="text-[10px] text-slate-400 font-medium mt-1 pl-1">JPEG, PNG, WebP or GIF · Max 2 MB</p>
                   </div>
 
                   <div className="border-t border-slate-100 my-4 pt-4">
@@ -936,8 +936,8 @@ export default function Register() {
                             required
                             onChange={(e) => {
                               const file = e.target.files?.[0] || null;
-                              if (file && file.size > 50 * 1024) {
-                                toast({ title: "Education Document too large. Maximum size is 50 KB.", variant: "destructive" });
+                              if (file && file.size > 5 * 1024 * 1024) {
+                                toast({ title: "Education Document too large. Maximum size is 5 MB.", variant: "destructive" });
                                 e.target.value = "";
                                 setEducationFile(null);
                                 return;
@@ -946,7 +946,7 @@ export default function Register() {
                             }}
                             className="h-12 pt-3 bg-white border-slate-200 rounded-xl file:border-0 file:bg-transparent file:text-sm file:font-medium"
                           />
-                          <p className="text-[10px] text-slate-400 font-medium mt-1 pl-1">JPEG, PNG, WebP, GIF or PDF · Max 50 KB</p>
+                          <p className="text-[10px] text-slate-400 font-medium mt-1 pl-1">JPEG, PNG, WebP, GIF or PDF · Max 5 MB</p>
                         </div>
                       </div>
                     )}

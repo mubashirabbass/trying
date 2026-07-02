@@ -32,5 +32,10 @@ COPY --from=build /app/client/dist ./client/dist
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN corepack enable && pnpm install --prod --frozen-lockfile --filter @workspace/api-server --filter @workspace/db
 
+# Create uploads folders and change ownership of entire app directory to user 1000 (non-root)
+RUN mkdir -p /app/uploads/images /app/uploads/pdfs && chown -R 1000:1000 /app
+
+USER 1000
+
 EXPOSE 7860
 CMD ["node", "server/dist/index.mjs"]
